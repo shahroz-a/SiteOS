@@ -23,6 +23,7 @@ _Replace the heading above with the project's name, and this line with one sente
 ## Where things live
 
 - DB schema (source of truth): `lib/db/src/schema/*.ts` (enums, taxonomy, pages, content, media, structured, seo, links, crawl) re-exported via `lib/db/src/schema/index.ts`. DB client: `lib/db/src/index.ts`.
+- Blog SEO tag logic (source of truth): `lib/blog-seo/src/index.ts` — `buildSeoTagList` plus `renderSeoTags` (static HTML) and `applySeoTags` (live DOM). Imported by BOTH the prerender path (`scripts/src/prerender/seo.ts`) and the runtime hook (`artifacts/blog/src/hooks/use-seo.ts`) so crawler-visible and JS-rendered head tags can't drift. Parity is enforced by `scripts/src/prerender/__tests__/seo-parity.test.ts`. Never reimplement tag logic in the hook or prerender helper — edit the lib.
 - API contract (source of truth): `lib/api-spec/openapi.yaml`. Generated zod → `@workspace/api-zod`; generated React Query hooks → `@workspace/api-client-react`. Regenerate with `pnpm --filter @workspace/api-spec run codegen`.
 - API server routes: `artifacts/api-server/src/routes/` (posts, categories, authors, search, health). Shared post serializers/list logic: `artifacts/api-server/src/lib/posts.ts`.
 - Seed fixtures: `scripts/src/seed.ts` (run `pnpm --filter @workspace/scripts run seed`).

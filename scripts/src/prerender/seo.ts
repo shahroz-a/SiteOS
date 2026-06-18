@@ -1,124 +1,39 @@
 /**
- * Pure helpers for prerendering the blog's per-route `<head>` metadata into the
- * static HTML produced by `vite build`. These mirror the client-side `useSeo`
- * hook (`artifacts/blog/src/hooks/use-seo.ts`) exactly so that crawlers which do
- * not execute JavaScript receive the same title / description / canonical / Open
- * Graph / Twitter / JSON-LD tags the React app would set at runtime.
+ * Prerender-only helpers for injecting per-route `<head>` metadata into the
+ * static HTML produced by `vite build`.
  *
- * Kept side-effect free (no DB, no fs) so the tag generation and HTML injection
- * can be unit tested in isolation.
+ * The actual tag-building logic (title / description / canonical / Open Graph /
+ * Twitter / JSON-LD, including all fallback rules) lives in the shared
+ * `@workspace/blog-seo` lib, which is the single source of truth used by BOTH
+ * this prerender path and the client-side `useSeo` hook. This file only adds
+ * the bits that are specific to writing static files: stripping the template's
+ * default tags, choosing output paths, and slug safety.
+ *
+ * Kept side-effect free (no DB, no fs) so the HTML injection can be unit tested
+ * in isolation.
  */
 
-export interface SeoTags {
-  title: string;
-  description?: string | null;
-  canonicalUrl?: string | null;
-  ogTitle?: string | null;
-  ogDescription?: string | null;
-  ogImage?: string | null;
-  ogType?: string;
-  twitterCard?: string | null;
-  jsonLd?: unknown[];
-}
+import { renderSeoTags, type SeoTags } from "@workspace/blog-seo";
 
-/** Escape a value for use inside a double-quoted HTML attribute. */
-export function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-/** Escape text content for an HTML element (e.g. <title>). */
-export function escapeText(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-/**
- * Serialize a JSON-LD block safely for inlining in a <script> tag. `<` is
- * escaped so a value can never close the script element early.
- */
-function serializeJsonLd(block: unknown): string {
-  return JSON.stringify(block).replace(/</g, "\\u003c");
-}
-
-/**
- * Render the head tags for a route as an HTML string, mirroring the order and
- * fallback logic of the `useSeo` hook. A meta tag is only emitted when its
- * content is truthy (matching `setMetaBy*`, which bail on empty content).
- */
-export function renderSeoTags(tags: SeoTags): string {
-  const {
-    title,
-    description,
-    canonicalUrl,
-    ogTitle,
-    ogDescription,
-    ogImage,
-    ogType = "website",
-    twitterCard = "summary_large_image",
-    jsonLd,
-  } = tags;
-
-  const lines: string[] = [];
-  lines.push(`<title>${escapeText(title)}</title>`);
-
-  if (description) {
-    lines.push(`<meta name="description" content="${escapeAttr(description)}" />`);
-  }
-  if (canonicalUrl) {
-    lines.push(`<link rel="canonical" href="${escapeAttr(canonicalUrl)}" />`);
-  }
-
-  const resolvedOgTitle = ogTitle ?? title;
-  const resolvedOgDescription = ogDescription ?? description;
-
-  lines.push(
-    `<meta property="og:title" content="${escapeAttr(resolvedOgTitle)}" />`,
-  );
-  if (resolvedOgDescription) {
-    lines.push(
-      `<meta property="og:description" content="${escapeAttr(resolvedOgDescription)}" />`,
-    );
-  }
-  lines.push(`<meta property="og:type" content="${escapeAttr(ogType)}" />`);
-  if (canonicalUrl) {
-    lines.push(`<meta property="og:url" content="${escapeAttr(canonicalUrl)}" />`);
-  }
-  if (ogImage) {
-    lines.push(`<meta property="og:image" content="${escapeAttr(ogImage)}" />`);
-  }
-
-  if (twitterCard) {
-    lines.push(`<meta name="twitter:card" content="${escapeAttr(twitterCard)}" />`);
-  }
-  lines.push(
-    `<meta name="twitter:title" content="${escapeAttr(resolvedOgTitle)}" />`,
-  );
-  if (resolvedOgDescription) {
-    lines.push(
-      `<meta name="twitter:description" content="${escapeAttr(resolvedOgDescription)}" />`,
-    );
-  }
-  if (ogImage) {
-    lines.push(`<meta name="twitter:image" content="${escapeAttr(ogImage)}" />`);
-  }
-
-  if (jsonLd && jsonLd.length > 0) {
-    for (const block of jsonLd) {
-      lines.push(
-        `<script type="application/ld+json">${serializeJsonLd(block)}</script>`,
-      );
-    }
-  }
-
-  return lines.join("\n    ");
-}
+export {
+  renderSeoTags,
+  escapeAttr,
+  escapeText,
+  buildSeoTagList,
+  applySeoTags,
+  indexSeo,
+  searchSeo,
+  categorySeo,
+  authorSeo,
+  articleSeo,
+} from "@workspace/blog-seo";
+export type {
+  SeoTags,
+  SeoTagSpec,
+  ArticleSeoInput,
+  SeoDocument,
+  SeoElement,
+} from "@workspace/blog-seo";
 
 const TITLE_RE = /<title>[\s\S]*?<\/title>\s*/i;
 const DESCRIPTION_RE = /<meta\s+name="description"[^>]*>\s*/gi;
@@ -181,76 +96,4 @@ export function outputPathsFor(
     case "author":
       return [`author/${slug}.html`, `author/${slug}/index.html`];
   }
-}
-
-const SITE_DESCRIPTION =
-  "Travel inspiration, family destination guides, and holiday ideas from the Headout Blog.";
-
-/** Index (`/blog/`) SEO — mirrors `pages/Index.tsx`. */
-export function indexSeo(): SeoTags {
-  return {
-    title: "Headout Blog — Travel inspiration & destination guides",
-    description: SITE_DESCRIPTION,
-  };
-}
-
-/** Search shell (`/blog/search`) SEO — mirrors `pages/Search.tsx` with no query. */
-export function searchSeo(): SeoTags {
-  return {
-    title: "Search | Headout Blog",
-    description: "Search travel guides and articles on the Headout Blog.",
-  };
-}
-
-/** Category (`/blog/category/<slug>`) SEO — mirrors `pages/Category.tsx`. */
-export function categorySeo(category: {
-  name: string;
-  description?: string | null;
-}): SeoTags {
-  return {
-    title: `${category.name} | Headout Blog`,
-    description: category.description,
-  };
-}
-
-/** Author (`/blog/author/<slug>`) SEO — mirrors `pages/Author.tsx`. */
-export function authorSeo(author: {
-  name: string;
-  bio?: string | null;
-}): SeoTags {
-  return {
-    title: `${author.name} | Headout Blog`,
-    description: author.bio,
-  };
-}
-
-export interface ArticleSeoInput {
-  title: string;
-  excerpt?: string | null;
-  canonicalUrl?: string | null;
-  featuredImageUrl?: string | null;
-  seo?: {
-    metaTitle?: string | null;
-    metaDescription?: string | null;
-    canonicalUrl?: string | null;
-    ogTitle?: string | null;
-    ogDescription?: string | null;
-    ogImage?: string | null;
-  } | null;
-  jsonLd?: unknown[];
-}
-
-/** Article (`/blog/<slug>`) SEO — mirrors `pages/Article.tsx`. */
-export function articleSeo(post: ArticleSeoInput): SeoTags {
-  const seo = post.seo ?? undefined;
-  return {
-    title: `${seo?.metaTitle ?? post.title} | Headout Blog`,
-    description: seo?.metaDescription ?? post.excerpt,
-    canonicalUrl: seo?.canonicalUrl ?? post.canonicalUrl,
-    ogTitle: seo?.ogTitle ?? post.title,
-    ogDescription: seo?.ogDescription ?? post.excerpt,
-    ogImage: seo?.ogImage ?? post.featuredImageUrl,
-    ogType: "article",
-    jsonLd: post.jsonLd,
-  };
 }

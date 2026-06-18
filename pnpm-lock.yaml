@@ -348,6 +348,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/blog-seo':
+        specifier: workspace:*
+        version: link:../../lib/blog-seo
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -814,6 +817,8 @@ importers:
         specifier: 'catalog:'
         version: 3.25.76
 
+  lib/blog-seo: {}
+
   lib/db:
     dependencies:
       drizzle-orm:
@@ -841,6 +846,9 @@ importers:
 
   scripts:
     dependencies:
+      '@workspace/blog-seo':
+        specifier: workspace:*
+        version: link:../lib/blog-seo
       '@workspace/db':
         specifier: workspace:*
         version: link:../lib/db
