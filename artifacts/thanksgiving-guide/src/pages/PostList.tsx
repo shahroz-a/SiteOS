@@ -135,6 +135,53 @@ export default function PostList() {
 
   const pagination = data?.pagination;
   const totalPages = pagination?.totalPages ?? 1;
+  const totalResults = pagination?.total ?? data?.items.length;
+
+  // Build the set of currently-applied filters as removable chips. Search and
+  // the category/author/tag filters are mutually exclusive (search ignores
+  // them), so we only surface whichever set is active.
+  const categoryName =
+    categories?.find((c) => c.slug === category)?.name ?? category;
+  const authorName = authors?.find((a) => a.slug === author)?.name ?? author;
+  const tagName = tags?.find((t) => t.slug === tag)?.name ?? tag;
+
+  const activeFilters: {
+    key: string;
+    prefix: string;
+    label: string;
+    onRemove: () => void;
+  }[] = [];
+  if (isSearching) {
+    if (query)
+      activeFilters.push({
+        key: "q",
+        prefix: "Search",
+        label: `“${query}”`,
+        onRemove: clearSearch,
+      });
+  } else {
+    if (category && categoryName)
+      activeFilters.push({
+        key: "category",
+        prefix: "Category",
+        label: categoryName,
+        onRemove: () => selectCategory(undefined),
+      });
+    if (author && authorName)
+      activeFilters.push({
+        key: "author",
+        prefix: "Writer",
+        label: authorName,
+        onRemove: () => selectAuthor(undefined),
+      });
+    if (tag && tagName)
+      activeFilters.push({
+        key: "tag",
+        prefix: "Tag",
+        label: tagName,
+        onRemove: () => selectTag(undefined),
+      });
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">
@@ -286,12 +333,20 @@ export default function PostList() {
 
         {!isLoading && !isError && data && (
           <>
-            {isSearching && data.items.length > 0 && (
-              <p className="text-sm text-muted-foreground mb-8">
-                {pagination?.total ?? data.items.length} result
-                {(pagination?.total ?? data.items.length) === 1 ? "" : "s"} for
-                <span className="text-foreground font-medium"> “{query}”</span>
-              </p>
+            {activeFilters.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mb-8">
+                <span className="text-sm text-muted-foreground mr-1">
+                  {totalResults} result{totalResults === 1 ? "" : "s"} for
+                </span>
+                {activeFilters.map((f) => (
+                  <ActiveFilterChip
+                    key={f.key}
+                    prefix={f.prefix}
+                    label={f.label}
+                    onRemove={f.onRemove}
+                  />
+                ))}
+              </div>
             )}
 
             {data.items.length === 0 ? (
@@ -346,6 +401,31 @@ export default function PostList() {
 
       <Footer />
     </div>
+  );
+}
+
+function ActiveFilterChip({
+  prefix,
+  label,
+  onRemove,
+}: {
+  prefix: string;
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm font-medium pl-3 pr-1.5 py-1 rounded-full bg-secondary text-secondary-foreground">
+      <span className="text-muted-foreground font-normal">{prefix}:</span>
+      <span>{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${prefix} filter`}
+        className="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </span>
   );
 }
 
