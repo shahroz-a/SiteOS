@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "g8qsTO6lkgQevxCea6Buy"
+uri = "file://artifacts/blog/public/og-default.png"
+type = "image"
+title = "blog og card"

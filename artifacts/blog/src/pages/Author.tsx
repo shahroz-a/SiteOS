@@ -7,7 +7,7 @@ import { Pagination } from "@/components/Pagination";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateViews";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useSeo } from "@/hooks/use-seo";
-import { authorPath } from "@/lib/blog";
+import { authorPath, defaultOgImage } from "@/lib/blog";
 
 const PAGE_SIZE = 9;
 
@@ -28,6 +28,7 @@ export default function Author() {
   useSeo({
     title: author ? `${author.name} | Headout Blog` : "Author | Headout Blog",
     description: author?.bio,
+    ogImage: defaultOgImage(),
   });
 
   const items = data?.items ?? [];

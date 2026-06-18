@@ -11,7 +11,7 @@ import { PostCard } from "@/components/PostCard";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateViews";
 import { useSeo } from "@/hooks/use-seo";
-import { searchPath } from "@/lib/blog";
+import { searchPath, defaultOgImage } from "@/lib/blog";
 
 const PAGE_SIZE = 9;
 
@@ -37,6 +37,7 @@ export default function Search() {
   useSeo({
     title: q ? `Search: ${q} | Headout Blog` : "Search | Headout Blog",
     description: "Search travel guides and articles on the Headout Blog.",
+    ogImage: defaultOgImage(),
   });
 
   const submit = (e: React.FormEvent) => {

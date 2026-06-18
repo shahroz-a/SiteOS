@@ -9,7 +9,7 @@ import { PostCard } from "@/components/PostCard";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateViews";
 import { useSeo } from "@/hooks/use-seo";
-import { categoryPath } from "@/lib/blog";
+import { categoryPath, defaultOgImage } from "@/lib/blog";
 
 const PAGE_SIZE = 9;
 
@@ -32,6 +32,7 @@ export default function Category() {
       ? `${category.name} | Headout Blog`
       : "Category | Headout Blog",
     description: category?.description,
+    ogImage: defaultOgImage(),
   });
 
   const items = data?.items ?? [];

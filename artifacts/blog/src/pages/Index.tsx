@@ -7,6 +7,7 @@ import { Pagination } from "@/components/Pagination";
 import { NewsletterCTA } from "@/components/NewsletterCTA";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateViews";
 import { useSeo } from "@/hooks/use-seo";
+import { defaultOgImage } from "@/lib/blog";
 
 const PAGE_SIZE = 9;
 
@@ -24,6 +25,7 @@ export default function Index() {
     title: "Headout Blog — Travel inspiration & destination guides",
     description:
       "Travel inspiration, family destination guides, and holiday ideas from the Headout Blog.",
+    ogImage: defaultOgImage(),
   });
 
   const items = data?.items ?? [];
