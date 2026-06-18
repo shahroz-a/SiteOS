@@ -21,6 +21,13 @@ as a `oneOf` of object / array / null (generates a zod union) — never narrow i
 back to object-only. If you add a third ingestion path, treat componentTree as
 arbitrary JSON, not a fixed shape.
 
+**Renderer note:** Crawler-produced componentTree `section` blocks can omit
+their `children` array (and `list` blocks their `items`) — the field is optional
+in the data even though the TS type declares it required. Any renderer walking
+these nodes must guard (`node.children ?? []`, `items ?? []`) or it throws
+"Cannot read properties of undefined (reading 'map')" and the whole article page
+white-screens behind a runtime overlay.
+
 **Testing note:** `GET /posts/{slug}` fires ~8 sequential DB queries per
 request. Hammering it at high concurrency (e.g. `xargs -P 12`) against the
 Supabase session pooler — especially while the crawler runs — exhausts the pool

@@ -28,7 +28,7 @@ function CTList({ data }: { data: CTNode & { blockType: "list" } }) {
             : "list-disc pl-5 space-y-2 text-foreground/80"
         }
       >
-        {items.map((item, i) => (
+        {(items ?? []).map((item, i) => (
           <li key={i} className="leading-relaxed">
             {item}
           </li>
@@ -63,7 +63,7 @@ function CTBlock({ node }: { node: CTNode }) {
           <h3 className="font-serif text-2xl md:text-3xl text-foreground mb-5">
             {node.data.heading}
           </h3>
-          {node.children.map((child, i) => (
+          {(node.children ?? []).map((child, i) => (
             <CTBlock key={i} node={child} />
           ))}
         </section>

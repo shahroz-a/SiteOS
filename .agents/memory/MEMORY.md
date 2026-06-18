@@ -10,3 +10,4 @@
 - [Artifact dev-port registration](artifact-port-registration.md) — mid-session artifacts fail dev workflow port probe (DIDNT_OPEN_A_PORT) until repl reboot; .replit [[ports]] regenerates from tomls only at boot; no tool adds it.
 - [Payload peer-variant typecheck breakage](payload-peer-variant-typecheck.md) — Payload forks drizzle-orm (libsql vs pg) and vite (tsx 4.21 vs 4.22) peer variants → typecheck-only TS2769; fix via scripts tsconfig paths redirect + tsx override, not import restructuring.
 - [Prerender-blog test harness](prerender-blog-test-harness.md) — runner exports run/main behind isEntrypoint guard; DIST_DIR read from BLOG_DIST at import, so set env before dynamic import.
+- [Playwright browser deps on NixOS](playwright-nixos-browser-deps.md) — downloaded Chromium needs Nix libs (glib…libgbm) via installSystemDependencies; redirect output to file; one spec/run; pool exhaustion ≠ test bug.
