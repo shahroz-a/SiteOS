@@ -51,7 +51,7 @@ function parseOutPath(argv: string[]): string {
   return resolve(SCRIPT_DIR, "../out/payload-export.json");
 }
 
-async function buildExport(): Promise<PayloadExport> {
+export async function buildExport(): Promise<PayloadExport> {
   const [authors, categories, tags, pages, images] = await Promise.all([
     db.select().from(authorsTable),
     db.select().from(categoriesTable),
@@ -257,13 +257,21 @@ async function main(): Promise<void> {
   );
 }
 
-main()
-  .then(async () => {
-    await pool.end();
-    process.exit(0);
-  })
-  .catch(async (err) => {
-    console.error("Export failed:", err);
-    await pool.end();
-    process.exit(1);
-  });
+// Only run the CLI when this module is executed directly (not when imported by
+// tests, which exercise `buildExport` against a fake DB).
+const isEntrypoint =
+  process.argv[1] !== undefined &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
+  main()
+    .then(async () => {
+      await pool.end();
+      process.exit(0);
+    })
+    .catch(async (err) => {
+      console.error("Export failed:", err);
+      await pool.end();
+      process.exit(1);
+    });
+}
