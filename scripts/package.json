@@ -12,6 +12,7 @@
     "export:payload": "tsx ./src/export-payload.ts",
     "import:payload": "tsx ./src/import-payload.ts",
     "load:payload": "tsx ./src/load-payload.ts",
+    "migrate:payload": "tsx ./src/migrate-payload.ts",
     "prerender:blog": "tsx ./src/prerender-blog.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"

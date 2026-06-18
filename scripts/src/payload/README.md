@@ -138,6 +138,34 @@ Requirements:
 The CLI prints the per-collection create counts and the size of the
 old-UUID → new-Payload-id map on success, and exits non-zero on failure.
 
+### One-command migration (export + load)
+
+For a fresh migration into Payload you don't need to run the export and load
+steps separately. The bundled `migrate:payload` CLI runs the export, then feeds
+the produced JSON straight into the loader against your Payload instance —
+sharing a single intermediate file path so there's nothing to manage by hand:
+
+```bash
+# Reads the migration DB, writes scripts/out/payload-export.json, then loads it
+# into the Payload instance at --config (or PAYLOAD_CONFIG_PATH).
+pnpm --filter @workspace/scripts run migrate:payload -- --config ./payload.config.ts
+
+# custom intermediate path (accepts --out or its --in alias):
+pnpm --filter @workspace/scripts run migrate:payload -- \
+  --config ./payload.config.ts --out ./payload-export.json
+
+# or via env var:
+PAYLOAD_CONFIG_PATH=./payload.config.ts \
+  pnpm --filter @workspace/scripts run migrate:payload
+```
+
+It honors the same `--config` / `PAYLOAD_CONFIG_PATH` and `--out` / `--in`
+conventions as `export:payload` and `load:payload`, and has the same
+requirements as the loader (a resolvable `payload` install and a config whose
+collections match the documented shapes). The intermediate JSON is still written
+to disk, so you keep a copy of exactly what was loaded. Run the steps separately
+(below) only when you need to inspect or edit the JSON before loading.
+
 ### Verified by an integration test
 
 `__tests__/load.integration.test.ts` is the executable smoke test for this whole

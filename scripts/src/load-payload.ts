@@ -23,13 +23,13 @@ import { loadPayloadExport, type PayloadLike } from "./payload/load.js";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
-function parseFlag(argv: string[], flag: string): string | undefined {
+export function parseFlag(argv: string[], flag: string): string | undefined {
   const idx = argv.indexOf(flag);
   if (idx !== -1 && argv[idx + 1]) return argv[idx + 1];
   return undefined;
 }
 
-function parseInPath(argv: string[]): string {
+export function parseInPath(argv: string[]): string {
   const v = parseFlag(argv, "--in");
   if (v) return resolve(process.cwd(), v);
   // Default to the export's default output location (script-dir relative, so it
@@ -37,7 +37,7 @@ function parseInPath(argv: string[]): string {
   return resolve(SCRIPT_DIR, "../out/payload-export.json");
 }
 
-function parseConfigPath(argv: string[]): string {
+export function parseConfigPath(argv: string[]): string {
   const v = parseFlag(argv, "--config") ?? process.env.PAYLOAD_CONFIG_PATH;
   if (!v) {
     throw new Error(
@@ -55,7 +55,7 @@ function parseConfigPath(argv: string[]): string {
  * hard-depends on a particular Payload install at module-load time — the CLI is
  * only usable where Payload and a config are actually present.
  */
-async function bootPayload(configPath: string): Promise<PayloadLike> {
+export async function bootPayload(configPath: string): Promise<PayloadLike> {
   // Indirect specifier: the operator's Payload install is resolved at runtime,
   // so this workspace doesn't hard-depend on Payload's types being present to
   // typecheck the CLI.
@@ -108,9 +108,17 @@ async function main(): Promise<void> {
   );
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("Payload load failed:", err);
-    process.exit(1);
-  });
+// Only run the CLI when this module is executed directly (not when imported by
+// the combined `migrate-payload` wrapper, which reuses the helpers above).
+const isEntrypoint =
+  process.argv[1] !== undefined &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
+  main()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Payload load failed:", err);
+      process.exit(1);
+    });
+}
