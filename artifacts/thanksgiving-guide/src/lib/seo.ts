@@ -4,6 +4,7 @@ import type { JsonLdItem, SeoMeta } from "@workspace/api-client-react";
 interface SeoOptions {
   title?: string | null;
   description?: string | null;
+  canonical?: string | null;
   seo?: SeoMeta | null;
   jsonld?: JsonLdItem[];
 }
@@ -21,18 +22,42 @@ function setMeta(attr: "name" | "property", key: string, content: string) {
   el.setAttribute("content", content);
 }
 
+function setCanonical(href: string) {
+  let el = document.head.querySelector<HTMLLinkElement>(
+    'link[rel="canonical"][data-managed="seo"]',
+  );
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", "canonical");
+    el.setAttribute("data-managed", "seo");
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", href);
+}
+
 /**
  * Apply per-post document head metadata (title, description, Open Graph,
  * Twitter) and inject JSON-LD structured data. All managed nodes are removed on
  * cleanup so navigating between posts never leaks stale tags.
  */
-export function useSeo({ title, description, seo, jsonld }: SeoOptions): void {
+export function useSeo({
+  title,
+  description,
+  canonical,
+  seo,
+  jsonld,
+}: SeoOptions): void {
   useEffect(() => {
     const resolvedTitle = seo?.metaTitle ?? title ?? undefined;
     if (resolvedTitle) document.title = resolvedTitle;
 
     const resolvedDescription = seo?.metaDescription ?? description ?? undefined;
     if (resolvedDescription) setMeta("name", "description", resolvedDescription);
+
+    if (canonical) {
+      setCanonical(canonical);
+      setMeta("property", "og:url", canonical);
+    }
 
     if (seo?.ogTitle) setMeta("property", "og:title", seo.ogTitle);
     if (seo?.ogDescription)
@@ -58,8 +83,10 @@ export function useSeo({ title, description, seo, jsonld }: SeoOptions): void {
     return () => {
       for (const script of scripts) script.remove();
       document.head
-        .querySelectorAll('meta[data-managed="seo"]')
+        .querySelectorAll(
+          'meta[data-managed="seo"], link[rel="canonical"][data-managed="seo"]',
+        )
         .forEach((el) => el.remove());
     };
-  }, [title, description, seo, jsonld]);
+  }, [title, description, canonical, seo, jsonld]);
 }

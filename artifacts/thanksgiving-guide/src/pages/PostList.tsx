@@ -51,11 +51,55 @@ export default function PostList() {
 
   const [searchInput, setSearchInput] = useState(query);
 
-  useSeo({
-    title: "Headout Blog — Travel guides, tips & destination ideas",
-    description:
-      "Explore travel guides, destination deep-dives and trip-planning tips from the Headout Blog.",
-  });
+  const { data: categories } = useListCategories();
+  const { data: authors } = useListAuthors();
+  const { data: tags } = useListTags();
+
+  // Build a title/description/canonical that reflect the active filter or
+  // search so shared links read descriptively and search engines don't treat
+  // every filtered view as duplicate content.
+  const seoMeta = useMemo(() => {
+    const SITE = "Headout Blog";
+    let title = `${SITE} — Travel guides, tips & destination ideas`;
+    let description =
+      "Explore travel guides, destination deep-dives and trip-planning tips from the Headout Blog.";
+
+    if (query) {
+      title = `Search results for “${query}” — ${SITE}`;
+      description = `Articles matching “${query}” on the ${SITE}.`;
+    } else if (category) {
+      const name = categories?.find((c) => c.slug === category)?.name ?? category;
+      title = `${name} — ${SITE}`;
+      description = `Travel guides and destination ideas about ${name} from the ${SITE}.`;
+    } else if (author) {
+      const name = authors?.find((a) => a.slug === author)?.name ?? author;
+      title = `Articles by ${name} — ${SITE}`;
+      description = `Read travel guides and stories written by ${name} on the ${SITE}.`;
+    } else if (tag) {
+      const name = tags?.find((t) => t.slug === tag)?.name ?? tag;
+      title = `${name} — ${SITE}`;
+      description = `Browse ${SITE} articles tagged “${name}”.`;
+    }
+
+    // Canonical: origin + base path + the meaningful filter/search params
+    // (page included only past page 1). Keeps a stable, deduplicated URL.
+    let canonical: string | undefined;
+    if (typeof window !== "undefined") {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const canonicalParams = new URLSearchParams();
+      if (query) canonicalParams.set("q", query);
+      if (category) canonicalParams.set("category", category);
+      if (author) canonicalParams.set("author", author);
+      if (tag) canonicalParams.set("tag", tag);
+      if (page > 1) canonicalParams.set("page", String(page));
+      const qs = canonicalParams.toString();
+      canonical = `${window.location.origin}${base}/${qs ? `?${qs}` : ""}`;
+    }
+
+    return { title, description, canonical };
+  }, [query, category, author, tag, page, categories, authors, tags]);
+
+  useSeo(seoMeta);
 
   // Apply a partial update to the URL search params. Removing/clearing a value
   // is done by passing undefined. Resetting to page 1 is the caller's job (pass
@@ -90,10 +134,6 @@ export default function PostList() {
   }, [query]);
 
   const isSearching = query.length > 0;
-
-  const { data: categories } = useListCategories();
-  const { data: authors } = useListAuthors();
-  const { data: tags } = useListTags();
 
   const listParams = { page, limit: PAGE_SIZE, category, author, tag };
   const searchParams = { q: query, page, limit: PAGE_SIZE };
