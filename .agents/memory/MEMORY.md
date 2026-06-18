@@ -1,0 +1,1 @@
+- [Content-fidelity migrations](content-fidelity-migrations.md) — author source content yourself as a data file; design subagents paraphrase/drop/"fix" content if they transcribe it.

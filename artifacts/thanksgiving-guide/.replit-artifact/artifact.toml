@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Thanksgiving Family Destination Guide"
+version = "1.0.0"
+id = "artifacts/thanksgiving-guide"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25729
+
+[services.development]
+run = "pnpm --filter @workspace/thanksgiving-guide run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/thanksgiving-guide", "run", "build" ]
+publicDir = "artifacts/thanksgiving-guide/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25729"
+BASE_PATH = "/"

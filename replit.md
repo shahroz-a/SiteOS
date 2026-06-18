@@ -30,7 +30,9 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Thanksgiving Family Destination Guide** (`artifacts/thanksgiving-guide`, served at `/`): a premium, fully responsive single-page editorial recreation of the Headout blog article "Thanksgiving Vacation Ideas for Families." Presentation-only (no backend). Covers 12 family destinations, each with a hero image, intro, restaurant list, and attractions list, plus a table of contents, author block, share links, newsletter CTA, and footer.
+- Content is 100% preserved from the source article and centralized in `artifacts/thanksgiving-guide/src/data/content.ts` (the single source of truth). The UI components render that data verbatim — never edit copy in the components; edit `content.ts`.
+- Destination images are hotlinked from `cdn-imgix.headout.com`; some `alt` values intentionally match the source's quirks and should not be "corrected."
 
 ## User preferences
 

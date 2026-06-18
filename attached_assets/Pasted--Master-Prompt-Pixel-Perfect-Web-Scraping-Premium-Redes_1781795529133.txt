@@ -1,0 +1,630 @@
+# Master Prompt: Pixel-Perfect Web Scraping + Premium Redesign Engine
+
+You are an expert web scraping, content migration, and frontend engineering agent.
+
+Your task is to scrape the following webpage completely:
+
+https://www.headout.com/blog/thanksgiving-vacation-ideas-for-families/
+
+and rebuild it as a completely redesigned, modern, premium editorial experience inspired by Airbnb Design, Apple, Stripe Docs, Notion, Medium, and Headout's latest visual language.
+
+## PRIMARY OBJECTIVE
+
+This is **NOT** a summarization task.
+
+This is **NOT** a content rewriting task.
+
+This is **NOT** a template recreation task.
+
+This is a **100% content-preserving migration** into a superior design system.
+
+Every single piece of content must exist in the new version.
+
+Nothing should be removed.
+
+Nothing should be simplified.
+
+Nothing should be skipped.
+
+Nothing should be paraphrased.
+
+Nothing should be truncated.
+
+Nothing should be reordered unless required for responsive UX while preserving logical flow.
+
+The output should be a premium redesign with **identical information architecture and content fidelity**.
+
+---
+
+# CONTENT PRESERVATION RULES
+
+Preserve every:
+
+* Heading
+* Paragraph
+* Sentence
+* Word
+* List
+* Bullet
+* Numbered list
+* Quote
+* Callout
+* Caption
+* Table
+* Rich text formatting
+* Bold text
+* Italics
+* Underlines
+* Inline code
+* Hyperlinks
+* External links
+* Internal links
+* Anchor links
+* Jump navigation
+* TOC
+* Images
+* Alt text
+* Image captions
+* Image placement
+* Embedded media
+* Videos
+* Buttons
+* CTAs
+* Cards
+* Badges
+* Tags
+* Category labels
+* Author section
+* Publish date
+* Updated date
+* Reading time
+* Breadcrumbs
+* FAQ section
+* Accordions
+* Footnotes
+* Related articles
+* Social sharing section
+* Metadata visible on page
+* Structured content blocks
+* Emoji
+* Icons
+* Horizontal dividers
+* Blockquotes
+* Pull quotes
+* Highlight boxes
+* Code blocks
+* Expandable sections
+* All spacing relationships
+
+Absolutely nothing should disappear.
+
+---
+
+# RICH TEXT FIDELITY
+
+Maintain all formatting exactly.
+
+Examples:
+
+If original contains
+
+* bold
+* italic
+* nested bullets
+* nested numbering
+* hyperlinks
+* superscript
+* subscript
+* highlighted text
+
+the recreated page must preserve them.
+
+Do not flatten formatting.
+
+Do not convert rich text into plain text.
+
+Maintain hierarchy exactly.
+
+---
+
+# LINKS
+
+Every hyperlink must remain.
+
+Preserve
+
+href
+
+target
+
+rel
+
+anchor
+
+fragment links
+
+internal routing
+
+external routing
+
+If a section links to
+
+#things-to-do
+
+the rebuilt page must scroll correctly.
+
+Do not break navigation.
+
+---
+
+# IMAGES
+
+Extract every image.
+
+Preserve:
+
+source
+
+dimensions
+
+aspect ratio
+
+position
+
+caption
+
+alt text
+
+loading behavior
+
+priority
+
+lazy loading
+
+responsive sizing
+
+Do not lose any images.
+
+Do not replace images with placeholders.
+
+Do not omit decorative assets if they contribute to layout.
+
+---
+
+# LAYOUT
+
+Redesign the layout to look like a premium editorial experience.
+
+Use inspiration from
+
+* Airbnb
+* Apple
+* Stripe
+* Linear
+* Notion
+* Headout
+* Framer
+* Medium
+
+The page should feel:
+
+minimal
+
+sophisticated
+
+luxurious
+
+clean
+
+high-end
+
+modern
+
+editorial
+
+comfortable
+
+immersive
+
+high readability
+
+excellent typography
+
+lots of whitespace
+
+excellent hierarchy
+
+subtle shadows
+
+large imagery
+
+beautiful spacing
+
+perfect rhythm
+
+responsive
+
+---
+
+# DESIGN SYSTEM
+
+Build a reusable design system.
+
+Spacing scale
+
+Typography scale
+
+Color tokens
+
+Radius tokens
+
+Shadow tokens
+
+Container widths
+
+Responsive breakpoints
+
+Motion principles
+
+Animation durations
+
+Interaction states
+
+Focus states
+
+Hover states
+
+Dark mode ready
+
+Accessibility compliant
+
+WCAG AA minimum
+
+Semantic HTML
+
+---
+
+# TYPOGRAPHY
+
+Use elegant typography.
+
+Large hero title.
+
+Beautiful reading width.
+
+Generous line height.
+
+Comfortable margins.
+
+Excellent paragraph spacing.
+
+Readable on desktop and mobile.
+
+---
+
+# COMPONENTS
+
+Convert content into reusable components.
+
+Hero
+
+ArticleHeader
+
+AuthorCard
+
+ImageBlock
+
+QuoteBlock
+
+TableBlock
+
+InfoCard
+
+CTASection
+
+FAQAccordion
+
+TableOfContents
+
+StickySidebar
+
+RelatedArticles
+
+NewsletterCTA
+
+Footer
+
+Breadcrumb
+
+Tag
+
+Badge
+
+SectionDivider
+
+RichTextRenderer
+
+Do not hardcode page-specific layouts.
+
+---
+
+# RESPONSIVENESS
+
+Desktop
+
+Laptop
+
+Tablet
+
+Mobile
+
+Ultra wide
+
+Everything must work beautifully.
+
+No overflow.
+
+No clipping.
+
+No broken layouts.
+
+No horizontal scrolling.
+
+---
+
+# ANIMATIONS
+
+Use subtle animations only.
+
+Fade
+
+Reveal
+
+Parallax
+
+Image zoom
+
+Smooth anchor scrolling
+
+Hover elevation
+
+Button transitions
+
+Sticky TOC transitions
+
+Section reveal
+
+Never distract from reading.
+
+Animations should feel premium.
+
+---
+
+# PERFORMANCE
+
+Optimize aggressively.
+
+Lazy load images.
+
+Code split components.
+
+Use optimized assets.
+
+Responsive images.
+
+Modern formats where possible.
+
+Avoid layout shifts.
+
+Fast first paint.
+
+Excellent Lighthouse score.
+
+---
+
+# SEO
+
+Preserve
+
+Title
+
+Meta description
+
+Canonical
+
+OpenGraph
+
+Twitter cards
+
+JSON-LD if present
+
+Heading hierarchy
+
+Internal linking
+
+Structured data
+
+Image alt text
+
+Schema
+
+Slug
+
+Do not damage SEO.
+
+---
+
+# ACCESSIBILITY
+
+Semantic HTML
+
+Keyboard navigation
+
+Screen reader support
+
+ARIA labels
+
+Contrast compliance
+
+Proper heading order
+
+Accessible buttons
+
+Accessible forms
+
+Accessible accordions
+
+Accessible links
+
+Visible focus states
+
+---
+
+# SCRAPING STRATEGY
+
+Wait until page is fully loaded.
+
+Execute JavaScript.
+
+Wait for lazy-loaded sections.
+
+Scroll entire page.
+
+Trigger lazy images.
+
+Expand collapsed sections.
+
+Open accordions.
+
+Reveal hidden content.
+
+Load deferred assets.
+
+Continue until DOM is stable.
+
+Then scrape.
+
+Do not scrape partial HTML.
+
+---
+
+# VALIDATION
+
+Before considering the task complete, compare:
+
+Original page
+
+vs
+
+Rebuilt page
+
+Verify:
+
+Number of headings
+
+Number of paragraphs
+
+Number of images
+
+Number of links
+
+Number of lists
+
+Number of buttons
+
+Number of sections
+
+Number of FAQs
+
+Number of CTAs
+
+Number of anchors
+
+Number of tables
+
+Number of blockquotes
+
+Number of captions
+
+Number of rich text nodes
+
+If any mismatch exists, continue scraping and rebuilding until parity is achieved.
+
+Do not stop early.
+
+---
+
+# FAILURE RECOVERY
+
+If scraping fails:
+
+Retry.
+
+If lazy loading fails:
+
+Scroll again.
+
+If images fail:
+
+Retry extraction.
+
+If DOM changes:
+
+Rebuild.
+
+If content mismatch exists:
+
+Continue processing.
+
+Never silently ignore missing content.
+
+Never skip a section because it is difficult.
+
+Never assume completion.
+
+---
+
+# FINAL OUTPUT
+
+Produce:
+
+1. Fully rebuilt page
+
+2. Reusable component architecture
+
+3. Structured content JSON
+
+4. Rich text JSON preserving formatting
+
+5. Asset manifest
+
+6. Image manifest
+
+7. Link manifest
+
+8. Table of contents manifest
+
+9. Metadata manifest
+
+10. SEO manifest
+
+11. Accessibility report
+
+12. Validation report comparing original vs rebuilt
+
+13. Final confirmation showing:
+
+* Total sections
+* Total headings
+* Total paragraphs
+* Total images
+* Total links
+* Total lists
+* Total tables
+* Total FAQs
+* Total CTAs
+* Total rich text nodes
+
+The task is complete **only when every visible piece of content, formatting, image, link, anchor, metadata, and interaction from the source page has been preserved and represented in the redesigned experience with zero loss of information**.
+
+If there is any discrepancy, continue processing until full parity is achieved.
