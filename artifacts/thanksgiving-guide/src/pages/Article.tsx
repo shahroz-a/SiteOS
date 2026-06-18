@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { siteMeta, intro, destinations, summary, author, shareLinks } from "@/data/content";
+import { siteMeta, intro, destinations, author, shareLinks } from "@/data/content";
+import { Header } from "@/components/Header";
 import { ArticleHeader } from "@/components/ArticleHeader";
 import { RichText } from "@/components/RichText";
 import { TableOfContents } from "@/components/TableOfContents";
@@ -10,7 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export default function Article() {
   useEffect(() => {
-    document.title = siteMeta.title;
+    document.title = siteMeta.pageTitle;
     
     // Update meta tags
     const updateMeta = (name: string, content: string) => {
@@ -28,6 +29,7 @@ export default function Article() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">
+      <Header />
       <ArticleHeader />
       
       <main className="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-16">
@@ -79,34 +81,13 @@ export default function Article() {
               <DestinationSection key={destination.id} destination={destination} />
             ))}
 
-            {/* Summary Section */}
-            <section id="summary" className="scroll-mt-24 mb-24 bg-card rounded-3xl p-8 md:p-12 shadow-sm border border-card-border">
-              <h2 className="text-sm font-bold tracking-widest uppercase text-primary mb-4">
-                {summary.heading}
-              </h2>
-              <h3 className="text-3xl font-serif text-foreground mb-8">
-                {summary.title}
-              </h3>
-              <ol className="grid sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8">
-                {destinations.map((dest) => (
-                  <li key={dest.id} className="flex items-center gap-3">
-                    <span className="text-primary font-mono text-sm">
-                      {dest.number.toString().padStart(2, '0')}
-                    </span>
-                    <a 
-                      href={`#${dest.id}`}
-                      className="font-medium hover:text-primary transition-colors"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        document.getElementById(dest.id)?.scrollIntoView({ behavior: "smooth" });
-                      }}
-                    >
-                      {dest.name}
-                    </a>
-                  </li>
-                ))}
-              </ol>
-            </section>
+            {/*
+              TODO: "More reads" / related-articles section.
+              Intentionally NOT built yet. The original article ends with a
+              "More reads" block of links to other Headout blog posts. Building
+              it requires a full-site scrape + cross-page link data (sitemap),
+              which the user will provide later. Do not implement until then.
+            */}
           </div>
         </div>
 

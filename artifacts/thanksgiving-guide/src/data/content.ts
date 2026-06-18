@@ -38,17 +38,58 @@ export interface FooterStat {
   description: string;
 }
 
+export interface NavItem {
+  label: string;
+  href?: string;
+}
+
+export interface Crumb {
+  label: string;
+  href?: string;
+}
+
+// Reusable site navigation (top chrome). Data-driven so other scraped pages
+// can render the same Header without re-creating it.
+export const siteNav: NavItem[] = [
+  { label: "Destinations" },
+  { label: "Guides" },
+  { label: "Deals & Offers", href: "https://www.headout.com/blog/deals-offers-promo-codes/" },
+  { label: "Reviews", href: "https://www.headout.com/blog/headout-reviews/" },
+  { label: "Reach Us" },
+];
+
 export const siteMeta = {
   blogName: "Headout Blog",
   blogHref: "https://www.headout.com/blog/",
   logo: "https://cdn-imgix-open.headout.com/logo/svg/Headout_blog.svg",
-  category: "Thanksgiving Season: The Ultimate Family Destination Guide",
-  title: "Destinations to visit for Thanksgiving with Family",
+  // Eyebrow/category link shown above the article title in the hero.
+  category: {
+    label: "Travel",
+    href: "https://www.headout.com/blog/category/wcp-travel/",
+  },
+  // The article's <h1> as it appears on the original page.
+  pageTitle: "Thanksgiving Season: The Ultimate Family Destination Guide",
+  lastUpdated: "December 30, 2024",
+  heroImage:
+    "https://cdn-imgix.headout.com/media/images/eead6415be50a03ca9442de3f9211228-Autumn-Travel---Thanksgiving-Banner.jpg",
+  // Yoast breadcrumb trail from the original article, in order.
+  breadcrumb: [
+    { label: "Travel", href: "https://www.headout.com/blog/category/wcp-travel/" },
+    {
+      label: "Travel Inspiration",
+      href: "https://www.headout.com/blog/category/wcp-travel/wcp-travel-inspiration/",
+    },
+    { label: "Destinations to visit for Thanksgiving with Family" },
+  ] as Crumb[],
   canonical:
     "https://www.headout.com/blog/thanksgiving-vacation-ideas-for-families/",
   metaDescription:
     "Discover the best Thanksgiving family destinations from Singapore to Florence, each packed with restaurants serving holiday feasts and unforgettable attractions for the whole family.",
 };
+
+// Heading shown above the in-page destinations list (table of contents),
+// matching the heading the original article shows above the same list.
+export const tocHeading = "Destinations to visit for Thanksgiving with Family";
 
 export const intro: RichSegment[] = [
   {
@@ -597,11 +638,6 @@ export const destinations: Destination[] = [
     ],
   },
 ];
-
-export const summary = {
-  heading: "Summary",
-  title: "Destinations to visit for Thanksgiving with Family",
-};
 
 export const author = {
   name: "Harshitha",

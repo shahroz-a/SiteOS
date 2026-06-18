@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Destination } from "@/data/content";
+import { Destination, tocHeading } from "@/data/content";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 
@@ -70,20 +70,6 @@ export function TableOfContents({ destinations }: TableOfContentsProps) {
           </a>
         </li>
       ))}
-      <li>
-        <a
-          href="#summary"
-          onClick={(e) => scrollTo(e, "summary")}
-          className={cn(
-            "block text-sm transition-all duration-200 mt-6 pt-4 border-t border-border/50",
-            activeId === "summary"
-              ? "text-primary font-medium lg:translate-x-1"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Summary
-        </a>
-      </li>
     </ul>
   );
 
@@ -91,17 +77,17 @@ export function TableOfContents({ destinations }: TableOfContentsProps) {
     <>
       {/* Desktop: sticky sidebar */}
       <nav
-        aria-label="Destinations"
-        className="sticky top-12 lg:top-24 max-h-[calc(100vh-6rem)] overflow-y-auto hidden lg:block pr-8 w-64 shrink-0"
+        aria-label="Table of contents"
+        className="sticky top-20 lg:top-28 max-h-[calc(100vh-8rem)] overflow-y-auto hidden lg:block pr-8 w-64 shrink-0"
       >
         <h3 className="font-serif text-lg font-medium text-foreground mb-6 pb-4 border-b border-border/50">
-          Destinations
+          {tocHeading}
         </h3>
         {links}
       </nav>
 
       {/* Mobile/tablet: collapsible disclosure */}
-      <nav aria-label="Destinations" className="lg:hidden mb-12">
+      <nav aria-label="Table of contents" className="lg:hidden mb-12">
         <button
           type="button"
           onClick={() => setMobileOpen((o) => !o)}
@@ -109,7 +95,7 @@ export function TableOfContents({ destinations }: TableOfContentsProps) {
           className="w-full flex items-center justify-between rounded-2xl border border-border/60 bg-card px-5 py-4 text-left"
         >
           <span className="font-serif text-lg font-medium text-foreground">
-            Destinations
+            {tocHeading}
           </span>
           <ChevronDown
             className={cn(
