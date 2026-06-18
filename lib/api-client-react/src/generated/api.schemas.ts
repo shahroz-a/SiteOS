@@ -77,6 +77,13 @@ export interface TagSummary {
   slug: string;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+  postCount: number;
+}
+
 export interface Breadcrumb {
   label: string;
   /** @nullable */

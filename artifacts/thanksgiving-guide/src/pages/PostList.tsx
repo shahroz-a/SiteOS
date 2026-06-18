@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useListPosts,
   useListCategories,
   useListAuthors,
+  useListTags,
   useSearchPosts,
   getListPostsQueryKey,
   getSearchPostsQueryKey,
@@ -61,21 +62,7 @@ export default function PostList() {
 
   const { data: categories } = useListCategories();
   const { data: authors } = useListAuthors();
-  // Tags have no dedicated list endpoint, so derive the available set from a
-  // single unfiltered fetch of posts.
-  const { data: tagSource } = useListPosts({ limit: 100 });
-
-  const tags = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const post of tagSource?.items ?? []) {
-      for (const t of post.tags) {
-        if (!seen.has(t.slug)) seen.set(t.slug, t.name);
-      }
-    }
-    return Array.from(seen, ([slug, name]) => ({ slug, name })).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-  }, [tagSource]);
+  const { data: tags } = useListTags();
 
   const listParams = { page, limit: PAGE_SIZE, category, author, tag };
   const searchParams = { q: query, page, limit: PAGE_SIZE };
@@ -210,7 +197,7 @@ export default function PostList() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>All tags</SelectItem>
-                  {tags.map((t) => (
+                  {(tags ?? []).map((t) => (
                     <SelectItem key={t.slug} value={t.slug}>
                       {t.name}
                     </SelectItem>

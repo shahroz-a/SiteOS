@@ -240,6 +240,19 @@ export const GetAuthorBySlugResponse = zod.object({
 
 
 /**
+ * List all tags, each with a count of published posts.
+ * @summary List tags
+ */
+export const ListTagsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "postCount": zod.number()
+})
+export const ListTagsResponse = zod.array(ListTagsResponseItem)
+
+
+/**
  * Full-text-ish search across post titles, excerpts and content.
  * @summary Search posts
  */

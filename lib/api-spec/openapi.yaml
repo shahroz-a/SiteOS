@@ -164,6 +164,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /tags:
+    get:
+      operationId: listTags
+      tags: [tags]
+      summary: List tags
+      description: List all tags, each with a count of published posts.
+      responses:
+        "200":
+          description: A list of tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tag"
+
   /search:
     get:
       operationId: searchPosts
@@ -350,6 +366,24 @@ components:
         - id
         - name
         - slug
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        postCount:
+          type: integer
+      required:
+        - id
+        - name
+        - slug
+        - postCount
 
     Breadcrumb:
       type: object

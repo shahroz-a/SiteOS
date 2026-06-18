@@ -29,4 +29,5 @@ export * from './postListResponse';
 export * from './postSummary';
 export * from './searchPostsParams';
 export * from './seoMeta';
+export * from './tag';
 export * from './tagSummary';
