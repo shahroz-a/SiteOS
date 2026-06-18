@@ -51,3 +51,18 @@ forcing 4.21.0 is safe.
 *unrelated* packages, suspect optional-peer variant duplication (drizzle-orm,
 vite, etc.), not the new code. Diff the lockfile for the forked peer and dedupe
 via override or a tsconfig `paths` redirect rather than restructuring imports.
+
+## Runtime corollary: the variant split is *why* you can mock drizzle-orm next to real Payload
+
+The same libsql-vs-pg fork that breaks typecheck is what lets a single vitest
+file do BOTH `vi.mock("drizzle-orm")` (to drive the fake-`@workspace/db`
+exporter test) AND boot a real ephemeral Payload (which uses drizzle internally)
+without the mock breaking Payload. `vi.mock("drizzle-orm")` only intercepts the
+`scripts`-package resolution; Payload's sqlite adapter resolves its own
+physically-distinct libsql variant, so its internal `eq`/`and`/`sql` stay real.
+
+**How to apply:** a true DB→`buildExport`→`loadPayloadExport`→real-Payload e2e
+test can live in one file — mock `@workspace/db` + `drizzle-orm`, seed the fake
+tables, run the genuine `buildExport`, then load its output into
+`createTestPayload()`. Don't split it across processes/files to "protect"
+Payload from the drizzle mock; the peer-variant split already isolates them.
