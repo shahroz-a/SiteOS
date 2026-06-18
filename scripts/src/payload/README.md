@@ -101,6 +101,43 @@ main();
 `{ fetchImpl }` override for the media download (used by the integration test to
 stub network access).
 
+### One-command loader CLI
+
+If your Payload project's config is reachable from this workspace, you can skip
+the hand-written seed script above and run the bundled CLI instead. It reads the
+export JSON, boots your Payload instance via its Local API config, and calls
+`loadPayloadExport` for you:
+
+```bash
+# Point it at your Payload config (the module that default-exports buildConfig).
+# Either pass --config or set PAYLOAD_CONFIG_PATH.
+pnpm --filter @workspace/scripts run load:payload -- --config ./payload.config.ts
+
+# custom export input path (default: scripts/out/payload-export.json):
+pnpm --filter @workspace/scripts run load:payload -- \
+  --config ./payload.config.ts --in ./payload-export.json
+
+# or via env var:
+PAYLOAD_CONFIG_PATH=./payload.config.ts \
+  pnpm --filter @workspace/scripts run load:payload
+```
+
+Requirements:
+
+- **A `payload` install resolvable from the run.** The CLI dynamically imports
+  `payload` and your config, so they only need to exist where you invoke it. The
+  simplest setup is to run the command from inside your Payload project (which
+  already has `payload` and a config), or to have both on the module resolution
+  path.
+- **`--config <path>` or `PAYLOAD_CONFIG_PATH`** must point to your Payload
+  config file. That file must default-export the result of `buildConfig({...})`,
+  and its collections must match the documented shapes above (`media` as an
+  `upload` collection; `authors`, `categories`, `tags`, `posts` with the listed
+  relationship fields; `posts` needs `versions.drafts` enabled for `_status`).
+
+The CLI prints the per-collection create counts and the size of the
+old-UUID → new-Payload-id map on success, and exits non-zero on failure.
+
 ### Verified by an integration test
 
 `__tests__/load.integration.test.ts` is the executable smoke test for this whole
