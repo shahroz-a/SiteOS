@@ -67,124 +67,59 @@ Key conventions:
 The export is intentionally adapter-agnostic JSON. Load it with Payload's
 [Local API](https://payloadcms.com/docs/local-api/overview). Your Payload config
 needs collections matching the fields above (`media` as an `upload` collection;
-`authors`, `categories`, `tags`, `posts`; relationship fields as listed). Then
-run a one-off seed script inside your Payload project:
+`authors`, `categories`, `tags`, `posts`; relationship fields as listed).
+
+The loader is real, tested code: **`load.ts`** (`loadPayloadExport`). It performs
+the media→authors→categories(+parents)→tags→posts load order, fetches and uploads
+each media asset, remaps every original UUID to the id Payload generates on
+create, and returns `{ idMap, counts }`. It talks to a minimal structural
+`PayloadLike` interface, so it runs against any Payload config that defines the
+documented collections. Run a one-off seed script inside your Payload project:
 
 ```ts
 // payload-import.ts (run inside your Payload project: `payload run payload-import.ts`)
 import { getPayload } from "payload";
 import config from "@payload-config";
 import { readFile } from "node:fs/promises";
-
-type Export = {
-  collections: {
-    media: any[];
-    authors: any[];
-    categories: any[];
-    tags: any[];
-    posts: any[];
-  };
-};
+import { loadPayloadExport } from "./load"; // copy load.ts into your project, or import it
 
 async function main() {
   const payload = await getPayload({ config });
-  const data: Export = JSON.parse(await readFile("payload-export.json", "utf8"));
+  const data = JSON.parse(await readFile("payload-export.json", "utf8"));
 
-  // old migration UUID -> new Payload id
-  const idMap = new Map<string, string | number>();
-  const remap = (uuid: string | null) =>
-    uuid ? (idMap.get(uuid) ?? null) : null;
+  const { idMap, counts } = await loadPayloadExport(payload, data.collections);
 
-  // 1) Media — fetch each source asset and upload it.
-  for (const m of data.collections.media) {
-    const res = await fetch(m.sourceUrl || m.url);
-    const buffer = Buffer.from(await res.arrayBuffer());
-    const created = await payload.create({
-      collection: "media",
-      data: { alt: m.alt, caption: m.caption, credit: m.credit },
-      file: {
-        data: buffer,
-        name: m.filename,
-        mimetype: m.mimeType ?? res.headers.get("content-type") ?? "image/jpeg",
-        size: buffer.byteLength,
-      },
-    });
-    idMap.set(m.id, created.id);
-  }
-
-  // 2) Authors
-  for (const a of data.collections.authors) {
-    const created = await payload.create({
-      collection: "authors",
-      data: {
-        name: a.name,
-        slug: a.slug,
-        bio: a.bio,
-        role: a.role,
-        email: a.email,
-        avatar: remap(a.avatar),
-        social: a.social,
-      },
-    });
-    idMap.set(a.id, created.id);
-  }
-
-  // 3) Categories (first pass without parent, then patch parents)
-  for (const c of data.collections.categories) {
-    const created = await payload.create({
-      collection: "categories",
-      data: { title: c.title, slug: c.slug, description: c.description },
-    });
-    idMap.set(c.id, created.id);
-  }
-  for (const c of data.collections.categories) {
-    if (!c.parent) continue;
-    await payload.update({
-      collection: "categories",
-      id: idMap.get(c.id)!,
-      data: { parent: remap(c.parent) },
-    });
-  }
-
-  // 4) Tags
-  for (const t of data.collections.tags) {
-    const created = await payload.create({
-      collection: "tags",
-      data: { title: t.title, slug: t.slug, description: t.description },
-    });
-    idMap.set(t.id, created.id);
-  }
-
-  // 5) Posts
-  for (const p of data.collections.posts) {
-    await payload.create({
-      collection: "posts",
-      data: {
-        title: p.title,
-        slug: p.slug,
-        subtitle: p.subtitle,
-        excerpt: p.excerpt,
-        _status: p._status,
-        publishedAt: p.publishedAt,
-        author: remap(p.author),
-        categories: p.categories.map(remap).filter(Boolean),
-        tags: p.tags.map(remap).filter(Boolean),
-        heroImage: remap(p.heroImage),
-        layout: p.layout, // Payload blocks
-        content: p.content,
-        contentHtml: p.contentHtml,
-        meta: p.meta,
-        breadcrumbs: p.breadcrumbs,
-        faq: p.faq,
-      },
-    });
-  }
-
-  console.log("Imported into Payload.");
+  console.log("Imported into Payload:", counts);
+  console.log("UUID → Payload id map size:", idMap.size);
   process.exit(0);
 }
 
 main();
+```
+
+`loadPayloadExport(payload, collections, opts?)` accepts an optional
+`{ fetchImpl }` override for the media download (used by the integration test to
+stub network access).
+
+### Verified by an integration test
+
+`__tests__/load.integration.test.ts` is the executable smoke test for this whole
+flow. It boots a **real, ephemeral SQLite Payload instance**
+(`__tests__/payloadTestConfig.ts` — the runnable version of "your Payload config
+needs collections matching these fields"), loads a small fixture export through
+`loadPayloadExport`, and asserts:
+
+- every document is created and every export UUID is remapped (`idMap`/`counts`),
+- media files are actually uploaded (Payload stores its own filename),
+- the category `parent` relationship is remapped to the new Payload id,
+- a loaded post resolves its `author`, `categories`, `tags` and `heroImage`,
+  and the `componentTree` → `layout` block order survives the round-trip.
+
+It runs in CI as part of `vitest run` (no external services — uses in-process
+SQLite and a stubbed fetch). To run it on its own:
+
+```bash
+pnpm --filter @workspace/scripts exec vitest run src/payload/__tests__/load.integration.test.ts
 ```
 
 Notes:

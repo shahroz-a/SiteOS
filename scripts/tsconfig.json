@@ -4,7 +4,10 @@
     "outDir": "dist",
     "rootDir": "src",
     "lib": ["es2022", "DOM"],
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "drizzle-orm": ["../lib/db/node_modules/drizzle-orm"]
+    }
   },
   "include": ["src"]
 }
