@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ContentToc } from "@/components/ContentToc";
 import { ContentTree } from "@/components/ContentTree";
 import { FaqSection } from "@/components/FaqSection";
+import { RelatedArticles } from "@/components/RelatedArticles";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -223,6 +224,13 @@ export default function PostDetail() {
         </div>
 
         <FaqSection items={post.faq} />
+
+        {post.primaryCategory && (
+          <RelatedArticles
+            categorySlug={post.primaryCategory.slug}
+            currentSlug={post.slug}
+          />
+        )}
 
         <NewsletterCTA />
       </main>
