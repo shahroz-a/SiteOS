@@ -233,12 +233,11 @@ export default function PostDetail() {
 
         <FaqSection items={post.faq} />
 
-        {post.primaryCategory && (
-          <RelatedArticles
-            categorySlug={post.primaryCategory.slug}
-            currentSlug={post.slug}
-          />
-        )}
+        <RelatedArticles
+          categorySlug={post.primaryCategory?.slug}
+          currentSlug={post.slug}
+          tags={post.tags}
+        />
 
         <NewsletterCTA />
       </main>

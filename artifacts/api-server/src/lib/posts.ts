@@ -15,7 +15,11 @@ export interface ListParams {
   limit: number;
   categorySlug?: string;
   authorSlug?: string;
-  tagSlug?: string;
+  /**
+   * One or more tag slugs. A post matches if it carries ANY of the given tags
+   * (OR semantics), so multiple slugs broaden the result set.
+   */
+  tagSlugs?: string[];
   q?: string;
 }
 
@@ -46,13 +50,14 @@ async function categoryPageIds(slug: string): Promise<string[]> {
   );
 }
 
-async function tagPageIds(slug: string): Promise<string[]> {
+async function tagPageIds(slugs: string[]): Promise<string[]> {
+  if (slugs.length === 0) return [];
   const rows = await db
     .select({ pageId: pageTagsTable.pageId })
     .from(pageTagsTable)
     .innerJoin(tagsTable, eq(pageTagsTable.tagId, tagsTable.id))
-    .where(eq(tagsTable.slug, slug));
-  return rows.map((r) => r.pageId);
+    .where(inArray(tagsTable.slug, slugs));
+  return Array.from(new Set(rows.map((r) => r.pageId)));
 }
 
 async function authorIdBySlug(slug: string): Promise<string | null> {
@@ -87,8 +92,8 @@ export async function listPosts(params: ListParams) {
     conditions.push(inArray(pagesTable.id, ids));
   }
 
-  if (params.tagSlug) {
-    const ids = await tagPageIds(params.tagSlug);
+  if (params.tagSlugs && params.tagSlugs.length > 0) {
+    const ids = await tagPageIds(params.tagSlugs);
     if (ids.length === 0) return emptyList(page, limit);
     conditions.push(inArray(pagesTable.id, ids));
   }

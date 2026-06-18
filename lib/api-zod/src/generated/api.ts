@@ -33,7 +33,7 @@ export const ListPostsQueryParams = zod.object({
   "limit": zod.coerce.number().min(1).max(listPostsQueryLimitMax).default(listPostsQueryLimitDefault).describe('Number of items per page'),
   "category": zod.string().optional().describe('Filter by category slug'),
   "author": zod.string().optional().describe('Filter by author slug'),
-  "tag": zod.string().optional().describe('Filter by tag slug')
+  "tag": zod.string().optional().describe('Filter by tag slug. Accepts a single slug, or a comma-separated list of slugs to match posts carrying ANY of them (OR semantics).')
 })
 
 export const ListPostsResponse = zod.object({

@@ -96,13 +96,13 @@ describe("listPosts — filtering", () => {
   });
 
   it("filters by tag slug", async () => {
-    const res = await listPosts({ page: 1, limit: 12, tagSlug: "family" });
+    const res = await listPosts({ page: 1, limit: 12, tagSlugs: ["family"] });
     expect(res.items.map((i) => i.slug)).toEqual([
       "thanksgiving-recipes",
       "boston-for-families",
     ]);
 
-    const budget = await listPosts({ page: 1, limit: 12, tagSlug: "budget" });
+    const budget = await listPosts({ page: 1, limit: 12, tagSlugs: ["budget"] });
     expect(budget.items.map((i) => i.slug)).toEqual(["budget-nyc"]);
   });
 
@@ -110,7 +110,7 @@ describe("listPosts — filtering", () => {
     for (const params of [
       { authorSlug: "nobody" },
       { categorySlug: "nope" },
-      { tagSlug: "missing" },
+      { tagSlugs: ["missing"] },
     ]) {
       const res = await listPosts({ page: 1, limit: 12, ...params });
       expect(res.items).toEqual([]);

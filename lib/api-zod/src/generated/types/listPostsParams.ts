@@ -29,7 +29,7 @@ category?: string;
  */
 author?: string;
 /**
- * Filter by tag slug
+ * Filter by tag slug. Accepts a single slug, or a comma-separated list of slugs to match posts carrying ANY of them (OR semantics).
  */
 tag?: string;
 };

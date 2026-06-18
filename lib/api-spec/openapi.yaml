@@ -57,7 +57,9 @@ paths:
         - name: tag
           in: query
           required: false
-          description: Filter by tag slug
+          description: >-
+            Filter by tag slug. Accepts a single slug, or a comma-separated list
+            of slugs to match posts carrying ANY of them (OR semantics).
           schema:
             type: string
       responses:

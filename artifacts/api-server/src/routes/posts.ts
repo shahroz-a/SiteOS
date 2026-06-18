@@ -29,13 +29,19 @@ router.get("/posts", async (req, res) => {
   const category = typeof req.query.category === "string" ? req.query.category : undefined;
   const author = typeof req.query.author === "string" ? req.query.author : undefined;
   const tag = typeof req.query.tag === "string" ? req.query.tag : undefined;
+  const tagSlugs = tag
+    ? tag
+        .split(",")
+        .map((slug) => slug.trim())
+        .filter((slug) => slug.length > 0)
+    : undefined;
 
   const result = await listPosts({
     page: query.page,
     limit: query.limit,
     categorySlug: category,
     authorSlug: author,
-    tagSlug: tag,
+    tagSlugs,
   });
 
   res.json(ListPostsResponse.parse(result));
