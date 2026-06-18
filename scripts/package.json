@@ -10,6 +10,7 @@
     "crawl": "tsx ./src/crawl.ts",
     "discover": "tsx ./src/crawl.ts --discover",
     "export:payload": "tsx ./src/export-payload.ts",
+    "import:payload": "tsx ./src/import-payload.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

@@ -436,6 +436,154 @@ export function mapImage(image: SourceImage): PayloadMediaDoc {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Reverse mapping (Payload documents -> migration row shapes)
+//
+// These mirror the forward mappers above so editors can round-trip content
+// edited in Payload back into the migration database. They are pure: they take
+// Payload documents (plus any pre-resolved relationship URLs/ids) and return
+// plain objects ready to upsert. Relationship resolution (slug/url lookups)
+// happens in the import script, not here, so these stay DB-free and testable.
+// ---------------------------------------------------------------------------
+
+export interface ReverseAuthorRow {
+  name: string;
+  slug: string;
+  bio: string | null;
+  role: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+  social: Record<string, string> | null;
+}
+
+export interface ReverseCategoryRow {
+  name: string;
+  slug: string;
+  description: string | null;
+}
+
+export interface ReverseTagRow {
+  name: string;
+  slug: string;
+  description: string | null;
+}
+
+export interface ReverseSeoRow {
+  metaTitle: string | null;
+  metaDescription: string | null;
+  canonicalUrl: string | null;
+  robots: string | null;
+  keywords: string[] | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImage: string | null;
+  twitterCard: string | null;
+}
+
+/** Reverse {@link mapAuthor}. `avatarUrl` is resolved from the avatar media doc. */
+export function payloadAuthorToRow(
+  doc: PayloadAuthorDoc,
+  avatarUrl: string | null,
+): ReverseAuthorRow {
+  return {
+    name: doc.name,
+    slug: doc.slug,
+    bio: doc.bio,
+    role: doc.role,
+    email: doc.email,
+    avatarUrl,
+    social: doc.social,
+  };
+}
+
+/** Reverse {@link mapCategory}. Parent is resolved separately (by slug). */
+export function payloadCategoryToRow(doc: PayloadCategoryDoc): ReverseCategoryRow {
+  return {
+    name: doc.title,
+    slug: doc.slug,
+    description: doc.description,
+  };
+}
+
+/** Reverse {@link mapTag}. */
+export function payloadTagToRow(doc: PayloadTagDoc): ReverseTagRow {
+  return {
+    name: doc.title,
+    slug: doc.slug,
+    description: doc.description,
+  };
+}
+
+/** Reverse the SEO portion of {@link mapPost} (`post.meta` -> seo row). */
+export function payloadMetaToSeoRow(doc: PayloadPostDoc): ReverseSeoRow {
+  const meta = doc.meta;
+  return {
+    metaTitle: meta.title,
+    metaDescription: meta.description,
+    canonicalUrl: meta.canonicalUrl ?? doc.url.canonicalUrl,
+    robots: meta.robots,
+    keywords: meta.keywords,
+    ogTitle: meta.ogTitle,
+    ogDescription: meta.ogDescription,
+    ogImage: meta.image,
+    twitterCard: meta.twitterCard,
+  };
+}
+
+/** Reverse a single Payload block into a stored component-tree node. */
+function payloadBlockToNode(block: PayloadBlock): RawBlockNode {
+  switch (block.blockType) {
+    case "heading": {
+      const node: RawBlockNode = {
+        blockType: "heading",
+        text: block.text,
+        data: { level: block.level },
+      };
+      if (block.anchorId) node.anchorId = block.anchorId;
+      return node;
+    }
+    case "paragraph":
+      return { blockType: "paragraph", text: block.text };
+    case "list": {
+      const data: Record<string, unknown> = {
+        ordered: block.ordered,
+        items: block.items,
+      };
+      if (block.title != null) data.title = block.title;
+      return { blockType: "list", data };
+    }
+    case "section": {
+      const node: RawBlockNode = {
+        blockType: "section",
+        data: block.heading != null ? { heading: block.heading } : {},
+        children: block.content.map(payloadBlockToNode),
+      };
+      if (block.anchorId) node.anchorId = block.anchorId;
+      return node;
+    }
+    case "html":
+      return { blockType: "html", data: { html: block.html } };
+  }
+}
+
+/**
+ * Reverse {@link componentTreeToLayout}: rebuild the stored `componentTree`
+ * (the importer's `{ type: "root", schemaVersion, children }` envelope) from a
+ * Payload `layout` blocks array. Round-trips through `componentTreeToLayout`
+ * back to the same layout.
+ */
+export function layoutToComponentTree(layout: PayloadBlock[]): {
+  type: "root";
+  schemaVersion: string;
+  children: RawBlockNode[];
+} {
+  return {
+    type: "root",
+    schemaVersion: "1",
+    children: layout.map(payloadBlockToNode),
+  };
+}
+
 export function mapPost(
   bundle: SourcePageBundle,
   heroImageId: string | null,

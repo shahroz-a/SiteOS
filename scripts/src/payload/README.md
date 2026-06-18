@@ -1,14 +1,18 @@
-# Payload CMS export
+# Payload CMS export / import
 
 This directory turns the migrated content (the `pages` tree plus its related
 authors, categories, tags, media, SEO and structured data) into **Payload CMS
 collection documents** so editors can manage the content in Payload after the
-migration.
+migration — and round-trips editor changes back into the migration database.
 
 - `mapping.ts` — pure, DB-free functions that map migration row shapes into
-  Payload documents (including `componentTree` → Payload `layout` blocks). Safe
-  to unit-test and reuse without a database.
+  Payload documents (including `componentTree` → Payload `layout` blocks) **and
+  back** (`layoutToComponentTree`, `payloadAuthorToRow`, `payloadCategoryToRow`,
+  `payloadTagToRow`, `payloadMetaToSeoRow`). Safe to unit-test and reuse without
+  a database.
 - `../export-payload.ts` — reads the database and writes a single export JSON.
+- `import.ts` — the reverse of the export: reads the export JSON shape and
+  upserts it back into the migration DB. CLI wrapper: `../import-payload.ts`.
 
 ## 1. Run the export
 
@@ -192,3 +196,40 @@ Notes:
 - `layout` blocks assume your `posts` collection defines a `blocks` field with
   `heading` / `paragraph` / `list` / `section` / `html` blocks. Adjust the block
   set to taste; `content`/`contentHtml` remain available as a fallback.
+
+## 4. Round-trip edits back into the migration DB
+
+Once editors change content in Payload, export those same collections back to the
+JSON shape above (Payload's Local API `find` over each collection, wrapped in
+`{ collections: { ... } }`) and feed it to the importer to upsert the migration
+database:
+
+```bash
+pnpm --filter @workspace/scripts run import:payload
+# custom input path:
+pnpm --filter @workspace/scripts run import:payload -- --in ./payload-export.json
+```
+
+Default input: `scripts/out/payload-export.json`. Requires the same
+`DATABASE_URL` the rest of the workspace uses.
+
+What it does (the exact reverse of the export):
+
+- **Idempotent.** Pages upsert on `canonicalUrl`; authors, categories and tags
+  upsert on `slug`. Re-running with unchanged content is a no-op — no duplicate
+  rows and no new version snapshot.
+- **`layout` → `componentTree`.** Payload `blocks` are mapped back into the
+  stored `componentTree` (importer object shape: `{ type: "root", children }`)
+  and the flattened `blocks` table, via `layoutToComponentTree`.
+- **Relationships resolved by natural key.** `author` / `categories` / `tags` /
+  `heroImage` / category `parent` are resolved through the export's own
+  collections (by `slug` / `url`), so the JSON may carry either the original
+  migration UUIDs **or** Payload-generated ids — round-tripping works either way.
+- **Version history.** A new `page_versions` snapshot is appended only when the
+  editable content actually changed (sha256 content hash differs from the latest
+  version).
+- **Scope.** Only the children the export owns are rewritten: `componentTree`,
+  `blocks`, `seo`, `breadcrumbs`, `faq`, `jsonld`, page↔category / page↔tag joins
+  and the **featured** image (from `heroImage`). Inline images, internal/external
+  links and raw `metadata` are **not** represented in the export and are left
+  untouched.
