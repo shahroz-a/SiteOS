@@ -1,0 +1,631 @@
+# Headout Blog → Supabase → Payload Migration Engine (Master Prompt)
+
+## Mission
+
+You are a senior staff-level software engineer, solutions architect, data engineer, and web crawling expert.
+
+Your goal is to build a **production-grade content migration pipeline** that crawls the entire Headout Blog ecosystem, preserves every piece of content and metadata with zero loss, stores it in a normalized Supabase database, and prepares it for seamless migration into Payload CMS.
+
+This is **NOT** a scraping project.
+
+This is a **content preservation and migration platform**.
+
+Every architectural decision should optimize for **long-term maintainability, data integrity, idempotency, and Payload compatibility**.
+
+---
+
+# Primary Goal
+
+Create a canonical content repository that becomes the single source of truth for future migration into Payload CMS.
+
+Supabase is the source of truth.
+
+The crawler is only an ingestion mechanism.
+
+The final database should contain enough structured information to completely recreate every page without needing to crawl again.
+
+---
+
+# Think Like a CMS, Not a Scraper
+
+Do not store only HTML.
+
+Understand page semantics.
+
+Convert pages into reusable content blocks.
+
+Normalize relationships.
+
+Extract reusable components.
+
+Preserve hierarchy.
+
+Preserve ordering.
+
+Preserve metadata.
+
+Preserve relationships.
+
+Preserve SEO.
+
+Preserve accessibility.
+
+Preserve internal linking.
+
+Preserve rich text formatting.
+
+Preserve content fidelity.
+
+Never optimize for speed at the expense of completeness.
+
+---
+
+# Crawl Sources
+
+Start with:
+
+```
+https://www.headout.com/blog/post-sitemap.xml
+
+https://www.headout.com/blog/post-sitemap2.xml
+
+https://www.headout.com/blog/post-sitemap3.xml
+
+https://www.headout.com/blog/page-sitemap.xml
+
+https://www.headout.com/blog/web-story-sitemap.xml
+
+https://www.headout.com/blog/category-sitemap.xml
+
+https://www.headout.com/blog/author-sitemap.xml
+```
+
+If any sitemap references additional sitemap files, recursively discover and process them.
+
+The crawler should continue until no new URLs remain.
+
+---
+
+# Crawl Discovery
+
+Automatically discover and enqueue:
+
+* blog articles
+* author pages
+* category pages
+* tag pages
+* pagination
+* archive pages
+* web stories
+* landing pages
+* related articles
+* featured articles
+* breadcrumb destinations
+* internal navigation pages
+* hidden linked pages
+
+Deduplicate by canonical URL.
+
+---
+
+# Crawl Engine
+
+Use Playwright.
+
+Never rely solely on raw HTTP requests.
+
+For every page:
+
+* wait for network idle
+* execute JavaScript
+* scroll entire page
+* trigger lazy loading
+* wait for deferred content
+* expand accordions
+* reveal hidden sections
+* wait for hydration
+* ensure DOM stability
+
+Extract only after rendering is complete.
+
+---
+
+# Crawl Queue
+
+Maintain a persistent crawl queue.
+
+Each URL should track:
+
+* status
+* priority
+* retry_count
+* first_seen
+* last_attempt
+* completed_at
+* checksum
+* content_hash
+* crawl_version
+
+Support pause and resume.
+
+Support incremental recrawls.
+
+Support crash recovery.
+
+Never restart from zero.
+
+---
+
+# Idempotency
+
+The crawler must be idempotent.
+
+Running it multiple times must never create duplicates.
+
+Use:
+
+* canonical URL
+* content hash
+* checksum
+* upserts
+
+Detect changed pages.
+
+Update existing records.
+
+Create new versions when content changes.
+
+---
+
+# Extract Everything
+
+Never summarize.
+
+Never rewrite.
+
+Never truncate.
+
+Never clean content beyond parser normalization.
+
+Extract:
+
+* title
+* subtitle
+* slug
+* URL
+* canonical
+* meta title
+* meta description
+* OpenGraph
+* Twitter metadata
+* robots directives
+* hreflang
+* JSON-LD
+* schema.org markup
+* author
+* author bio
+* author image
+* publish date
+* modified date
+* reading time
+* categories
+* tags
+* hero section
+* hero image
+* every image
+* image metadata
+* captions
+* alt text
+* tables
+* lists
+* numbered lists
+* nested lists
+* callouts
+* quotes
+* FAQs
+* accordions
+* galleries
+* cards
+* banners
+* CTA sections
+* newsletter blocks
+* breadcrumbs
+* TOC
+* jump anchors
+* embedded videos
+* embedded widgets
+* buttons
+* footer references
+* sidebar modules
+* related articles
+* pagination references
+* internal links
+* external links
+
+Nothing should be skipped.
+
+---
+
+# Rich Text Preservation
+
+Preserve:
+
+* bold
+* italic
+* underline
+* hyperlinks
+* inline links
+* nested formatting
+* superscript
+* subscript
+* blockquotes
+* tables
+* indentation
+* spacing
+* heading hierarchy
+* code blocks
+* inline styles where meaningful
+
+Store rich text as structured JSON.
+
+Do not flatten into plain text.
+
+---
+
+# Preserve Component Tree
+
+Do not store pages as a flat document.
+
+Store a hierarchical component tree.
+
+Example:
+
+Section
+
+→ Hero
+
+→ Heading
+
+→ Paragraph
+
+→ Gallery
+
+→ CTA
+
+→ FAQ
+
+→ Related Articles
+
+Maintain:
+
+* parent-child relationships
+* ordering
+* nesting depth
+
+This should mirror Payload block architecture.
+
+---
+
+# Component Detection
+
+Automatically detect reusable components.
+
+Examples:
+
+Hero
+
+Rich Text
+
+Gallery
+
+Image
+
+Quote
+
+FAQ
+
+Accordion
+
+Banner
+
+CTA
+
+Newsletter
+
+Table
+
+Card Grid
+
+Sidebar
+
+Video
+
+Breadcrumb
+
+Table of Contents
+
+Author Card
+
+Related Articles
+
+Extract every reusable pattern.
+
+---
+
+# Images
+
+Do NOT download images.
+
+Reuse existing Headout CDN URLs.
+
+Store:
+
+* src
+* alt
+* caption
+* width
+* height
+* aspect ratio
+* loading attribute
+* position
+* surrounding context
+
+Maintain original order.
+
+---
+
+# Internal Link Graph
+
+Build a complete relationship graph.
+
+Store:
+
+Page A
+
+links to
+
+Page B
+
+Category
+
+Author
+
+Tag
+
+External URL
+
+This graph should support rebuilding navigation and preserving SEO.
+
+---
+
+# DOM Preservation
+
+Store:
+
+* rendered HTML
+* cleaned HTML
+* extracted text
+* rich text JSON
+* component tree
+* metadata
+* checksum
+
+Never discard original rendered HTML.
+
+Future parser improvements should not require recrawling.
+
+---
+
+# Style Intelligence
+
+Capture useful presentation information:
+
+* heading levels
+* typography hierarchy
+* spacing patterns
+* card layouts
+* gallery layouts
+* table layouts
+* image positioning
+* content widths
+* alignment
+
+Do not attempt to clone CSS.
+
+Extract reusable design semantics.
+
+---
+
+# Accessibility
+
+Preserve:
+
+* heading hierarchy
+* alt text
+* ARIA labels
+* semantic landmarks
+* accessible names
+* form labels
+
+Maintain accessibility metadata.
+
+---
+
+# SEO
+
+Preserve:
+
+* title
+* description
+* canonical
+* robots
+* hreflang
+* OpenGraph
+* Twitter
+* JSON-LD
+* breadcrumbs
+* schema
+* internal linking
+
+Do not lose SEO information.
+
+---
+
+# Screenshots
+
+Generate:
+
+* desktop screenshot
+* tablet screenshot
+* mobile screenshot
+
+Store references for future visual validation.
+
+---
+
+# Validation
+
+After extraction compare source and parsed output.
+
+Verify:
+
+* heading count
+* paragraph count
+* image count
+* link count
+* table count
+* FAQ count
+* CTA count
+* component count
+* anchor count
+* word count
+* character count
+
+If mismatched:
+
+retry extraction.
+
+Do not mark complete until validation passes.
+
+---
+
+# Error Recovery
+
+Retry:
+
+* network failures
+* timeout failures
+* rendering failures
+* lazy loading failures
+* parser failures
+
+Maintain detailed logs.
+
+Never silently ignore failures.
+
+---
+
+# Supabase Schema
+
+Design a normalized schema with UUID primary keys and foreign key relationships.
+
+Minimum collections:
+
+* pages
+* page_versions
+* authors
+* categories
+* tags
+* blocks
+* component_tree
+* rich_text_nodes
+* images
+* videos
+* galleries
+* faq
+* accordions
+* breadcrumbs
+* seo
+* metadata
+* jsonld
+* internal_links
+* external_links
+* redirects
+* crawl_queue
+* crawl_logs
+* validation_reports
+
+Use JSONB where appropriate.
+
+Avoid duplication.
+
+Use indexes for performance.
+
+---
+
+# Versioning
+
+Every successful crawl creates a version.
+
+Track:
+
+* version number
+* checksum
+* content hash
+* created_at
+* updated_at
+
+Never overwrite historical versions.
+
+Support diffing between versions.
+
+---
+
+# Payload Compatibility
+
+Structure extracted data so it maps naturally into Payload collections and block types.
+
+Prioritize structured semantics over raw HTML.
+
+Retain original HTML as a reference artifact.
+
+Every page should be reconstructable as Payload blocks with minimal transformation.
+
+---
+
+# Performance
+
+Support concurrent workers.
+
+Rate-limit responsibly.
+
+Persist progress after every processed page.
+
+Support incremental crawling.
+
+Support resume after interruption.
+
+Scale to tens of thousands of pages.
+
+---
+
+# Final Deliverables
+
+Generate:
+
+* normalized Supabase database
+* reusable component library
+* component tree for every page
+* rich text JSON
+* original HTML snapshot
+* image manifest
+* internal link graph
+* external link graph
+* SEO manifest
+* JSON-LD manifest
+* crawl statistics
+* validation reports
+* migration readiness report
+* Payload mapping report
+
+The project is complete **only when every reachable page has been crawled, validated, versioned, normalized, and stored with zero loss of content, structure, formatting, metadata, links, hierarchy, accessibility information, SEO information, or relationships, making the dataset ready for direct migration into Payload CMS.**
