@@ -34,10 +34,13 @@ export default function Search() {
     },
   );
 
+  const items = data?.items ?? [];
+  const previewImage = items[0]?.featuredImageUrl ?? defaultOgImage();
+
   useSeo({
     title: q ? `Search: ${q} | Headout Blog` : "Search | Headout Blog",
     description: "Search travel guides and articles on the Headout Blog.",
-    ogImage: defaultOgImage(),
+    ogImage: previewImage,
   });
 
   const submit = (e: React.FormEvent) => {
@@ -45,8 +48,6 @@ export default function Search() {
     const trimmed = input.trim();
     if (trimmed) navigate(searchPath(trimmed));
   };
-
-  const items = data?.items ?? [];
 
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">
