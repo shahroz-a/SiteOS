@@ -27,15 +27,18 @@ export default function Category() {
     isError: postsError,
   } = useListPosts({ category: slug, page, limit: PAGE_SIZE });
 
+  const items = data?.items ?? [];
+  const previewImage =
+    items.find((post) => post.featuredImageUrl)?.featuredImageUrl ??
+    defaultOgImage();
+
   useSeo({
     title: category
       ? `${category.name} | Headout Blog`
       : "Category | Headout Blog",
     description: category?.description,
-    ogImage: defaultOgImage(),
+    ogImage: previewImage,
   });
-
-  const items = data?.items ?? [];
 
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">

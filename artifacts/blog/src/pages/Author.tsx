@@ -25,13 +25,16 @@ export default function Author() {
     isError: postsError,
   } = useListPosts({ author: slug, page, limit: PAGE_SIZE });
 
+  const items = data?.items ?? [];
+  const previewImage =
+    items.find((post) => post.featuredImageUrl)?.featuredImageUrl ??
+    defaultOgImage();
+
   useSeo({
     title: author ? `${author.name} | Headout Blog` : "Author | Headout Blog",
     description: author?.bio,
-    ogImage: defaultOgImage(),
+    ogImage: previewImage,
   });
-
-  const items = data?.items ?? [];
 
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">
