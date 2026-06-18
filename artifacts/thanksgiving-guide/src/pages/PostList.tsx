@@ -39,16 +39,17 @@ const ALL = "__all__";
 export default function PostList() {
   const [, navigate] = useLocation();
   const search = useSearch();
-  const tag = useMemo(() => {
-    const params = new URLSearchParams(search);
-    return params.get("tag") ?? undefined;
-  }, [search]);
 
-  const [page, setPage] = useState(1);
-  const [category, setCategory] = useState<string | undefined>(undefined);
-  const [author, setAuthor] = useState<string | undefined>(undefined);
-  const [searchInput, setSearchInput] = useState("");
-  const [query, setQuery] = useState("");
+  // The URL is the single source of truth for every listing control, so any
+  // filtered/searched view is shareable and survives a reload.
+  const params = useMemo(() => new URLSearchParams(search), [search]);
+  const tag = params.get("tag") ?? undefined;
+  const category = params.get("category") ?? undefined;
+  const author = params.get("author") ?? undefined;
+  const query = params.get("q") ?? "";
+  const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
+
+  const [searchInput, setSearchInput] = useState(query);
 
   useSeo({
     title: "Headout Blog — Travel guides, tips & destination ideas",
@@ -56,19 +57,37 @@ export default function PostList() {
       "Explore travel guides, destination deep-dives and trip-planning tips from the Headout Blog.",
   });
 
-  // Debounce the search input.
+  // Apply a partial update to the URL search params. Removing/clearing a value
+  // is done by passing undefined. Resetting to page 1 is the caller's job (pass
+  // page: undefined) whenever a filter or the query changes.
+  const updateParams = (updates: Record<string, string | undefined>) => {
+    const next = new URLSearchParams(search);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === undefined || value === "") next.delete(key);
+      else next.set(key, value);
+    }
+    const qs = next.toString();
+    navigate(qs ? `/?${qs}` : "/");
+  };
+
+  // Debounce the search box, then push the trimmed query into the URL.
   useEffect(() => {
     const handle = setTimeout(() => {
-      setQuery(searchInput.trim());
-      setPage(1);
+      const trimmed = searchInput.trim();
+      if (trimmed !== query) {
+        updateParams({ q: trimmed || undefined, page: undefined });
+      }
     }, 350);
     return () => clearTimeout(handle);
-  }, [searchInput]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, query]);
 
-  // Reset to the first page whenever the URL-driven tag filter changes.
+  // Reflect external query changes (clear search, back/forward) in the input.
   useEffect(() => {
-    setPage(1);
-  }, [tag]);
+    setSearchInput((current) =>
+      current.trim() === query ? current : query,
+    );
+  }, [query]);
 
   const isSearching = query.length > 0;
 
@@ -94,24 +113,24 @@ export default function PostList() {
     : listQuery;
 
   const selectCategory = (slug?: string) => {
-    setCategory(slug);
-    setPage(1);
+    updateParams({ category: slug, page: undefined });
   };
 
   const selectAuthor = (slug?: string) => {
-    setAuthor(slug);
-    setPage(1);
+    updateParams({ author: slug, page: undefined });
   };
 
   const selectTag = (slug?: string) => {
-    navigate(slug ? `/?tag=${encodeURIComponent(slug)}` : "/");
-    setPage(1);
+    updateParams({ tag: slug, page: undefined });
+  };
+
+  const goToPage = (p: number) => {
+    updateParams({ page: p <= 1 ? undefined : String(p) });
   };
 
   const clearSearch = () => {
     setSearchInput("");
-    setQuery("");
-    setPage(1);
+    updateParams({ q: undefined, page: undefined });
   };
 
   const pagination = data?.pagination;
@@ -222,10 +241,13 @@ export default function PostList() {
                   variant="ghost"
                   size="sm"
                   className="rounded-full text-muted-foreground"
-                  onClick={() => {
-                    setAuthor(undefined);
-                    selectTag(undefined);
-                  }}
+                  onClick={() =>
+                    updateParams({
+                      author: undefined,
+                      tag: undefined,
+                      page: undefined,
+                    })
+                  }
                 >
                   <X className="w-3.5 h-3.5 mr-1" />
                   Clear filters
@@ -297,7 +319,7 @@ export default function PostList() {
                   variant="outline"
                   className="rounded-full"
                   disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => goToPage(page - 1)}
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Previous
@@ -309,7 +331,7 @@ export default function PostList() {
                   variant="outline"
                   className="rounded-full"
                   disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() => goToPage(page + 1)}
                 >
                   Next
                   <ChevronRight className="w-4 h-4 ml-1" />
