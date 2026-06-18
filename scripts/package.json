@@ -7,13 +7,17 @@
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
     "import": "tsx ./src/import.ts",
+    "crawl": "tsx ./src/crawl.ts",
+    "discover": "tsx ./src/crawl.ts --discover",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
     "cheerio": "^1.2.0",
     "domhandler": "^6.0.1",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "fast-xml-parser": "^5.9.2",
+    "playwright": "^1.61.0"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-06-18T19:23:40.965Z",
+  "collections": {
+    "pages": {
+      "source": "pages + page_versions",
+      "payloadCollection": "pages",
+      "urlField": "slug"
+    },
+    "authors": {
+      "source": "authors",
+      "payloadCollection": "users/authors"
+    },
+    "categories": {
+      "source": "categories",
+      "payloadCollection": "categories"
+    },
+    "tags": {
+      "source": "tags",
+      "payloadCollection": "tags"
+    },
+    "media": {
+      "source": "images + videos + galleries",
+      "payloadCollection": "media (external URL)"
+    },
+    "redirects": {
+      "source": "redirects",
+      "payloadCollection": "redirects plugin"
+    },
+    "seo": {
+      "source": "seo + metadata + jsonld",
+      "payloadCollection": "SEO plugin fields"
+    }
+  },
+  "blockTypes": [
+    {
+      "type": "banner",
+      "count": 6,
+      "payloadBlock": "BannerBlock"
+    },
+    {
+      "type": "paragraph",
+      "count": 453,
+      "payloadBlock": "UNMAPPED — needs custom Payload block"
+    },
+    {
+      "type": "richText",
+      "count": 573,
+      "payloadBlock": "RichText (Lexical) block"
+    },
+    {
+      "type": "cta",
+      "count": 8,
+      "payloadBlock": "CallToActionBlock"
+    },
+    {
+      "type": "list",
+      "count": 143,
+      "payloadBlock": "RichText list / List block"
+    },
+    {
+      "type": "section",
+      "count": 605,
+      "payloadBlock": "Group/Container block"
+    },
+    {
+      "type": "faqSection",
+      "count": 508,
+      "payloadBlock": "FAQBlock"
+    },
+    {
+      "type": "heading",
+      "count": 558,
+      "payloadBlock": "Heading block"
+    },
+    {
+      "type": "table",
+      "count": 9,
+      "payloadBlock": "Table block"
+    },
+    {
+      "type": "quote",
+      "count": 25,
+      "payloadBlock": "Quote block"
+    },
+    {
+      "type": "embed",
+      "count": 8,
+      "payloadBlock": "EmbedBlock / VideoBlock"
+    },
+    {
+      "type": "image",
+      "count": 138,
+      "payloadBlock": "MediaBlock (external URL)"
+    }
+  ],
+  "richText": "Stored as structured JSON (Lexical-compatible) in pages.rich_text",
+  "urlPreservation": {
+    "strategy": "canonical_url is the public identifier; slug derived from URL; redirects preserved",
+    "redirectsPreserved": 2
+  },
+  "blockingIssues": [
+    "Block types without a Payload mapping: paragraph"
+  ]
+}

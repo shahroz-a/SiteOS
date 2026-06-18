@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-06-18T19:23:38.707Z",
+  "queue": {
+    "pending": 3660,
+    "in_progress": 2,
+    "completed": 26,
+    "failed": 0,
+    "skipped": 0,
+    "total": 3688
+  },
+  "pages": 33,
+  "pagesByType": {
+    "post": 33
+  },
+  "authors": 16,
+  "categories": 24,
+  "tags": 42,
+  "images": 612
+}

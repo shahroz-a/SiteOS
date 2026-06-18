@@ -3,3 +3,4 @@
 - [Supabase pooler connection](supabase-pooler-connection.md) — use Session Pooler URL (port 5432) not direct db host (IPv6-only); ssl no-verify, drizzle push-force not push.
 - [Orval path+query param collision](orval-path-query-collision.md) — operations mixing a path param and query params emit a zod value + TS type of the same name → TS2308; avoid nesting.
 - [Drizzle silent unknown keys](drizzle-silent-unknown-keys.md) — wrong-table column in .values()/.set() neither type-errors (via intermediate var) nor throws; it's silently dropped. Verify with SELECT.
+- [Crawler content-hash idempotency](crawler-content-hash-idempotency.md) — re-crawl shows "changed" only vs older-code rows; prove idempotency via current-code double-store, not pre-existing rows.

@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-06-18T19:23:40.589Z",
+  "total": 2,
+  "redirects": [
+    {
+      "id": "b00d670a-e2de-42b2-9d3c-8feb940c2e7d",
+      "fromPath": "/blog/thanksgiving-ideas/",
+      "toPath": "/blog/thanksgiving-vacation-ideas-for-families/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-18T19:01:43.027Z"
+    },
+    {
+      "id": "3559c83a-8a8f-4717-956a-483fdc8d2c97",
+      "fromPath": "/blog/nyc-family/",
+      "toPath": "/blog/new-york-city-family-guide/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-18T19:01:43.027Z"
+    }
+  ]
+}

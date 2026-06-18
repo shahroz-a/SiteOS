@@ -26,6 +26,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - API contract (source of truth): `lib/api-spec/openapi.yaml`. Generated zod → `@workspace/api-zod`; generated React Query hooks → `@workspace/api-client-react`. Regenerate with `pnpm --filter @workspace/api-spec run codegen`.
 - API server routes: `artifacts/api-server/src/routes/` (posts, categories, authors, search, health). Shared post serializers/list logic: `artifacts/api-server/src/lib/posts.ts`.
 - Seed fixtures: `scripts/src/seed.ts` (run `pnpm --filter @workspace/scripts run seed`).
+- Blog crawler & extraction engine: `scripts/src/crawler/*.ts` + CLI `scripts/src/crawl.ts`. Run discovery with `pnpm --filter @workspace/scripts run discover`; bounded crawl with `pnpm --filter @workspace/scripts run crawl -- --crawl --limit=N --no-browser`. Migration reports are written to `./reports/`.
 
 ## Read API (migration foundation)
 

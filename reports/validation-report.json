@@ -1,0 +1,9 @@
+{
+  "generatedAt": "2026-06-18T19:23:38.902Z",
+  "total": 27,
+  "byStatus": {
+    "pass": 22,
+    "warn": 5
+  },
+  "failures": []
+}
