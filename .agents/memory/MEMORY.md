@@ -7,3 +7,4 @@
 - [Crawler test harness](crawler-test-harness.md) — vitest tests for extract/idempotency; store test mocks @workspace/db with an in-memory fake; mutate <h1> to change contentHash.
 - [Read-API test harness](api-read-test-harness.md) — fake Drizzle for lib/posts + routes; join `eq(col,col)` passes two column refs (resolve both); fixture ids must be real UUIDs.
 - [componentTree shape divergence](component-tree-shape-divergence.md) — crawler stores pages.componentTree as array, importer as object; API contract must accept both (oneOf) or detail 500s.
+- [Artifact dev-port registration](artifact-port-registration.md) — mid-session artifacts fail dev workflow port probe (DIDNT_OPEN_A_PORT) until repl reboot; .replit [[ports]] regenerates from tomls only at boot; no tool adds it.
