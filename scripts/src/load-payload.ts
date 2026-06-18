@@ -95,15 +95,15 @@ async function main(): Promise<void> {
   );
 
   const payload = await bootPayload(configPath);
-  const { idMap, counts } = await loadPayloadExport(payload, collections);
+  const { idMap, counts, updated } = await loadPayloadExport(payload, collections);
 
   console.log(
-    `\nPayload load complete:\n` +
-      `  media uploaded:      ${counts.media}\n` +
-      `  authors created:     ${counts.authors}\n` +
-      `  categories created:  ${counts.categories}\n` +
-      `  tags created:        ${counts.tags}\n` +
-      `  posts created:       ${counts.posts}\n` +
+    `\nPayload load complete (created / updated):\n` +
+      `  media:       ${counts.media} / ${updated.media}\n` +
+      `  authors:     ${counts.authors} / ${updated.authors}\n` +
+      `  categories:  ${counts.categories} / ${updated.categories}\n` +
+      `  tags:        ${counts.tags} / ${updated.tags}\n` +
+      `  posts:       ${counts.posts} / ${updated.posts}\n` +
       `  UUID → id map size:  ${idMap.size}`,
   );
 }

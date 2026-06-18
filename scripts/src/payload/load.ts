@@ -13,6 +13,11 @@
  *
  * Load order matters: media → authors → categories (then parents) → tags →
  * posts, so every relationship resolves to an already-created document.
+ *
+ * The load is idempotent: every document is looked up by its natural key
+ * (filename for media, slug for authors/categories/tags/posts) and updated in
+ * place when it already exists, so re-running after a partial failure creates
+ * no duplicates. The same idempotency the round-trip importer already provides.
  */
 import type { PayloadExport } from "./mapping.js";
 
@@ -33,7 +38,13 @@ export interface PayloadLike {
     collection: string;
     id: string | number;
     data: Record<string, unknown>;
+    draft?: boolean;
   }): Promise<unknown>;
+  find(args: {
+    collection: string;
+    where: Record<string, unknown>;
+    limit?: number;
+  }): Promise<{ docs: Array<{ id: string | number }> }>;
 }
 
 export interface LoadOptions {
@@ -44,7 +55,16 @@ export interface LoadOptions {
 export interface LoadResult {
   /** Maps each export document's original UUID to its new Payload id. */
   idMap: Map<string, string | number>;
+  /** Number of documents newly created per collection. */
   counts: {
+    media: number;
+    authors: number;
+    categories: number;
+    tags: number;
+    posts: number;
+  };
+  /** Number of pre-existing documents updated in place per collection. */
+  updated: {
     media: number;
     authors: number;
     categories: number;
@@ -53,9 +73,26 @@ export interface LoadResult {
   };
 }
 
+/** Find an existing document by a natural-key field, or `undefined`. */
+async function findByKey(
+  payload: PayloadLike,
+  collection: string,
+  field: string,
+  value: string,
+): Promise<{ id: string | number } | undefined> {
+  const res = await payload.find({
+    collection,
+    where: { [field]: { equals: value } },
+    limit: 1,
+  });
+  return res.docs[0];
+}
+
 /**
- * Seed a Payload instance from an export's `collections`. Returns the
- * old-UUID → new-Payload-id map plus per-collection create counts.
+ * Seed (or re-seed) a Payload instance from an export's `collections`. Returns
+ * the old-UUID → new-Payload-id map plus per-collection create/update counts.
+ * Re-running against an already-populated instance updates the existing
+ * documents in place instead of creating duplicates.
  */
 export async function loadPayloadExport(
   payload: PayloadLike,
@@ -70,9 +107,20 @@ export async function loadPayloadExport(
     uuid ? (idMap.get(uuid) ?? null) : null;
 
   const counts = { media: 0, authors: 0, categories: 0, tags: 0, posts: 0 };
+  const updated = { media: 0, authors: 0, categories: 0, tags: 0, posts: 0 };
 
   // 1) Media — fetch each source asset and upload it so Payload owns a copy.
+  // Natural key: filename. When a media doc already exists we update its
+  // metadata only and skip the (network) re-fetch + re-upload.
   for (const m of collections.media) {
+    const data = { alt: m.alt, caption: m.caption, credit: m.credit };
+    const existing = await findByKey(payload, "media", "filename", m.filename);
+    if (existing) {
+      await payload.update({ collection: "media", id: existing.id, data });
+      idMap.set(m.id, existing.id);
+      updated.media++;
+      continue;
+    }
     const res = await doFetch(m.sourceUrl || m.url);
     if (!res.ok) {
       throw new Error(
@@ -82,7 +130,7 @@ export async function loadPayloadExport(
     const buffer = Buffer.from(await res.arrayBuffer());
     const created = await payload.create({
       collection: "media",
-      data: { alt: m.alt, caption: m.caption, credit: m.credit },
+      data,
       file: {
         data: buffer,
         name: m.filename,
@@ -95,30 +143,41 @@ export async function loadPayloadExport(
     counts.media++;
   }
 
-  // 2) Authors
+  // 2) Authors — natural key: slug.
   for (const a of collections.authors) {
-    const created = await payload.create({
-      collection: "authors",
-      data: {
-        name: a.name,
-        slug: a.slug,
-        bio: a.bio,
-        role: a.role,
-        email: a.email,
-        avatar: remap(a.avatar),
-        social: a.social,
-      },
-    });
+    const data = {
+      name: a.name,
+      slug: a.slug,
+      bio: a.bio,
+      role: a.role,
+      email: a.email,
+      avatar: remap(a.avatar),
+      social: a.social,
+    };
+    const existing = await findByKey(payload, "authors", "slug", a.slug);
+    if (existing) {
+      await payload.update({ collection: "authors", id: existing.id, data });
+      idMap.set(a.id, existing.id);
+      updated.authors++;
+      continue;
+    }
+    const created = await payload.create({ collection: "authors", data });
     idMap.set(a.id, created.id);
     counts.authors++;
   }
 
-  // 3) Categories — first pass without parent, then patch parents.
+  // 3) Categories — natural key: slug. First pass without parent, then patch
+  // parents (so a parent always exists before a child references it).
   for (const c of collections.categories) {
-    const created = await payload.create({
-      collection: "categories",
-      data: { title: c.title, slug: c.slug, description: c.description },
-    });
+    const data = { title: c.title, slug: c.slug, description: c.description };
+    const existing = await findByKey(payload, "categories", "slug", c.slug);
+    if (existing) {
+      await payload.update({ collection: "categories", id: existing.id, data });
+      idMap.set(c.id, existing.id);
+      updated.categories++;
+      continue;
+    }
+    const created = await payload.create({ collection: "categories", data });
     idMap.set(c.id, created.id);
     counts.categories++;
   }
@@ -131,43 +190,53 @@ export async function loadPayloadExport(
     });
   }
 
-  // 4) Tags
+  // 4) Tags — natural key: slug.
   for (const t of collections.tags) {
-    const created = await payload.create({
-      collection: "tags",
-      data: { title: t.title, slug: t.slug, description: t.description },
-    });
+    const data = { title: t.title, slug: t.slug, description: t.description };
+    const existing = await findByKey(payload, "tags", "slug", t.slug);
+    if (existing) {
+      await payload.update({ collection: "tags", id: existing.id, data });
+      idMap.set(t.id, existing.id);
+      updated.tags++;
+      continue;
+    }
+    const created = await payload.create({ collection: "tags", data });
     idMap.set(t.id, created.id);
     counts.tags++;
   }
 
-  // 5) Posts
+  // 5) Posts — natural key: slug.
   for (const p of collections.posts) {
-    const created = await payload.create({
-      collection: "posts",
-      draft: p._status !== "published",
-      data: {
-        title: p.title,
-        slug: p.slug,
-        subtitle: p.subtitle,
-        excerpt: p.excerpt,
-        _status: p._status,
-        publishedAt: p.publishedAt,
-        author: remap(p.author),
-        categories: p.categories.map(remap).filter(Boolean),
-        tags: p.tags.map(remap).filter(Boolean),
-        heroImage: remap(p.heroImage),
-        layout: p.layout,
-        content: p.content,
-        contentHtml: p.contentHtml,
-        meta: p.meta,
-        breadcrumbs: p.breadcrumbs,
-        faq: p.faq,
-      },
-    });
+    const data = {
+      title: p.title,
+      slug: p.slug,
+      subtitle: p.subtitle,
+      excerpt: p.excerpt,
+      _status: p._status,
+      publishedAt: p.publishedAt,
+      author: remap(p.author),
+      categories: p.categories.map(remap).filter(Boolean),
+      tags: p.tags.map(remap).filter(Boolean),
+      heroImage: remap(p.heroImage),
+      layout: p.layout,
+      content: p.content,
+      contentHtml: p.contentHtml,
+      meta: p.meta,
+      breadcrumbs: p.breadcrumbs,
+      faq: p.faq,
+    };
+    const draft = p._status !== "published";
+    const existing = await findByKey(payload, "posts", "slug", p.slug);
+    if (existing) {
+      await payload.update({ collection: "posts", id: existing.id, data, draft });
+      idMap.set(p.id, existing.id);
+      updated.posts++;
+      continue;
+    }
+    const created = await payload.create({ collection: "posts", draft, data });
     idMap.set(p.id, created.id);
     counts.posts++;
   }
 
-  return { idMap, counts };
+  return { idMap, counts, updated };
 }

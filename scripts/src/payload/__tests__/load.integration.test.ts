@@ -259,4 +259,57 @@ describe("Payload export → real Payload load (integration)", () => {
       "html",
     ]);
   });
+
+  it("is idempotent: a second load creates no duplicates", async () => {
+    const collectionsToCheck = [
+      "media",
+      "authors",
+      "categories",
+      "tags",
+      "posts",
+    ] as const;
+
+    // Snapshot document totals after the first (beforeAll) load.
+    const before: Record<string, number> = {};
+    for (const collection of collectionsToCheck) {
+      before[collection] = (
+        await instance.payload.find({ collection, limit: 100 })
+      ).totalDocs;
+    }
+
+    // Re-run the loader against the already-populated instance.
+    const second = await loadPayloadExport(
+      instance.payload as unknown as PayloadLike,
+      data.collections,
+      { fetchImpl },
+    );
+
+    // Nothing new was created; every document was updated in place instead.
+    expect(second.counts).toEqual({
+      media: 0,
+      authors: 0,
+      categories: 0,
+      tags: 0,
+      posts: 0,
+    });
+    expect(second.updated).toEqual({
+      media: 2,
+      authors: 1,
+      categories: 2,
+      tags: 2,
+      posts: 1,
+    });
+
+    // Document totals are unchanged — no duplicates were written.
+    for (const collection of collectionsToCheck) {
+      const after = (await instance.payload.find({ collection, limit: 100 }))
+        .totalDocs;
+      expect(after).toBe(before[collection]);
+    }
+
+    // The second load still resolves the same Payload ids by natural key.
+    for (const uuid of Object.values(IDS)) {
+      expect(second.idMap.get(uuid)).toBe(result.idMap.get(uuid));
+    }
+  });
 });

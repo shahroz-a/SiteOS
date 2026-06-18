@@ -72,9 +72,16 @@ needs collections matching the fields above (`media` as an `upload` collection;
 The loader is real, tested code: **`load.ts`** (`loadPayloadExport`). It performs
 the media→authors→categories(+parents)→tags→posts load order, fetches and uploads
 each media asset, remaps every original UUID to the id Payload generates on
-create, and returns `{ idMap, counts }`. It talks to a minimal structural
+create, and returns `{ idMap, counts, updated }`. It talks to a minimal structural
 `PayloadLike` interface, so it runs against any Payload config that defines the
-documented collections. Run a one-off seed script inside your Payload project:
+documented collections.
+
+**Idempotent.** Every document is looked up by its natural key (filename for
+media, slug for authors/categories/tags/posts) and updated in place when it
+already exists, so re-running after a partial failure creates no duplicates.
+`counts` reports documents newly created; `updated` reports pre-existing
+documents updated in place. Run a one-off seed script inside your Payload
+project:
 
 ```ts
 // payload-import.ts (run inside your Payload project: `payload run payload-import.ts`)
