@@ -4,3 +4,4 @@
 - [Orval path+query param collision](orval-path-query-collision.md) — operations mixing a path param and query params emit a zod value + TS type of the same name → TS2308; avoid nesting.
 - [Drizzle silent unknown keys](drizzle-silent-unknown-keys.md) — wrong-table column in .values()/.set() neither type-errors (via intermediate var) nor throws; it's silently dropped. Verify with SELECT.
 - [Crawler content-hash idempotency](crawler-content-hash-idempotency.md) — re-crawl shows "changed" only vs older-code rows; prove idempotency via current-code double-store, not pre-existing rows.
+- [Crawler test harness](crawler-test-harness.md) — vitest tests for extract/idempotency; store test mocks @workspace/db with an in-memory fake; mutate <h1> to change contentHash.
