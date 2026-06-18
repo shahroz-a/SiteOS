@@ -69,7 +69,7 @@ async function writeRoute(
   return files.length;
 }
 
-async function run(): Promise<void> {
+export async function run(): Promise<void> {
   const indexPath = path.join(DIST_DIR, "index.html");
   if (!existsSync(indexPath)) {
     throw new Error(
@@ -234,7 +234,7 @@ async function run(): Promise<void> {
   );
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   if (!process.env.DATABASE_URL) {
     console.warn(
       "[prerender-blog] DATABASE_URL is not set; skipping prerender. " +
@@ -259,7 +259,15 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error("[prerender-blog]", error);
-  process.exit(1);
-});
+// Only run the CLI when this module is executed directly (not when imported by
+// tests, which exercise `run`/`main` against a fake DB and a temp dist dir).
+const isEntrypoint =
+  process.argv[1] !== undefined &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isEntrypoint) {
+  main().catch((error) => {
+    console.error("[prerender-blog]", error);
+    process.exit(1);
+  });
+}
