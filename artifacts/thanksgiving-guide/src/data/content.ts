@@ -57,8 +57,8 @@ export const intro: RichSegment[] = [
 ];
 
 export const restaurantsHeading =
-  "🍲 Best restaurants to hit up for your Thanksgiving Feast-";
-export const attractionsHeading = "📍 Fun attractions and activities in the city-";
+  "Best restaurants to hit up for your Thanksgiving Feast";
+export const attractionsHeading = "Fun attractions and activities in the city";
 
 export const destinations: Destination[] = [
   {

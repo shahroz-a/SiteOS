@@ -11,7 +11,7 @@ export function DestinationSection({ destination }: DestinationSectionProps) {
   return (
     <section 
       id={destination.id} 
-      className="scroll-mt-24 mb-24 opacity-0 animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-forwards"
+      className="scroll-mt-24 mb-20"
     >
       <div className="flex items-center gap-4 mb-8">
         <span className="text-4xl font-serif text-primary/40 font-light">
@@ -33,7 +33,7 @@ export function DestinationSection({ destination }: DestinationSectionProps) {
         </AspectRatio>
       </div>
 
-      <p className="text-lg md:text-xl leading-relaxed text-foreground/80 mb-12 font-serif">
+      <p className="text-base md:text-lg leading-relaxed text-foreground/80 mb-10">
         <RichText segments={destination.intro} />
       </p>
 

@@ -66,7 +66,7 @@ export default function Article() {
         </div>
 
         {/* Intro */}
-        <div className="max-w-3xl mx-auto text-xl md:text-2xl leading-relaxed text-foreground/80 font-serif mb-20 text-center">
+        <div className="max-w-3xl text-base md:text-lg leading-relaxed text-foreground/80 mb-16">
           <RichText segments={intro} />
         </div>
 
