@@ -31,9 +31,9 @@ export const listPostsQueryLimitMax = 100;
 export const ListPostsQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listPostsQueryPageDefault).describe('1-based page number'),
   "limit": zod.coerce.number().min(1).max(listPostsQueryLimitMax).default(listPostsQueryLimitDefault).describe('Number of items per page'),
-  "category": zod.coerce.string().optional().describe('Filter by category slug'),
-  "author": zod.coerce.string().optional().describe('Filter by author slug'),
-  "tag": zod.coerce.string().optional().describe('Filter by tag slug')
+  "category": zod.string().optional().describe('Filter by category slug'),
+  "author": zod.string().optional().describe('Filter by author slug'),
+  "tag": zod.string().optional().describe('Filter by tag slug')
 })
 
 export const ListPostsResponse = zod.object({
@@ -81,7 +81,7 @@ export const ListPostsResponse = zod.object({
  * @summary Get a post by slug
  */
 export const GetPostBySlugParams = zod.object({
-  "slug": zod.coerce.string().describe('The resource slug (public identifier)')
+  "slug": zod.string().describe('The resource slug (public identifier)')
 })
 
 export const GetPostBySlugResponse = zod.object({
@@ -188,7 +188,7 @@ export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem)
  * @summary Get a category by slug
  */
 export const GetCategoryBySlugParams = zod.object({
-  "slug": zod.coerce.string().describe('The resource slug (public identifier)')
+  "slug": zod.string().describe('The resource slug (public identifier)')
 })
 
 export const GetCategoryBySlugResponse = zod.object({
@@ -223,7 +223,7 @@ export const ListAuthorsResponse = zod.array(ListAuthorsResponseItem)
  * @summary Get an author by slug
  */
 export const GetAuthorBySlugParams = zod.object({
-  "slug": zod.coerce.string().describe('The resource slug (public identifier)')
+  "slug": zod.string().describe('The resource slug (public identifier)')
 })
 
 export const GetAuthorBySlugResponse = zod.object({
@@ -265,7 +265,7 @@ export const searchPostsQueryLimitMax = 100;
 
 
 export const SearchPostsQueryParams = zod.object({
-  "q": zod.coerce.string().min(1).describe('Search query'),
+  "q": zod.string().min(1).describe('Search query'),
   "page": zod.coerce.number().min(1).default(searchPostsQueryPageDefault).describe('1-based page number'),
   "limit": zod.coerce.number().min(1).max(searchPostsQueryLimitMax).default(searchPostsQueryLimitDefault).describe('Number of items per page')
 })

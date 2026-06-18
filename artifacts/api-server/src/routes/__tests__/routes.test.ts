@@ -148,4 +148,30 @@ describe("GET /api/search", () => {
     expect(res.body.items).toEqual([]);
     expect(res.body.pagination.total).toBe(0);
   });
+
+  it("returns 400 when q is missing", async () => {
+    const res = await request(app).get("/api/search");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Invalid request");
+  });
+
+  it("returns 400 for an empty q", async () => {
+    const res = await request(app).get("/api/search?q=");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Invalid request");
+  });
+});
+
+describe("invalid request handling", () => {
+  it("returns 400 for an out-of-range limit", async () => {
+    const res = await request(app).get("/api/posts?limit=999");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Invalid request");
+  });
+
+  it("returns 400 for a non-numeric page", async () => {
+    const res = await request(app).get("/api/posts?page=abc");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Invalid request");
+  });
 });
