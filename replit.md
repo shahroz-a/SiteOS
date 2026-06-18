@@ -27,6 +27,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - API server routes: `artifacts/api-server/src/routes/` (posts, categories, authors, search, health). Shared post serializers/list logic: `artifacts/api-server/src/lib/posts.ts`.
 - Seed fixtures: `scripts/src/seed.ts` (run `pnpm --filter @workspace/scripts run seed`).
 - Blog crawler & extraction engine: `scripts/src/crawler/*.ts` + CLI `scripts/src/crawl.ts`. Run discovery with `pnpm --filter @workspace/scripts run discover`; bounded crawl with `pnpm --filter @workspace/scripts run crawl -- --crawl --limit=N --no-browser`. Migration reports are written to `./reports/`.
+- Payload CMS export: `scripts/src/export-payload.ts` + pure mapping in `scripts/src/payload/mapping.ts` (run `pnpm --filter @workspace/scripts run export:payload`; writes `scripts/out/payload-export.json`, gitignored). See `scripts/src/payload/README.md` for the export shape and an example Local-API loader.
 
 ## Read API (migration foundation)
 
