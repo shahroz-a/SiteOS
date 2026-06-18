@@ -102,7 +102,7 @@ export const GetPostBySlugResponse = zod.object({
   "modifiedAt": zod.coerce.date().nullish(),
   "contentHtml": zod.string().nullish(),
   "richText": zod.record(zod.string(), zod.unknown()).nullish(),
-  "componentTree": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional().describe('Opaque, Payload-compatible component tree consumed by the renderer. Stored verbatim from ingestion; the crawler emits a top-level array of block nodes while the importer emits a single root object, so this accepts an object, an array, or null.'),
   "author": zod.union([zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),

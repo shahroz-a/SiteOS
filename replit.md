@@ -54,7 +54,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- **`componentTree` has two shapes.** The crawler (`crawler/assemble.ts`) stores `pages.componentTree` as a top-level JSON **array** of blocks; the importer (`import/parse.ts`) stores a single root **object**. The `componentTree` field in `openapi.yaml` must stay a `oneOf` (object/array/null) or `GET /posts/{slug}` 500s on every crawler-ingested page. Regenerate zod after any contract change.
+- **`GET /posts/{slug}` fires ~8 sequential DB queries.** Load-testing it at high concurrency against the Supabase session pooler (especially while the crawler runs) exhausts the pool and returns transient 500s. Verify functional correctness at low concurrency.
 
 ## Pointers
 

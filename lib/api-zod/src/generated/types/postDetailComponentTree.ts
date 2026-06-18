@@ -7,6 +7,6 @@
  */
 
 /**
- * @nullable
+ * Opaque, Payload-compatible component tree consumed by the renderer. Stored verbatim from ingestion; the crawler emits a top-level array of block nodes while the importer emits a single root object, so this accepts an object, an array, or null.
  */
-export type PostDetailComponentTree = { [key: string]: unknown } | null;
+export type PostDetailComponentTree = { [key: string]: unknown } | unknown[] | null;

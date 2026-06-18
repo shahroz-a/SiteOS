@@ -6,3 +6,4 @@
 - [Crawler content-hash idempotency](crawler-content-hash-idempotency.md) — re-crawl shows "changed" only vs older-code rows; prove idempotency via current-code double-store, not pre-existing rows.
 - [Crawler test harness](crawler-test-harness.md) — vitest tests for extract/idempotency; store test mocks @workspace/db with an in-memory fake; mutate <h1> to change contentHash.
 - [Read-API test harness](api-read-test-harness.md) — fake Drizzle for lib/posts + routes; join `eq(col,col)` passes two column refs (resolve both); fixture ids must be real UUIDs.
+- [componentTree shape divergence](component-tree-shape-divergence.md) — crawler stores pages.componentTree as array, importer as object; API contract must accept both (oneOf) or detail 500s.
