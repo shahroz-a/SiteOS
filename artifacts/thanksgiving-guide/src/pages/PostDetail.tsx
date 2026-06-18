@@ -214,9 +214,17 @@ export default function PostDetail() {
               <div className="flex items-center flex-wrap gap-2 mt-16 pt-8 border-t border-border/40">
                 <span className="text-sm text-muted-foreground mr-1">Tags:</span>
                 {post.tags.map((tag) => (
-                  <Badge key={tag.id} variant="secondary" className="rounded-full">
-                    {tag.name}
-                  </Badge>
+                  <Link
+                    key={tag.id}
+                    href={`/?tag=${encodeURIComponent(tag.slug)}`}
+                  >
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                    >
+                      {tag.name}
+                    </Badge>
+                  </Link>
                 ))}
               </div>
             )}

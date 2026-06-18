@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Clock } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -11,6 +11,13 @@ interface PostCardProps {
 
 export function PostCard({ post }: PostCardProps) {
   const published = formatDate(post.publishedAt);
+  const [, navigate] = useLocation();
+
+  const goToTag = (e: React.MouseEvent, slug: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/?tag=${encodeURIComponent(slug)}`);
+  };
 
   return (
     <Link
@@ -45,6 +52,21 @@ export function PostCard({ post }: PostCardProps) {
           <p className="text-sm text-muted-foreground leading-relaxed mb-6 line-clamp-3">
             {post.excerpt}
           </p>
+        )}
+
+        {post.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {post.tags.slice(0, 3).map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                onClick={(e) => goToTag(e, tag.slug)}
+                className="text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
         )}
 
         <div className="mt-auto flex items-center justify-between gap-4 pt-4 border-t border-border/40">

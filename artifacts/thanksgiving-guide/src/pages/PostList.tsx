@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 import {
   useListPosts,
   useListCategories,
@@ -36,10 +37,16 @@ const PAGE_SIZE = 9;
 const ALL = "__all__";
 
 export default function PostList() {
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const tag = useMemo(() => {
+    const params = new URLSearchParams(search);
+    return params.get("tag") ?? undefined;
+  }, [search]);
+
   const [page, setPage] = useState(1);
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [author, setAuthor] = useState<string | undefined>(undefined);
-  const [tag, setTag] = useState<string | undefined>(undefined);
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
 
@@ -57,6 +64,11 @@ export default function PostList() {
     }, 350);
     return () => clearTimeout(handle);
   }, [searchInput]);
+
+  // Reset to the first page whenever the URL-driven tag filter changes.
+  useEffect(() => {
+    setPage(1);
+  }, [tag]);
 
   const isSearching = query.length > 0;
 
@@ -92,7 +104,7 @@ export default function PostList() {
   };
 
   const selectTag = (slug?: string) => {
-    setTag(slug);
+    navigate(slug ? `/?tag=${encodeURIComponent(slug)}` : "/");
     setPage(1);
   };
 
@@ -212,8 +224,7 @@ export default function PostList() {
                   className="rounded-full text-muted-foreground"
                   onClick={() => {
                     setAuthor(undefined);
-                    setTag(undefined);
-                    setPage(1);
+                    selectTag(undefined);
                   }}
                 >
                   <X className="w-3.5 h-3.5 mr-1" />
