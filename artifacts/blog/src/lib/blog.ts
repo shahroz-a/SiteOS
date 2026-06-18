@@ -119,12 +119,22 @@ export interface TocItem {
   label: string;
 }
 
-/** Extract anchor sections from a componentTree for the table of contents. */
+/**
+ * Extract anchor sections from a componentTree for the table of contents.
+ *
+ * Crawled articles can repeat the same `anchorId` across several sections
+ * (e.g. a recurring `3a`). A duplicate id can only ever resolve to the first
+ * matching element, so later entries are dead anchors. We keep the first
+ * occurrence of each id and drop the rest — this also guarantees every TocItem
+ * id is unique, which the table of contents relies on for stable React keys.
+ */
 export function tocFromComponentTree(tree: CTRoot | null): TocItem[] {
   if (!tree) return [];
   const items: TocItem[] = [];
+  const seen = new Set<string>();
   for (const node of tree.children) {
-    if (node.blockType === "section" && node.anchorId) {
+    if (node.blockType === "section" && node.anchorId && !seen.has(node.anchorId)) {
+      seen.add(node.anchorId);
       items.push({ id: node.anchorId, label: node.data.heading });
     }
   }
