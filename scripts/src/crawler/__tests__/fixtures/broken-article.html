@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="description" content="An article whose title could not be captured." />
+    <link rel="canonical" href="https://www.headout.com/blog/broken-article/" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav>Site navigation that should be stripped from cleaned content.</nav>
+    </header>
+    <main>
+      <article>
+        <p>
+          This article body survived the fetch, but the title could not be
+          extracted from any source (no h1, og:title, meta title, or document
+          title), so the extraction defaults to "Untitled".
+        </p>
+        <p>A second paragraph of body copy so the page still has real content.</p>
+      </article>
+    </main>
+    <footer>Footer content that should be stripped from cleaned content.</footer>
+  </body>
+</html>

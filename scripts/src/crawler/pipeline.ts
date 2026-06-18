@@ -48,7 +48,7 @@ interface ProcessOutcome {
  * validate (retry once on failure), and store. Newly-discovered internal blog
  * links are enqueued so the crawl reaches pages not present in the sitemaps.
  */
-async function processItem(
+export async function processItem(
   item: CrawlQueueItem,
   config: CrawlerConfig,
   log: (m: string) => void,
