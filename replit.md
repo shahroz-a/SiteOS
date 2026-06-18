@@ -22,11 +22,24 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- DB schema (source of truth): `lib/db/src/schema/*.ts` (enums, taxonomy, pages, content, media, structured, seo, links, crawl) re-exported via `lib/db/src/schema/index.ts`. DB client: `lib/db/src/index.ts`.
+- API contract (source of truth): `lib/api-spec/openapi.yaml`. Generated zod → `@workspace/api-zod`; generated React Query hooks → `@workspace/api-client-react`. Regenerate with `pnpm --filter @workspace/api-spec run codegen`.
+- API server routes: `artifacts/api-server/src/routes/` (posts, categories, authors, search, health). Shared post serializers/list logic: `artifacts/api-server/src/lib/posts.ts`.
+- Seed fixtures: `scripts/src/seed.ts` (run `pnpm --filter @workspace/scripts run seed`).
+
+## Read API (migration foundation)
+
+All under `/api`. Slugs are the public identifier — internal UUIDs never appear in routing.
+- `GET /posts` — paginated list; filters `?category=`, `?author=`, `?tag=` (slugs), `?page=`, `?limit=`.
+- `GET /posts/{slug}` — full post: original/cleaned HTML, richText JSON, Payload-style componentTree, breadcrumbs, faq, images, seo, jsonld, categories, tags, author.
+- `GET /categories`, `GET /categories/{slug}`, `GET /authors`, `GET /authors/{slug}`, `GET /search?q=`.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **DB connection uses the Supabase Session Pooler URL** (port 5432, `*.pooler.supabase.com`), not the direct `db.*.supabase.co` host which is IPv6-only and unreachable here. SSL uses `rejectUnauthorized:false` (pooler cert doesn't chain to a public CA); `drizzle.config.ts` appends `sslmode=no-verify` (NOT `require`).
+- **Lossless page storage**: `pages` keeps `originalHtml`, `cleanedHtml`, `richText` (JSON) and `componentTree` (Payload-compatible nested blocks) so future parser changes never require recrawling.
+- **No nested `/{slug}/posts` endpoints**: orval names the zod value and TS type identically for path+query operations (TS2308). "A category's posts" is served by `GET /posts?category={slug}` instead.
+- **Schema push**: use `pnpm --filter @workspace/db run push-force` — interactive `push` hangs without a TTY.
 
 ## Product
 
