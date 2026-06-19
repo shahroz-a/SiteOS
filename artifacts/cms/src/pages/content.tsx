@@ -10,7 +10,7 @@ import {
   type CmsPostSummary,
   type PageStatus,
 } from "@workspace/api-client-react";
-import { Copy, FileText, History, Plus, Search, Trash2 } from "lucide-react";
+import { CalendarClock, Copy, FileText, History, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@workspace/ui/button";
 import { Input } from "@workspace/ui/input";
 import { Badge } from "@workspace/ui/badge";
@@ -52,11 +52,67 @@ const STATUS_VARIANT: Record<PageStatus, "default" | "secondary" | "outline"> = 
   archived: "outline",
 };
 
+const STATUS_LABEL: Record<PageStatus, string> = {
+  draft: "Draft",
+  review: "In review",
+  scheduled: "Scheduled",
+  published: "Published",
+  archived: "Archived",
+};
+
+/** Status tabs shown above the list. `all` keeps the original unfiltered view. */
+const STATUS_TABS: { value: PageStatus | "all"; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "review", label: "In review" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "published", label: "Published" },
+  { value: "draft", label: "Draft" },
+  { value: "archived", label: "Archived" },
+];
+
 function formatWhen(iso?: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function formatDateTime(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Human "goes live in X" / "overdue" copy for a scheduled post relative to now.
+ * A scheduled time in the past means the publish job hasn't flipped it yet.
+ */
+function formatCountdown(iso?: string | null): { text: string; overdue: boolean } | null {
+  if (!iso) return null;
+  const target = new Date(iso).getTime();
+  if (Number.isNaN(target)) return null;
+  const diffMs = target - Date.now();
+  const overdue = diffMs <= 0;
+  const mins = Math.round(Math.abs(diffMs) / 60000);
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  const remMins = mins % 60;
+
+  let amount: string;
+  if (days > 0) amount = `${days}d ${hours}h`;
+  else if (hours > 0) amount = `${hours}h ${remMins}m`;
+  else amount = `${remMins}m`;
+
+  return overdue
+    ? { text: `overdue by ${amount}`, overdue: true }
+    : { text: `goes live in ${amount}`, overdue: false };
 }
 
 export default function ContentPage() {
@@ -144,6 +200,26 @@ export default function ContentPage() {
         ) : null}
       </div>
 
+      <div className="flex flex-wrap items-center gap-1 border-b border-border/60">
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => {
+              setStatus(tab.value);
+              setPage(1);
+            }}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+              status === tab.value
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[16rem]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -170,6 +246,8 @@ export default function ContentPage() {
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="review">In review</SelectItem>
+            <SelectItem value="scheduled">Scheduled</SelectItem>
             <SelectItem value="published">Published</SelectItem>
             <SelectItem value="archived">Archived</SelectItem>
           </SelectContent>
@@ -203,12 +281,35 @@ export default function ContentPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate font-medium">{post.title || "Untitled"}</span>
-                  <Badge variant={STATUS_VARIANT[post.status]} className="shrink-0 capitalize">
-                    {post.status}
+                  <Badge variant={STATUS_VARIANT[post.status]} className="shrink-0">
+                    {STATUS_LABEL[post.status]}
                   </Badge>
+                  {post.status === "scheduled" && post.scheduledFor
+                    ? (() => {
+                        const countdown = formatCountdown(post.scheduledFor);
+                        return countdown ? (
+                          <Badge
+                            variant="outline"
+                            className={`shrink-0 ${
+                              countdown.overdue
+                                ? "border-red-300 text-red-700"
+                                : "border-blue-300 text-blue-700"
+                            }`}
+                          >
+                            <CalendarClock className="mr-1 h-3 w-3" />
+                            {countdown.text}
+                          </Badge>
+                        ) : null;
+                      })()
+                    : null}
                 </div>
                 <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                  /{post.slug} · Updated {formatWhen(post.updatedAt)}
+                  /{post.slug} ·{" "}
+                  {post.status === "scheduled" && post.scheduledFor
+                    ? `Goes live ${formatDateTime(post.scheduledFor)}`
+                    : post.status === "published" && post.publishedAt
+                      ? `Published ${formatWhen(post.publishedAt)}`
+                      : `Updated ${formatWhen(post.updatedAt)}`}
                 </p>
               </div>
               <div

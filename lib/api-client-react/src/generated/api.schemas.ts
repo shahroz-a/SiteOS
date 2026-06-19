@@ -870,6 +870,8 @@ export interface CmsPostSummary {
   /** @nullable */
   publishedAt?: string | null;
   /** @nullable */
+  scheduledFor?: string | null;
+  /** @nullable */
   updatedAt?: string | null;
 }
 

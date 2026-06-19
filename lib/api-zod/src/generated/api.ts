@@ -1215,6 +1215,7 @@ export const ListCmsPostResponse = zod.object({
   "slug": zod.string()
 }),zod.null()]).optional(),
   "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
   "updatedAt": zod.coerce.date().nullish()
 }).describe('Lightweight article row for the CMS content list and internal-linking assistant. Includes status so the editor can warn when linking to a draft\/archived target.')),
   "pagination": zod.object({

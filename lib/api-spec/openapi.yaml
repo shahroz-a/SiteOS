@@ -4116,6 +4116,9 @@ components:
         publishedAt:
           type: ["string", "null"]
           format: date-time
+        scheduledFor:
+          type: ["string", "null"]
+          format: date-time
         updatedAt:
           type: ["string", "null"]
           format: date-time

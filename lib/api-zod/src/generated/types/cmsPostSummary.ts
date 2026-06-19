@@ -28,5 +28,7 @@ export interface CmsPostSummary {
   /** @nullable */
   publishedAt?: Date | null;
   /** @nullable */
+  scheduledFor?: Date | null;
+  /** @nullable */
   updatedAt?: Date | null;
 }

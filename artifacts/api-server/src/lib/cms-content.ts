@@ -394,6 +394,7 @@ export interface CmsPostSummaryOut {
   author: { id: string; name: string; slug: string; avatarUrl: string | null; role: string | null } | null;
   primaryCategory: { id: string; name: string; slug: string } | null;
   publishedAt: string | null;
+  scheduledFor: string | null;
   updatedAt: string | null;
 }
 
@@ -450,6 +451,7 @@ export async function listCmsPosts(
       pathname: pagesTable.pathname,
       featuredImageUrl: pagesTable.featuredImageUrl,
       publishedAt: pagesTable.publishedAt,
+      scheduledFor: pagesTable.scheduledFor,
       updatedAt: pagesTable.updatedAt,
       authorId: authorsTable.id,
       authorName: authorsTable.name,
@@ -499,6 +501,7 @@ export async function listCmsPosts(
           }
         : null,
     publishedAt: r.publishedAt ? r.publishedAt.toISOString() : null,
+    scheduledFor: r.scheduledFor ? r.scheduledFor.toISOString() : null,
     updatedAt: r.updatedAt ? r.updatedAt.toISOString() : null,
   }));
 
