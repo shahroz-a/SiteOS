@@ -6,3 +6,9 @@ id = "g8qsTO6lkgQevxCea6Buy"
 uri = "file://artifacts/blog/public/og-default.png"
 type = "image"
 title = "blog og card"
+
+[[generated]]
+id = "rEk0eNSkz-MG278d4vo2w"
+uri = "file://artifacts/thanksgiving-mobile/assets/images/icon.png"
+type = "image"
+title = "blog app icon"

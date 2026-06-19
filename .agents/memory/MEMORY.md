@@ -23,3 +23,4 @@
 - [Internal-link resolution is shared](internal-link-resolution.md) — resolveInternalLinks() in import/persist.ts is the only href→page matcher; both crawler and Payload importer must call it once after all pages exist.
 - [Playwright browser deps on NixOS](playwright-nixos-browser-deps.md) — downloaded Chromium needs Nix libs (glib…libgbm) via installSystemDependencies; redirect output to file; one spec/run; pool exhaustion ≠ test bug.
 - [Real-data round-trip gating](realdata-roundtrip-gating.md) — opt-in real-DB export→load→import test gates on VERIFY_REAL_DATA (NOT always-set DATABASE_URL); tx-rollback + stubbed media keep it non-destructive; compare reimport vs export (hero normalized).
+- [Expo dev-server reachability](expo-dev-server-reachability.md) — Metro healthy but workflow DIDNT_OPEN_A_PORT can be structural; verify Expo code with `expo export --platform web` since bash can't keep a dev server alive.

@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-3.11", "postgresql-16"]
+modules = ["nodejs-24", "python-3.11"]
 
 [deployment]
 router = "application"
@@ -40,10 +40,6 @@ path = "scripts/post-merge.sh"
 timeoutMs = 180000
 
 [[ports]]
-localPort = 8000
-externalPort = 8000
-
-[[ports]]
 localPort = 8080
 externalPort = 8080
 
@@ -52,8 +48,9 @@ localPort = 8081
 externalPort = 80
 
 [[ports]]
+localPort = 23396
+externalPort = 3001
+
+[[ports]]
 localPort = 25729
 externalPort = 3000
-
-[nix]
-channel = "stable-25_05"
