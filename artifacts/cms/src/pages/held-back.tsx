@@ -5,6 +5,7 @@ import {
   useListCmsHeldBackArticles,
   useResolveCmsHeldBackArticle,
   useApproveCmsHeldBackArticle,
+  approveCmsHeldBackArticle,
   useReparseCmsHeldBackArticle,
   useGetCmsHeldBackArticleSource,
   useListCmsAuditLogs,
@@ -24,6 +25,7 @@ import {
   type ReextractResultEvent,
 } from "@/lib/reextract-client";
 import { Badge } from "@workspace/ui/badge";
+import { Checkbox } from "@workspace/ui/checkbox";
 import { Input } from "@workspace/ui/input";
 import { Button } from "@workspace/ui/button";
 import { Textarea } from "@workspace/ui/textarea";
@@ -847,6 +849,12 @@ export default function HeldBackPage() {
   const [selected, setSelected] = useState<HeldBackArticle | null>(null);
   const [open, setOpen] = useState(false);
 
+  // Bulk approval: a set of selected row ids plus an in-flight flag. Each id is
+  // approved by calling the same per-id endpoint, so every approval still
+  // re-validates server-side and is audited individually as `article.approve`.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkApproving, setBulkApproving] = useState(false);
+
   function openArticle(article: HeldBackArticle) {
     setSelected(article);
     setOpen(true);
@@ -855,6 +863,104 @@ export default function HeldBackPage() {
   const pagination = data?.pagination;
   const totalPages = pagination?.totalPages ?? 1;
   const hasFilters = q.trim() !== "" || issue !== ALL_ISSUES;
+
+  // Rows whose live verdict already passes — the only ones a bulk approve can
+  // actually publish. Failing rows can still be selected, but are skipped and
+  // reported when "Approve selected" runs.
+  const approvableIds = new Set(
+    articles
+      .filter(
+        (a) =>
+          a.validationStatus === "pass" || a.validationStatus === "warn",
+      )
+      .map((a) => a.id),
+  );
+
+  // Keep selection scoped to rows currently on the page (a page/filter change
+  // swaps the visible rows, so stale ids would silently linger otherwise).
+  useEffect(() => {
+    const visible = new Set(articles.map((a) => a.id));
+    setSelectedIds((prev) => {
+      const next = new Set([...prev].filter((id) => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [articles]);
+
+  const colSpan = canApprove ? 6 : 5;
+  const selectableIds = articles.map((a) => a.id);
+  const allSelected =
+    selectableIds.length > 0 &&
+    selectableIds.every((id) => selectedIds.has(id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+  const selectedCount = selectedIds.size;
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelectedIds(checked ? new Set(selectableIds) : new Set());
+  }
+
+  async function approveSelected() {
+    const ids = [...selectedIds];
+    const toApprove = ids.filter((id) => approvableIds.has(id));
+    const skipped = ids.length - toApprove.length;
+
+    if (toApprove.length === 0) {
+      toast({
+        title: "Nothing to approve",
+        description:
+          "None of the selected articles currently pass validation. Open them to review and fix the import.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBulkApproving(true);
+    let approved = 0;
+    let notReady = 0;
+    let failed = 0;
+
+    for (const id of toApprove) {
+      try {
+        const result = await approveCmsHeldBackArticle(id);
+        if (result.approved) approved += 1;
+        else notReady += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    setBulkApproving(false);
+    setSelectedIds(new Set());
+    await queryClient.invalidateQueries({
+      queryKey: getListCmsHeldBackArticlesQueryKey(),
+    });
+
+    const parts: string[] = [];
+    if (notReady > 0) parts.push(`${notReady} no longer passed`);
+    if (skipped > 0) parts.push(`${skipped} skipped (still failing)`);
+    if (failed > 0) parts.push(`${failed} errored`);
+    const description =
+      parts.length > 0
+        ? `${approved} published. ${parts.join(", ")}.`
+        : `${approved} published.`;
+
+    toast({
+      title:
+        approved > 0
+          ? `Approved ${approved} ${approved === 1 ? "article" : "articles"}`
+          : "No articles approved",
+      description,
+      variant: approved > 0 ? undefined : "destructive",
+    });
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -895,10 +1001,46 @@ export default function HeldBackPage() {
         </Select>
       </div>
 
+      {canApprove ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            size="sm"
+            disabled={selectedCount === 0 || bulkApproving}
+            onClick={approveSelected}
+          >
+            {bulkApproving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Approving…
+              </>
+            ) : (
+              `Approve selected${selectedCount > 0 ? ` (${selectedCount})` : ""}`
+            )}
+          </Button>
+          {selectedCount > 0 ? (
+            <span className="text-sm text-muted-foreground">
+              {selectedCount} selected. Only rows that currently pass validation
+              are published; failing rows are skipped.
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="rounded-lg border border-border/60">
         <Table>
           <TableHeader>
             <TableRow>
+              {canApprove ? (
+                <TableHead className="w-10">
+                  <Checkbox
+                    aria-label="Select all on page"
+                    checked={
+                      allSelected ? true : someSelected ? "indeterminate" : false
+                    }
+                    disabled={selectableIds.length === 0 || bulkApproving}
+                    onCheckedChange={(checked) => toggleAll(checked === true)}
+                  />
+                </TableHead>
+              ) : null}
               <TableHead>Article</TableHead>
               <TableHead className="w-32">Status</TableHead>
               <TableHead className="w-20 text-right">Score</TableHead>
@@ -910,6 +1052,11 @@ export default function HeldBackPage() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
+                  {canApprove ? (
+                    <TableCell>
+                      <Skeleton className="h-4 w-4" />
+                    </TableCell>
+                  ) : null}
                   <TableCell>
                     <Skeleton className="h-8 w-64" />
                   </TableCell>
@@ -929,13 +1076,13 @@ export default function HeldBackPage() {
               ))
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={colSpan} className="py-8 text-center text-muted-foreground">
                   Failed to load the review queue.
                 </TableCell>
               </TableRow>
             ) : articles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={colSpan} className="py-8 text-center text-muted-foreground">
                   {hasFilters
                     ? "No held-back articles match these filters."
                     : "No articles are held back. Everything passed validation."}
@@ -944,6 +1091,18 @@ export default function HeldBackPage() {
             ) : (
               articles.map((article) => (
                 <TableRow key={article.id} className="align-top">
+                  {canApprove ? (
+                    <TableCell>
+                      <Checkbox
+                        aria-label={`Select ${article.title ?? article.slug}`}
+                        checked={selectedIds.has(article.id)}
+                        disabled={bulkApproving}
+                        onCheckedChange={(checked) =>
+                          toggleRow(article.id, checked === true)
+                        }
+                      />
+                    </TableCell>
+                  ) : null}
                   <TableCell>
                     <div className="min-w-0">
                       <div className="font-medium">
