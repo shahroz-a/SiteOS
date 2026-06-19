@@ -14,7 +14,10 @@ import { Empty, EmptyTitle, EmptyDescription } from "@workspace/ui/empty";
 import { MediaGrid } from "@/components/media-grid";
 import { MediaDetailsSheet } from "@/components/media-details-sheet";
 import { MediaPicker } from "@/components/media-picker";
-import { BulkAltReviewDialog } from "@/components/bulk-alt-review-dialog";
+import {
+  BulkAltReviewDialog,
+  type BulkSuggestSession,
+} from "@/components/bulk-alt-review-dialog";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useToast } from "@workspace/ui";
 import { ImagePlus, Sparkles } from "lucide-react";
@@ -31,7 +34,9 @@ export default function MediaPage() {
   const [page, setPage] = useState(1);
   const [active, setActive] = useState<MediaItem | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [bulkItems, setBulkItems] = useState<MediaItem[] | null>(null);
+  const [bulkSession, setBulkSession] = useState<BulkSuggestSession | null>(
+    null,
+  );
   const [bulkLoading, setBulkLoading] = useState(false);
 
   const q = useDebouncedValue(search, 300);
@@ -59,38 +64,43 @@ export default function MediaPage() {
   // sanity), then hand the full set to the review queue.
   const totalIssues = summary?.withAltIssues ?? 0;
 
+  // Gather one bounded window of still-flagged images for the current search
+  // filter, excluding any URLs already handled in this session. Each window is
+  // capped at BULK_SUGGEST_CEILING for cost/review sanity; the review dialog
+  // calls this repeatedly to walk the whole backlog one window at a time.
+  const gatherFlagged = async (
+    exclude: Set<string>,
+  ): Promise<MediaItem[]> => {
+    const gathered: MediaItem[] = [];
+    const limit = 100;
+    let pageNum = 1;
+    while (gathered.length < BULK_SUGGEST_CEILING) {
+      const res = await listCmsMedia({
+        q: q || undefined,
+        onlyIssues: true,
+        page: pageNum,
+        limit,
+      });
+      for (const it of res.items) {
+        if (exclude.has(it.url)) continue;
+        gathered.push(it);
+        if (gathered.length >= BULK_SUGGEST_CEILING) break;
+      }
+      if (pageNum >= res.pagination.totalPages) break;
+      pageNum += 1;
+    }
+    return gathered;
+  };
+
   const startBulkSuggest = async () => {
     setBulkLoading(true);
     try {
-      const gathered: MediaItem[] = [];
-      const limit = 100;
-      let pageNum = 1;
-      // Safety ceiling so a huge backlog can't trigger an unbounded fetch + AI
-      // run; the editor can repeat the pass for any remainder.
-      while (gathered.length < BULK_SUGGEST_CEILING) {
-        const res = await listCmsMedia({
-          q: q || undefined,
-          onlyIssues: true,
-          page: pageNum,
-          limit,
-        });
-        gathered.push(...res.items);
-        if (pageNum >= res.pagination.totalPages) break;
-        pageNum += 1;
-      }
-      const queue = gathered.slice(0, BULK_SUGGEST_CEILING);
-      if (queue.length === 0) {
+      const first = await gatherFlagged(new Set());
+      if (first.length === 0) {
         toast({ title: "No flagged images to suggest for." });
         return;
       }
-      if (gathered.length > BULK_SUGGEST_CEILING) {
-        toast({
-          title: `Reviewing the first ${BULK_SUGGEST_CEILING} flagged images`,
-          description:
-            "Approve these, then run the action again for the rest.",
-        });
-      }
-      setBulkItems(queue);
+      setBulkSession({ items: first, total: totalIssues });
     } catch {
       toast({
         title: "Couldn't load flagged images",
@@ -229,11 +239,12 @@ export default function MediaPage() {
       />
 
       <BulkAltReviewDialog
-        items={bulkItems ?? []}
-        open={bulkItems !== null}
+        session={bulkSession}
+        open={bulkSession !== null}
         onOpenChange={(open) => {
-          if (!open) setBulkItems(null);
+          if (!open) setBulkSession(null);
         }}
+        fetchNext={(exclude) => gatherFlagged(new Set(exclude))}
       />
 
       <MediaPicker

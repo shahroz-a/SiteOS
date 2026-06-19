@@ -17,6 +17,7 @@ import { Button } from "@workspace/ui/button";
 import { Textarea } from "@workspace/ui/textarea";
 import { Badge } from "@workspace/ui/badge";
 import { Spinner } from "@workspace/ui/spinner";
+import { Progress } from "@workspace/ui/progress";
 import { useToast } from "@workspace/ui";
 import { cn } from "@workspace/ui";
 import { ALT_STATUS_META, fileNameFromUrl } from "@/lib/media-utils";
@@ -41,23 +42,42 @@ type ItemState =
   | { kind: "approved"; alt: string }
   | { kind: "skipped" };
 
-interface BulkAltReviewDialogProps {
-  /** Flagged images to generate and review suggestions for. */
+/** A bulk-suggestion session: the first window plus the size of the whole backlog. */
+export interface BulkSuggestSession {
+  /** First bounded window of flagged images to review. */
   items: MediaItem[];
+  /** Total flagged images across the whole filtered set at session start. */
+  total: number;
+}
+
+interface BulkAltReviewDialogProps {
+  /** Active session, or null when closed. */
+  session: BulkSuggestSession | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Loads the next window of still-flagged images, excluding any URLs already
+   * handled this session. Returns an empty array when the backlog is cleared.
+   */
+  fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
 }
 
 export function BulkAltReviewDialog({
-  items,
+  session,
   open,
   onOpenChange,
+  fetchNext,
 }: BulkAltReviewDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        {open ? (
-          <ReviewBody items={items} onClose={() => onOpenChange(false)} />
+        {open && session ? (
+          <ReviewBody
+            initialItems={session.items}
+            total={session.total}
+            fetchNext={fetchNext}
+            onClose={() => onOpenChange(false)}
+          />
         ) : null}
       </DialogContent>
     </Dialog>
@@ -65,10 +85,14 @@ export function BulkAltReviewDialog({
 }
 
 function ReviewBody({
-  items,
+  initialItems,
+  total,
+  fetchNext,
   onClose,
 }: {
-  items: MediaItem[];
+  initialItems: MediaItem[];
+  total: number;
+  fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
   onClose: () => void;
 }) {
   const { toast } = useToast();
@@ -76,27 +100,35 @@ function ReviewBody({
   const suggestBatch = useSuggestCmsMediaAltBatch();
   const updateAlt = useUpdateCmsMediaAlt();
 
-  // Snapshot the items once so pagination/refetch behind the dialog can't
-  // reshuffle the queue mid-review.
-  const queueRef = useRef(items);
-  const queue = queueRef.current;
+  // Snapshot the fetcher so a filter change behind the dialog can't reshuffle
+  // the session mid-review.
+  const fetchNextRef = useRef(fetchNext);
 
+  // The current review window — a bounded slice of the whole flagged backlog.
+  const [queue, setQueue] = useState<MediaItem[]>(initialItems);
+  // Items for the window the suggestion effect should fire for; kept in a ref so
+  // the effect never reads a stale queue between renders.
+  const windowItemsRef = useRef<MediaItem[]>(initialItems);
+  // Bumped each time a new window loads so the suggestion effect re-fires.
+  const [windowKey, setWindowKey] = useState(0);
   const [states, setStates] = useState<Record<string, ItemState>>(() =>
-    Object.fromEntries(queue.map((it) => [it.url, { kind: "pending" }])),
+    Object.fromEntries(initialItems.map((it) => [it.url, { kind: "pending" }])),
   );
-  const requestedRef = useRef(false);
+
+  // Running session totals, incremented exactly once per editor action so the
+  // overall progress is exact regardless of how many windows have scrolled by.
+  const [session, setSession] = useState({ approved: 0, skipped: 0 });
+  // Every URL handled this session (approved/skipped/errored), excluded when
+  // loading the next window so nothing can reappear and loop forever.
+  const seenRef = useRef<Set<string>>(new Set());
+  const [advancing, setAdvancing] = useState(false);
+  const [done, setDone] = useState(false);
 
   const setState = (url: string, next: ItemState) =>
     setStates((prev) => ({ ...prev, [url]: next }));
 
-  // Kick off the suggestion requests as soon as the dialog opens. The server
-  // caps each batch at MAX_URLS_PER_BATCH, so a large queue is split into
-  // several requests fired together; each chunk resolves its own rows.
-  useEffect(() => {
-    if (requestedRef.current) return;
-    requestedRef.current = true;
-
-    const urls = queue.map((it) => it.url);
+  const fireSuggestions = (windowItems: MediaItem[]) => {
+    const urls = windowItems.map((it) => it.url);
     setStates(
       Object.fromEntries(urls.map((url) => [url, { kind: "suggesting" }])),
     );
@@ -148,8 +180,13 @@ function ReviewBody({
         },
       );
     }
+  };
+
+  // Generate suggestions for the current window whenever a new one loads.
+  useEffect(() => {
+    fireSuggestions(windowItemsRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [windowKey]);
 
   const approve = (url: string, alt: string) => {
     const trimmed = alt.trim();
@@ -159,6 +196,7 @@ function ReviewBody({
       {
         onSuccess: () => {
           setState(url, { kind: "approved", alt: trimmed });
+          setSession((s) => ({ ...s, approved: s.approved + 1 }));
           queryClient.invalidateQueries({ queryKey: ["/api/cms/media"] });
         },
         onError: () => {
@@ -172,6 +210,13 @@ function ReviewBody({
     );
   };
 
+  const skip = (url: string) => {
+    setState(url, { kind: "skipped" });
+    setSession((s) => ({ ...s, skipped: s.skipped + 1 }));
+  };
+
+  // Current-window tallies, used to drive the per-window flow (not the overall
+  // progress, which is tracked exactly by `session`).
   const counts = queue.reduce(
     (acc, it) => {
       const s = states[it.url]?.kind ?? "pending";
@@ -185,7 +230,52 @@ function ReviewBody({
     { approved: 0, skipped: 0, ready: 0, error: 0, busy: 0 },
   );
 
-  const allReviewed = counts.ready === 0 && counts.busy === 0;
+  const windowReviewed = counts.ready === 0 && counts.busy === 0;
+
+  // Load the next window once the current one is fully reviewed.
+  const advance = async () => {
+    setAdvancing(true);
+    for (const it of queue) seenRef.current.add(it.url);
+    try {
+      const next = await fetchNextRef.current([...seenRef.current]);
+      if (next.length === 0) {
+        setDone(true);
+        return;
+      }
+      windowItemsRef.current = next;
+      setQueue(next);
+      setStates(
+        Object.fromEntries(next.map((it) => [it.url, { kind: "pending" }])),
+      );
+      setWindowKey((k) => k + 1);
+    } catch {
+      toast({
+        title: "Couldn't load the next set of images",
+        description: "Reopen the suggestion pass to continue with the rest.",
+        variant: "destructive",
+      });
+      setDone(true);
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
+  // Auto-continue through the backlog: when a window is fully reviewed, move on
+  // to the next set of still-flagged images — unless the editor already stopped.
+  useEffect(() => {
+    if (!windowReviewed || advancing || done) return;
+    // If the entire window failed (e.g. the AI service is down), stop rather
+    // than churn silently through the rest of the backlog.
+    if (counts.approved === 0 && counts.skipped === 0 && counts.error > 0) {
+      setDone(true);
+      return;
+    }
+    void advance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowReviewed]);
+
+  const handled = Math.min(session.approved + session.skipped, total);
+  const percent = total > 0 ? Math.round((handled / total) * 100) : 100;
   const savingUrl =
     updateAlt.isPending && updateAlt.variables
       ? updateAlt.variables.data.url
@@ -195,30 +285,46 @@ function ReviewBody({
     <>
       <DialogHeader className="border-b border-border/60 px-6 py-4">
         <DialogTitle className="font-serif text-2xl tracking-tight">
-          Suggest alt text for {queue.length}{" "}
-          {queue.length === 1 ? "image" : "images"}
+          Suggest alt text
         </DialogTitle>
         <DialogDescription>
           AI drafts a description for each flagged image. Review and edit, then
-          approve or skip each one — nothing is saved until you approve it.
+          approve or skip each one — nothing is saved until you approve it. The
+          pass continues through your whole backlog automatically; close it
+          anytime to stop.
         </DialogDescription>
-        <div className="flex flex-wrap gap-2 pt-1 text-xs">
-          <Badge variant="secondary" className="font-normal">
-            {counts.approved} approved
-          </Badge>
-          {counts.skipped > 0 ? (
+        <div className="space-y-2 pt-2">
+          <Progress value={percent} />
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-medium text-foreground">
+              {handled.toLocaleString()} of {total.toLocaleString()} handled
+            </span>
             <Badge variant="secondary" className="font-normal">
-              {counts.skipped} skipped
+              {session.approved} approved
             </Badge>
-          ) : null}
-          {counts.error > 0 ? (
-            <Badge
-              variant="outline"
-              className="border-red-500/30 bg-red-500/10 font-normal text-red-700 dark:text-red-300"
-            >
-              {counts.error} failed
-            </Badge>
-          ) : null}
+            {session.skipped > 0 ? (
+              <Badge variant="secondary" className="font-normal">
+                {session.skipped} skipped
+              </Badge>
+            ) : null}
+            {counts.error > 0 ? (
+              <Badge
+                variant="outline"
+                className="border-red-500/30 bg-red-500/10 font-normal text-red-700 dark:text-red-300"
+              >
+                {counts.error} failed in this set
+              </Badge>
+            ) : null}
+            {advancing ? (
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <Spinner className="size-3" /> Loading the next set…
+              </span>
+            ) : done ? (
+              <span className="flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-300">
+                <Check className="h-3.5 w-3.5" /> All caught up
+              </span>
+            ) : null}
+          </div>
         </div>
       </DialogHeader>
 
@@ -231,14 +337,14 @@ function ReviewBody({
             saving={savingUrl === item.url}
             onChangeAlt={(alt) => setState(item.url, { kind: "ready", alt })}
             onApprove={(alt) => approve(item.url, alt)}
-            onSkip={() => setState(item.url, { kind: "skipped" })}
+            onSkip={() => skip(item.url)}
           />
         ))}
       </div>
 
       <DialogFooter className="border-t border-border/60 px-6 py-4">
         <Button variant="outline" onClick={onClose}>
-          {allReviewed ? "Done" : "Close"}
+          {done ? "Done" : "Close"}
         </Button>
       </DialogFooter>
     </>
