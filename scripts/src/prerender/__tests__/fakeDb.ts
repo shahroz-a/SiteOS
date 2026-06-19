@@ -70,6 +70,23 @@ class SelectBuilder {
     this.cond = cond;
     return this;
   }
+  // Chainable no-ops: the fake only ever reads `from` table rows, so joins,
+  // grouping and ordering are ignored. They exist so report/query code that
+  // builds richer chains (e.g. `reports.ts`) can run unmodified against the
+  // fake. Tests that need aggregated/joined output should populate the `from`
+  // table with rows already in the desired shape.
+  innerJoin(_table: { __table: string }, _cond?: Cond) {
+    return this;
+  }
+  leftJoin(_table: { __table: string }, _cond?: Cond) {
+    return this;
+  }
+  groupBy(..._cols: unknown[]) {
+    return this;
+  }
+  orderBy(..._cols: unknown[]) {
+    return this;
+  }
 
   private run(): Row[] {
     if (this.control.failTables.has(this.fromTable)) {
@@ -139,6 +156,12 @@ export function makeDbMock(tables: Tables, control: FakeDbControl) {
     categoriesTable: tableProxy("categories"),
     authorsTable: tableProxy("authors"),
     redirectsTable: tableProxy("redirects"),
+    tagsTable: tableProxy("tags"),
+    imagesTable: tableProxy("images"),
+    internalLinksTable: tableProxy("internal_links"),
+    externalLinksTable: tableProxy("external_links"),
+    validationReportsTable: tableProxy("validation_reports"),
+    blocksTable: tableProxy("blocks"),
   };
 }
 
@@ -151,5 +174,10 @@ export function makeDrizzleMock() {
     }),
     eq: (col: ColRef, val: unknown) => ({ __op: "eq", col, val }),
     inArray: (col: ColRef, vals: unknown[]) => ({ __op: "inArray", col, vals }),
+    // `sql` and `desc` are only used by query code the fake doesn't actually
+    // evaluate (count aggregates, IS NULL filters, ordering). They just need to
+    // return a benign marker so the builder chain runs; the fake ignores them.
+    sql: (..._args: unknown[]) => ({ __op: "sql" }),
+    desc: (col: unknown) => ({ __op: "desc", col }),
   };
 }
