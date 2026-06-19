@@ -1,0 +1,382 @@
+# Integrate Eevee Design System Across the Entire Blog Experience
+
+## Objective
+
+The project already contains the **Eevee Design System (Headout Design System)**.
+
+From this point onward, **Eevee must become the single source of truth for all visual styling and UI decisions.**
+
+Do not create new colors, typography scales, spacing values, border radii, shadows, or component styles if an Eevee equivalent already exists.
+
+The final experience should feel like an official **Headout product**, not a generic blog template.
+
+---
+
+# Design Philosophy
+
+The blog should feel:
+
+* Premium
+* Editorial
+* Minimal
+* Modern
+* Sophisticated
+* Travel-first
+* High readability
+* Calm and spacious
+* Native to the Headout ecosystem
+
+Use Airbnb, Apple and modern editorial experiences only as inspiration for layout and whitespace, while **all visual language must come from Eevee.**
+
+---
+
+# Use Eevee as the Design Source of Truth
+
+Always use:
+
+* Eevee color tokens
+* Eevee typography tokens
+* Eevee spacing scale
+* Eevee elevation system
+* Eevee border radius
+* Eevee iconography
+* Eevee buttons
+* Eevee cards
+* Eevee inputs
+* Eevee chips
+* Eevee badges
+* Eevee navigation components
+* Eevee interaction states
+* Eevee animations
+* Eevee motion tokens
+
+Never hardcode design values.
+
+Never invent new tokens unless absolutely necessary.
+
+---
+
+# Color System
+
+Every color must originate from Eevee.
+
+Use semantic tokens instead of hex values.
+
+Examples:
+
+* Primary
+* Secondary
+* Surface
+* Background
+* Success
+* Error
+* Warning
+* Info
+* Border
+* Text Primary
+* Text Secondary
+* Disabled
+* Hover
+* Active
+
+Avoid custom color palettes.
+
+Maintain consistent contrast and accessibility.
+
+---
+
+# Typography
+
+Use Eevee typography only.
+
+Maintain a strong editorial hierarchy.
+
+Examples:
+
+* Hero Title
+* H1
+* H2
+* H3
+* H4
+* Body Large
+* Body
+* Small Text
+* Caption
+* Label
+
+Do not introduce custom font sizes.
+
+Do not mix typography systems.
+
+Maintain excellent reading rhythm.
+
+Reading width should be optimized for long-form content.
+
+---
+
+# Spacing
+
+Use Eevee spacing tokens.
+
+Never use arbitrary margins or padding.
+
+Whitespace should feel intentional and premium.
+
+Every section should breathe.
+
+Content should never feel cramped.
+
+---
+
+# Component Usage
+
+Use Eevee components wherever available.
+
+Examples:
+
+* Button
+* Card
+* Tag
+* Badge
+* Chip
+* Tooltip
+* Modal
+* Drawer
+* Accordion
+* Tabs
+* Breadcrumb
+* Avatar
+* Pagination
+* Skeleton
+* Divider
+
+If a required component does not exist, build it using Eevee primitives.
+
+It should visually belong to the design system.
+
+---
+
+# Blog Layout
+
+Create a premium editorial layout.
+
+Sections should include:
+
+Hero
+
+Author Information
+
+Reading Time
+
+Publish Date
+
+Breadcrumb
+
+Table of Contents
+
+Article Body
+
+Image Blocks
+
+Quote Blocks
+
+Gallery Blocks
+
+FAQ
+
+Related Articles
+
+Newsletter
+
+Footer
+
+Every section should feel cohesive.
+
+---
+
+# Rich Text Rendering
+
+Rich text must use Eevee typography and spacing.
+
+Preserve:
+
+* headings
+* paragraphs
+* bold
+* italic
+* underline
+* nested lists
+* numbered lists
+* hyperlinks
+* tables
+* blockquotes
+* inline code
+* captions
+
+Maintain excellent readability.
+
+---
+
+# Images
+
+Reuse original Headout CDN URLs.
+
+Display images using Eevee spacing and radius rules.
+
+Support:
+
+* hero images
+* inline images
+* galleries
+* captions
+* responsive layouts
+
+Images should feel immersive.
+
+Do not distort aspect ratios.
+
+---
+
+# Cards
+
+Related blogs and recommendations should use Eevee card patterns.
+
+Maintain consistent:
+
+* spacing
+* hover states
+* elevation
+* typography
+* image treatment
+* CTA placement
+
+Cards should feel identical to Headout product cards.
+
+---
+
+# Navigation
+
+Navigation should follow Eevee conventions.
+
+Include:
+
+* breadcrumb
+* sticky table of contents
+* previous article
+* next article
+* related articles
+* category navigation
+
+Navigation should feel effortless.
+
+---
+
+# Buttons
+
+Use Eevee button variants only.
+
+Support:
+
+* primary
+* secondary
+* tertiary
+* ghost
+* text
+
+Maintain correct hover, active, disabled and loading states.
+
+---
+
+# Motion
+
+Use Eevee motion guidelines.
+
+Animations should be subtle.
+
+Examples:
+
+* fade
+* reveal
+* smooth scroll
+* hover elevation
+* image zoom
+* accordion expand
+* sticky transitions
+
+Avoid flashy animations.
+
+---
+
+# Responsive Behaviour
+
+Design for:
+
+* mobile
+* tablet
+* desktop
+* ultra-wide
+
+Maintain the same visual language across all breakpoints.
+
+Do not simply stack components.
+
+Reflow intelligently.
+
+---
+
+# Accessibility
+
+Maintain WCAG AA compliance.
+
+Ensure:
+
+* proper heading hierarchy
+* keyboard navigation
+* focus states
+* screen reader compatibility
+* semantic HTML
+* accessible buttons
+* accessible accordions
+* accessible tables
+
+Accessibility should never be compromised for aesthetics.
+
+---
+
+# Consistency Rules
+
+Every page should feel like it belongs to the same product ecosystem.
+
+There should be:
+
+* one typography system
+* one spacing system
+* one color system
+* one elevation system
+* one interaction language
+* one motion language
+
+Avoid visual drift between pages.
+
+---
+
+# Validation
+
+Before considering the UI complete, verify:
+
+* No hardcoded colors exist when an Eevee token is available.
+* No hardcoded font sizes exist when an Eevee typography token is available.
+* No custom spacing values exist when an Eevee spacing token is available.
+* No duplicate components have been created where Eevee components already exist.
+* All pages visually resemble a premium Headout experience.
+* The blog integrates seamlessly with the rest of the Headout ecosystem.
+
+---
+
+# Final Objective
+
+The finished product should **not look like a migrated website or a third-party blog**.
+
+It should feel as though it was originally designed and built by the Headout design team using the Eevee Design System from day one.
+
+Every visual decision must reinforce brand consistency, premium quality, readability, scalability, and long-term maintainability while preserving 100% of the original content, URLs, SEO metadata, internal linking, and information architecture.

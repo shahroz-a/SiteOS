@@ -1,0 +1,764 @@
+# PRD: Headout Blog Studio – Integrated Internal CMS & Publishing Platform
+
+# Vision
+
+Build a world-class **enterprise content management platform** for the migrated Headout Blog that is **fully integrated into the existing blog application**.
+
+This is **not** a standalone admin panel.
+
+This is **not** a separate CRUD application.
+
+This is **not** a separate website.
+
+It must be a seamless extension of the existing Replit blog project, sharing the same codebase, database, design system, rendering engine, and components.
+
+The platform should combine the best ideas from:
+
+* Payload CMS
+* Notion
+* Sanity
+* Contentful
+* Airtable
+* Webflow CMS
+
+while preserving Headout's design language through the Eevee Design System.
+
+The platform should enable editors, writers, SEO teams, designers, translators and administrators to create, edit, review, preview and publish content while preserving **100% URL integrity, SEO authority and content fidelity.**
+
+---
+
+# Core Architecture
+
+## Single Application
+
+There should be only **one application**.
+
+```
+Headout Blog
+│
+├── Public Blog
+│
+└── Internal CMS
+```
+
+Both should share:
+
+* one codebase
+* one PostgreSQL database
+* one API layer
+* one authentication system
+* one design system
+* one rendering engine
+* one component library
+* one content model
+
+The CMS must never become a separate project.
+
+---
+
+# Single Source of Truth
+
+The PostgreSQL database is the canonical source of truth.
+
+The public blog reads from it.
+
+The CMS reads from it.
+
+The CMS writes to it.
+
+There should never be duplicated content.
+
+Editing from the CMS should immediately affect the same content consumed by the public blog.
+
+---
+
+# Existing Infrastructure
+
+The crawler has already migrated content into PostgreSQL.
+
+Existing entities include:
+
+* pages
+* authors
+* categories
+* tags
+* blocks
+* component tree
+* rich text
+* SEO
+* metadata
+* images
+* internal links
+* external links
+* FAQ
+* breadcrumbs
+* JSON-LD
+* version history
+
+Reuse the existing schema wherever possible.
+
+Extend it only when necessary.
+
+---
+
+# Eevee Design System
+
+The project already contains the Eevee Design System.
+
+Every visual element must use Eevee.
+
+Use:
+
+* colors
+* typography
+* spacing
+* elevation
+* shadows
+* radii
+* icons
+* buttons
+* cards
+* badges
+* chips
+* forms
+* tables
+* dialogs
+* drawers
+* accordions
+* navigation
+* motion tokens
+
+Never introduce competing design patterns.
+
+The CMS should feel like an official internal Headout product.
+
+---
+
+# Authentication & RBAC
+
+Implement secure authentication.
+
+Support:
+
+* Admin
+* Editor
+* Writer
+* SEO
+* Reviewer
+* Translator
+* Viewer
+
+Every action must respect permissions.
+
+Publishing and URL changes should require elevated privileges.
+
+Maintain a complete audit trail.
+
+---
+
+# Dashboard
+
+Create a premium operational dashboard.
+
+Display:
+
+* Total Blogs
+* Published
+* Drafts
+* Scheduled
+* Archived
+* Authors
+* Categories
+* Tags
+* Missing SEO
+* Broken Links
+* Validation Errors
+* Publishing Queue
+* Crawl Status
+* Database Health
+* Storage Usage
+* Recently Edited
+* Recently Published
+* Activity Feed
+* Quick Actions
+
+The dashboard should provide an instant overview of the entire content ecosystem.
+
+---
+
+# Global Search
+
+Implement fast server-side search.
+
+Search across:
+
+* title
+* slug
+* URL
+* author
+* category
+* tags
+* body
+* SEO title
+* meta description
+* FAQ
+* CTA
+* breadcrumbs
+* JSON-LD
+* internal links
+* external links
+
+Support:
+
+* fuzzy search
+* filters
+* sorting
+* pagination
+* saved views
+
+---
+
+# Blog Explorer
+
+Build an Airtable-style explorer.
+
+Columns:
+
+* Title
+* Slug
+* URL
+* Author
+* Category
+* Status
+* Last Modified
+* Published
+* SEO Score
+* Validation Score
+
+Support:
+
+* bulk select
+* bulk edit
+* bulk publish
+* bulk scheduling
+* bulk category update
+* bulk author update
+* bulk SEO update
+* bulk export
+* bulk archive
+
+Support virtualized tables for scalability.
+
+---
+
+# Blog Editor
+
+The editor must be **block-based**.
+
+Never expose raw HTML by default.
+
+Supported blocks:
+
+* Hero
+* Rich Text
+* Image
+* Gallery
+* Quote
+* Table
+* Accordion
+* FAQ
+* CTA
+* Newsletter
+* Related Articles
+* Video
+* Divider
+* Custom Blocks
+
+Support:
+
+* drag & drop
+* reorder
+* nesting
+* duplication
+* insertion anywhere
+* keyboard shortcuts
+* autosave
+* undo/redo
+* future collaborative editing
+
+---
+
+# Shared Component Architecture
+
+The CMS and public blog must share the exact same components.
+
+Examples:
+
+* Hero
+* Rich Text
+* Gallery
+* FAQ
+* CTA
+* Author Card
+* Related Articles
+* Breadcrumb
+* Table of Contents
+
+The preview should render using production components.
+
+Never duplicate rendering logic.
+
+---
+
+# Rich Text Editor
+
+Preserve:
+
+* headings
+* paragraphs
+* bold
+* italic
+* underline
+* links
+* tables
+* nested lists
+* quotes
+* code blocks
+* inline formatting
+
+Support clean copy-paste from Google Docs and Microsoft Word.
+
+---
+
+# Live Preview
+
+Provide real-time preview using the same renderer as production.
+
+Support:
+
+* Desktop
+* Tablet
+* Mobile
+
+Changes should reflect instantly.
+
+No mock rendering.
+
+---
+
+# URL Management (Critical)
+
+The existing URL structure is a business and SEO asset.
+
+Example:
+
+```
+https://www.headout.com/blog/thanksgiving-vacation-ideas-for-families/
+```
+
+must always remain exactly:
+
+```
+https://www.headout.com/blog/thanksgiving-vacation-ideas-for-families/
+```
+
+Never regenerate slugs automatically.
+
+Never silently change URLs.
+
+Display:
+
+* Original URL
+* Current URL
+* Canonical URL
+* Redirect Status
+* SEO Impact
+
+Changing URLs requires elevated permissions and explicit confirmation.
+
+---
+
+# Public Site Synchronization
+
+Publishing should immediately update the public blog.
+
+If ISR or caching exists:
+
+* automatically invalidate cache
+* automatically revalidate pages
+
+Content updates should never require redeployment.
+
+---
+
+# Draft & Preview
+
+Support:
+
+* Save Draft
+* Preview Draft
+* Share Preview Link
+* Review
+* Publish
+
+Drafts must never appear publicly.
+
+Preview links should be secure.
+
+---
+
+# Blog Creation
+
+Creating a blog should automatically generate:
+
+* page record
+* block structure
+* SEO scaffold
+* JSON-LD scaffold
+* breadcrumb scaffold
+* version history
+* draft status
+* internal UUID
+
+Editors should only fill content.
+
+---
+
+# Blog Duplication
+
+Support duplication.
+
+Duplicate:
+
+* blocks
+* images
+* FAQ
+* CTA
+* SEO (marked for review)
+
+Generate a new slug and save as Draft.
+
+---
+
+# Author Management
+
+Manage:
+
+* profile
+* bio
+* avatar
+* social links
+* slug
+
+Changes should propagate automatically.
+
+---
+
+# Category & Tag Management
+
+Support:
+
+* create
+* edit
+* merge
+* archive
+* delete
+
+Automatically update relationships.
+
+Prevent orphan references.
+
+---
+
+# Internal Linking Assistant
+
+When inserting links:
+
+* search existing pages
+* search authors
+* search categories
+
+Never require manual URL entry.
+
+Automatically build the internal link graph.
+
+Warn when linking to drafts or deleted pages.
+
+---
+
+# SEO Panel
+
+Every page should include:
+
+* SEO Title
+* Meta Description
+* Canonical
+* OpenGraph
+* Twitter
+* Robots
+* Hreflang
+* Schema
+* JSON-LD
+* Breadcrumb
+
+Include:
+
+* Google Preview
+* Social Preview
+
+Validate in real time.
+
+Warn for:
+
+* duplicate titles
+* missing metadata
+* missing canonical
+* missing schema
+
+---
+
+# Image Management
+
+Reuse existing Headout CDN URLs.
+
+Never duplicate uploads.
+
+Display:
+
+* preview
+* CDN URL
+* alt text
+* caption
+* dimensions
+* usage count
+* pages using image
+
+Support accessibility validation.
+
+---
+
+# Version History
+
+Every save creates a version.
+
+Display:
+
+* version
+* author
+* timestamp
+* summary
+* diff
+
+Support:
+
+* compare
+* restore
+* audit history
+
+Never overwrite history.
+
+---
+
+# Activity Timeline
+
+Track:
+
+* create
+* edit
+* publish
+* SEO updates
+* URL changes
+* permission changes
+* bulk actions
+* deletes
+* restores
+
+Maintain complete audit logs.
+
+---
+
+# Validation Engine
+
+Before publishing validate:
+
+* URL
+* slug
+* canonical
+* SEO title
+* meta description
+* OpenGraph
+* JSON-LD
+* schema
+* breadcrumbs
+* images
+* alt text
+* internal links
+* external links
+* heading hierarchy
+* component tree
+* rich text structure
+
+Generate a validation score.
+
+Block publishing on critical failures.
+
+---
+
+# AI Assistant
+
+Provide suggestions for:
+
+* SEO improvements
+* FAQ generation
+* related articles
+* readability
+* summaries
+* social captions
+* duplicate detection
+* internal linking
+* metadata completion
+
+AI should suggest, never overwrite automatically.
+
+---
+
+# Analytics
+
+Display:
+
+* views
+* top pages
+* top authors
+* top categories
+* top tags
+* SEO score
+* publishing velocity
+* content growth
+* broken links
+* validation failures
+* draft count
+* scheduled count
+
+---
+
+# Import & Export
+
+Support:
+
+* JSON
+* CSV
+* SQL
+* Markdown
+* Payload Manifest
+* Backup
+* Restore
+
+Support one-click full export.
+
+---
+
+# API Layer
+
+Provide REST or GraphQL APIs for:
+
+* Pages
+* Authors
+* Categories
+* Tags
+* Blocks
+* SEO
+* Images
+* FAQs
+* Links
+* Versions
+* Activity
+* Authentication
+
+Document every endpoint.
+
+---
+
+# Performance
+
+Support tens of thousands of pages.
+
+Use:
+
+* server-side pagination
+* server-side search
+* server-side filtering
+* virtualized tables
+* caching
+* lazy loading
+* optimized queries
+* background jobs
+
+Avoid N+1 queries.
+
+---
+
+# Accessibility
+
+Meet WCAG AA.
+
+Support:
+
+* keyboard navigation
+* semantic HTML
+* screen readers
+* focus states
+* accessible forms
+* accessible tables
+* accessible accordions
+
+---
+
+# Responsive Design
+
+The CMS must work on:
+
+* mobile
+* tablet
+* desktop
+* ultra-wide displays
+
+---
+
+# Future Payload Migration
+
+Maintain a Payload compatibility layer.
+
+Every entity should map directly to Payload collections and block types.
+
+Generate:
+
+* import manifests
+* migration reports
+* block mappings
+
+The platform should remain useful even after migration.
+
+---
+
+# Success Criteria
+
+A non-technical editor should be able to:
+
+* log in
+* create a blog
+* edit a blog
+* duplicate a blog
+* manage authors
+* manage categories
+* manage tags
+* preview changes
+* validate SEO
+* preserve original URLs
+* schedule publishing
+* review history
+* restore versions
+* publish safely
+
+without writing code or SQL.
+
+The public blog and the internal CMS should operate as **one unified platform**, sharing the same data, components, rendering engine and design system, while preserving **100% of content fidelity, URLs, SEO metadata, internal linking, accessibility, component hierarchy and long-term scalability**.
