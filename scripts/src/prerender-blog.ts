@@ -71,6 +71,62 @@ async function writeRoute(
   return files.length;
 }
 
+export interface RedirectPrerenderResult {
+  /** Old paths that got at least one stub file written. */
+  redirectRoutes: number;
+  /** Total stub files written across all old paths. */
+  redirectFiles: number;
+  /** Active entries skipped as unsafe / non-blog / self-redirect. */
+  redirectSkipped: number;
+}
+
+/**
+ * Materialise the active `redirects` map as forwarding stub files under
+ * `distDir`. Each safe old path gets a tiny `<meta http-equiv="refresh">` +
+ * `<link rel="canonical">` HTML file (see `./prerender/redirects.ts`) so old,
+ * renamed and retired article URLs keep forwarding after the migration. A real
+ * content file already at the old path is never clobbered, so a still-live
+ * article/category/author page always wins.
+ *
+ * Exported (and used by `run`) so a post-build verification can drive the exact
+ * production redirect-prerender against the live `redirects` table on its own.
+ */
+export async function prerenderRedirects(
+  distDir: string = DIST_DIR,
+): Promise<RedirectPrerenderResult> {
+  const redirects = await db
+    .select({
+      fromPath: redirectsTable.fromPath,
+      toPath: redirectsTable.toPath,
+      isActive: redirectsTable.isActive,
+    })
+    .from(redirectsTable)
+    .where(eq(redirectsTable.isActive, true));
+
+  let redirectFiles = 0;
+  let redirectRoutes = 0;
+  let redirectSkipped = 0;
+  for (const r of redirects) {
+    const stub = buildRedirectStub(r.fromPath, r.toPath);
+    if (!stub) {
+      redirectSkipped += 1;
+      continue;
+    }
+    let wroteAny = false;
+    for (const rel of stub.files) {
+      const dest = path.join(distDir, rel);
+      if (existsSync(dest)) continue; // never clobber real content
+      await mkdir(path.dirname(dest), { recursive: true });
+      await writeFile(dest, stub.html, "utf8");
+      redirectFiles += 1;
+      wroteAny = true;
+    }
+    if (wroteAny) redirectRoutes += 1;
+  }
+
+  return { redirectRoutes, redirectFiles, redirectSkipped };
+}
+
 export async function run(): Promise<void> {
   const indexPath = path.join(DIST_DIR, "index.html");
   if (!existsSync(indexPath)) {
@@ -235,35 +291,8 @@ export async function run(): Promise<void> {
   // forwarding HTML file at each old path. Written LAST and only where no real
   // content file already exists, so a live article/category/author page always
   // wins over a stale redirect entry pointing at the same path.
-  const redirects = await db
-    .select({
-      fromPath: redirectsTable.fromPath,
-      toPath: redirectsTable.toPath,
-      isActive: redirectsTable.isActive,
-    })
-    .from(redirectsTable)
-    .where(eq(redirectsTable.isActive, true));
-
-  let redirectFiles = 0;
-  let redirectRoutes = 0;
-  let redirectSkipped = 0;
-  for (const r of redirects) {
-    const stub = buildRedirectStub(r.fromPath, r.toPath);
-    if (!stub) {
-      redirectSkipped += 1;
-      continue;
-    }
-    let wroteAny = false;
-    for (const rel of stub.files) {
-      const dest = path.join(DIST_DIR, rel);
-      if (existsSync(dest)) continue; // never clobber real content
-      await mkdir(path.dirname(dest), { recursive: true });
-      await writeFile(dest, stub.html, "utf8");
-      redirectFiles += 1;
-      wroteAny = true;
-    }
-    if (wroteAny) redirectRoutes += 1;
-  }
+  const { redirectRoutes, redirectFiles, redirectSkipped } =
+    await prerenderRedirects(DIST_DIR);
 
   console.log(
     `[prerender-blog] Prerendered ${pages} routes (${written} files) into ${DIST_DIR}`,
