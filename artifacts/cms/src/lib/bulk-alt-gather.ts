@@ -65,14 +65,16 @@ export async function gatherFlaggedWindow({
 
 /**
  * Build the opening bulk-suggestion session for a search filter: gather the
- * first flagged window (excluding URLs skipped in an earlier, interrupted run)
- * and assemble the session the review dialog consumes. Returns `null` when
- * nothing is left to review, so the caller can clear stale skip state and toast.
+ * first flagged window (excluding URLs skipped in an earlier, interrupted run
+ * AND URLs already approved by a concurrent tab on the same filter) and
+ * assemble the session the review dialog consumes. Returns `null` when nothing
+ * is left to review, so the caller can clear stale skip/approval state and toast.
  */
 export async function buildBulkSuggestSession({
   listMedia,
   filter,
   skipped,
+  approved,
   total,
   ceiling = BULK_SUGGEST_CEILING,
 }: {
@@ -81,16 +83,24 @@ export async function buildBulkSuggestSession({
   filter: string;
   /** URLs skipped in a prior interrupted run, restored from persistence. */
   skipped: string[];
+  /**
+   * url→alt map of images already approved by a concurrent tab on the same
+   * filter (restored from the cross-tab channel). Their server flag is already
+   * cleared, so they're excluded from the gather and seeded into the session so
+   * a late cross-tab event can't double-count them.
+   */
+  approved?: Record<string, string>;
   /** Total flagged images across the whole filtered set at session start. */
   total: number;
   ceiling?: number;
 }): Promise<BulkSuggestSession | null> {
+  const approvedMap = approved ?? {};
   const first = await gatherFlaggedWindow({
     listMedia,
     q: filter,
-    exclude: new Set(skipped),
+    exclude: new Set([...skipped, ...Object.keys(approvedMap)]),
     ceiling,
   });
   if (first.length === 0) return null;
-  return { filter, items: first, total, skipped };
+  return { filter, items: first, total, skipped, approved: approvedMap };
 }

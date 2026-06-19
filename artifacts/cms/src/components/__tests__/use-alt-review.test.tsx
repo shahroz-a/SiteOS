@@ -89,6 +89,39 @@ vi.mock("@workspace/ui", () => ({
   useToast: () => ({ toast: (arg: unknown) => h.toastCalls.push(arg) }),
 }));
 
+/**
+ * Capture the cross-tab subscription callbacks so tests can simulate another
+ * tab persisting a skip/approval. The hook subscribes inside a useEffect, so the
+ * `current` refs are populated after the initial render.
+ */
+const sub = vi.hoisted(() => {
+  const skippedCb: { current: ((urls: string[]) => void) | null } = {
+    current: null,
+  };
+  const approvedCb: {
+    current: ((entries: Record<string, string>) => void) | null;
+  } = { current: null };
+  return { skippedCb, approvedCb };
+});
+
+vi.mock("@/lib/bulk-alt-progress", () => ({
+  subscribeSkipped: (_filter: string, onChange: (urls: string[]) => void) => {
+    sub.skippedCb.current = onChange;
+    return () => {
+      sub.skippedCb.current = null;
+    };
+  },
+  subscribeApproved: (
+    _filter: string,
+    onChange: (entries: Record<string, string>) => void,
+  ) => {
+    sub.approvedCb.current = onChange;
+    return () => {
+      sub.approvedCb.current = null;
+    };
+  },
+}));
+
 // Imported after the mocks are registered.
 import { useAltReview, type AltReview } from "../use-alt-review";
 
@@ -106,8 +139,10 @@ function renderReview(args: {
   initialItems: MediaItem[];
   total: number;
   initialSkipped?: string[];
+  initialApproved?: Record<string, string>;
   fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
   onSkippedChange?: (skippedUrls: string[]) => void;
+  onApprovedChange?: (approved: Record<string, string>) => void;
   onCompleted?: () => void;
 }) {
   const hookArgs = { filter: "", initialSkipped: [], ...args };
@@ -478,6 +513,105 @@ describe("useAltReview — skip persistence", () => {
     await r.flush();
     expect(r.api.done).toBe(true);
     expect(onCompleted).toHaveBeenCalledTimes(1);
+    r.unmount();
+  });
+});
+
+describe("useAltReview — approval persistence", () => {
+  it("reports the full approved url→alt map to onApprovedChange on each approve", () => {
+    const onApprovedChange = vi.fn();
+    const r = renderReview({
+      initialItems: [mk("a"), mk("b")],
+      total: 5,
+      onApprovedChange,
+      fetchNext: vi.fn(async () => []),
+    });
+    r.run((a) => a.approve("a", "alt for a"));
+    expect(onApprovedChange).toHaveBeenLastCalledWith({ a: "alt for a" });
+    r.run((a) => a.approve("b", "alt for b"));
+    expect(onApprovedChange).toHaveBeenLastCalledWith({
+      a: "alt for a",
+      b: "alt for b",
+    });
+    r.unmount();
+  });
+
+  it("seeds the in-session exclude set from a concurrent tab's approvals without inflating the count", async () => {
+    const fetchNext = vi.fn(async () => []);
+    const r = renderReview({
+      initialItems: [mk("a")],
+      total: 5,
+      // 'x' was approved by another tab; its server flag is already cleared, so
+      // `total` excludes it and the session count must NOT include it.
+      initialApproved: { x: "alt x" },
+      fetchNext,
+    });
+    expect(r.api.session.approved).toBe(0);
+
+    // Clearing the current window auto-advances; the fetch excludes the
+    // already-approved 'x' plus the current item.
+    r.run((a) => a.approve("a", "alt a"));
+    await r.flush();
+    expect(fetchNext).toHaveBeenCalledWith(expect.arrayContaining(["x", "a"]));
+    r.unmount();
+  });
+});
+
+describe("useAltReview — cross-tab approval sync", () => {
+  it("folds an approval from another tab into this tab's progress and current window", () => {
+    const r = renderReview({
+      initialItems: [mk("a"), mk("b")],
+      total: 5,
+      fetchNext: vi.fn(async () => []),
+    });
+    // Another tab approves 'a' while it's still pending/ready here.
+    act(() => {
+      sub.approvedCb.current?.({ a: "alt from other tab" });
+    });
+    // It flips to approved with the exact alt the other tab saved, and counts.
+    expect(r.api.states["a"]).toEqual({
+      kind: "approved",
+      alt: "alt from other tab",
+    });
+    expect(r.api.session.approved).toBe(1);
+    r.unmount();
+  });
+
+  it("does not double-count an image this tab already approved", () => {
+    const r = renderReview({
+      initialItems: [mk("a")],
+      total: 5,
+      fetchNext: vi.fn(async () => []),
+    });
+    r.run((a) => a.approve("a", "my alt"));
+    expect(r.api.session.approved).toBe(1);
+
+    // The other tab's storage event echoes the same approval back.
+    act(() => {
+      sub.approvedCb.current?.({ a: "my alt" });
+    });
+    // Already handled here — the count stays at 1 and the alt isn't clobbered.
+    expect(r.api.session.approved).toBe(1);
+    expect(r.api.states["a"]).toEqual({ kind: "approved", alt: "my alt" });
+    r.unmount();
+  });
+
+  it("counts a cross-tab approval for a URL outside the current window", async () => {
+    const fetchNext = vi.fn(async () => []);
+    const r = renderReview({
+      initialItems: [mk("a")],
+      total: 5,
+      fetchNext,
+    });
+    // Another tab approves 'z', which isn't in this window at all.
+    act(() => {
+      sub.approvedCb.current?.({ z: "alt z" });
+    });
+    expect(r.api.session.approved).toBe(1);
+    // 'z' isn't shown here, but it's excluded from the next window's fetch.
+    r.run((a) => a.skip("a"));
+    await r.flush();
+    expect(fetchNext).toHaveBeenCalledWith(expect.arrayContaining(["z", "a"]));
     r.unmount();
   });
 });

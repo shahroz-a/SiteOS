@@ -45,11 +45,21 @@ const h_ = vi.hoisted(() => {
   const loadSkippedRef: { current: (filter: string) => string[] } = {
     current: () => [],
   };
+  const loadApprovedRef: {
+    current: (filter: string) => Record<string, string>;
+  } = {
+    current: () => ({}),
+  };
 
   const listCmsMedia = vi.fn((params: ListParams) => listImplRef.current(params));
   const loadSkipped = vi.fn((filter: string) => loadSkippedRef.current(filter));
   const saveSkipped = vi.fn();
   const clearSkipped = vi.fn();
+  const loadApproved = vi.fn((filter: string) =>
+    loadApprovedRef.current(filter),
+  );
+  const saveApproved = vi.fn();
+  const clearApproved = vi.fn();
   const toast = vi.fn();
 
   // Latest props the page passed to <BulkAltReviewDialog>.
@@ -65,10 +75,14 @@ const h_ = vi.hoisted(() => {
     listImplRef,
     summaryRef,
     loadSkippedRef,
+    loadApprovedRef,
     listCmsMedia,
     loadSkipped,
     saveSkipped,
     clearSkipped,
+    loadApproved,
+    saveApproved,
+    clearApproved,
     toast,
     dialogProps,
   };
@@ -96,6 +110,9 @@ vi.mock("@/lib/bulk-alt-progress", () => ({
   loadSkipped: h_.loadSkipped,
   saveSkipped: h_.saveSkipped,
   clearSkipped: h_.clearSkipped,
+  loadApproved: h_.loadApproved,
+  saveApproved: h_.saveApproved,
+  clearApproved: h_.clearApproved,
 }));
 
 vi.mock("@/hooks/use-debounced-value", () => ({
@@ -249,10 +266,14 @@ beforeEach(() => {
   h_.loadSkipped.mockClear();
   h_.saveSkipped.mockClear();
   h_.clearSkipped.mockClear();
+  h_.loadApproved.mockClear();
+  h_.saveApproved.mockClear();
+  h_.clearApproved.mockClear();
   h_.toast.mockClear();
   h_.dialogProps.current = null;
   h_.summaryRef.current = { totalImages: 100, withAltIssues: 7 };
   h_.loadSkippedRef.current = () => [];
+  h_.loadApprovedRef.current = () => ({});
   h_.listImplRef.current = async (params) => ({
     items: [],
     pagination: { page: params.page, limit: params.limit, total: 0, totalPages: 1 },
@@ -272,6 +293,7 @@ describe("MediaPage — bulk suggest session construction", () => {
     expect(s.total).toBe(7); // from summary.withAltIssues, not the window size
     expect(s.filter).toBe(""); // no search term typed
     expect(s.skipped).toEqual([]);
+    expect(s.approved).toEqual({});
     // The dialog is opened with the session.
     expect(h_.dialogProps.current?.open).toBe(true);
 
@@ -345,7 +367,7 @@ describe("MediaPage — bulk suggest session construction", () => {
     });
   });
 
-  it("opens no session, clears stale skip state, and toasts when nothing is left to review", async () => {
+  it("opens no session, clears stale skip + approval state, and toasts when nothing is left to review", async () => {
     h_.loadSkippedRef.current = () => ["stale"];
     // Everything still flagged is already in the skip set → empty window.
     h_.listImplRef.current = pagedCorpus(["stale"], 100);
@@ -356,9 +378,25 @@ describe("MediaPage — bulk suggest session construction", () => {
     expect(h_.dialogProps.current?.session).toBeNull();
     expect(h_.dialogProps.current?.open).toBe(false);
     expect(h_.clearSkipped).toHaveBeenCalledWith("");
+    expect(h_.clearApproved).toHaveBeenCalledWith("");
     expect(h_.toast).toHaveBeenCalledWith({
       title: "No flagged images to suggest for.",
     });
+  });
+
+  it("excludes persisted approved URLs from the first window and seeds them into the session", async () => {
+    h_.loadApprovedRef.current = () => ({ ap1: "alt 1", ap2: "alt 2" });
+    h_.listImplRef.current = pagedCorpus(["ap1", "a", "b"], 100);
+
+    const renderer = renderPage();
+    await clickSuggest(renderer);
+
+    const s = session();
+    // ap1 was already approved (cross-tab), so it must not reappear…
+    expect(urls(s.items)).toEqual(["a", "b"]);
+    // …but the approval map is seeded into the session for live sync.
+    expect(s.approved).toEqual({ ap1: "alt 1", ap2: "alt 2" });
+    expect(h_.loadApproved).toHaveBeenCalledWith("");
   });
 
   it("toasts and opens no session when the gather fails", async () => {

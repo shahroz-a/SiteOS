@@ -22,6 +22,9 @@ import {
   loadSkipped,
   saveSkipped,
   clearSkipped,
+  loadApproved,
+  saveApproved,
+  clearApproved,
 } from "@/lib/bulk-alt-progress";
 import {
   gatherFlaggedWindow,
@@ -78,18 +81,23 @@ export default function MediaPage() {
     const filter = q;
     try {
       // Resume an interrupted pass: skipped images from a prior run (for this
-      // search filter) stay flagged but shouldn't be re-shown.
+      // search filter) stay flagged but shouldn't be re-shown. Approvals from a
+      // concurrent tab on the same filter (their server flag is already cleared)
+      // are restored too so a late cross-tab event can't double-count them.
       const skipped = loadSkipped(filter);
+      const approved = loadApproved(filter);
       const session = await buildBulkSuggestSession({
         listMedia: listCmsMedia,
         filter,
         skipped,
+        approved,
         total: totalIssues,
         ceiling: BULK_SUGGEST_CEILING,
       });
       if (!session) {
-        // Nothing left to review — any leftover skip state is stale.
+        // Nothing left to review — any leftover skip/approval state is stale.
         clearSkipped(filter);
+        clearApproved(filter);
         toast({ title: "No flagged images to suggest for." });
         return;
       }
@@ -248,8 +256,14 @@ export default function MediaPage() {
         onSkippedChange={(skipped) => {
           if (bulkSession) saveSkipped(bulkSession.filter, skipped);
         }}
+        onApprovedChange={(approved) => {
+          if (bulkSession) saveApproved(bulkSession.filter, approved);
+        }}
         onCompleted={() => {
-          if (bulkSession) clearSkipped(bulkSession.filter);
+          if (bulkSession) {
+            clearSkipped(bulkSession.filter);
+            clearApproved(bulkSession.filter);
+          }
         }}
       />
 

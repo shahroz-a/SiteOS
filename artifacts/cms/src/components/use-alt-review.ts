@@ -6,7 +6,7 @@ import {
   type MediaItem,
 } from "@workspace/api-client-react";
 import { useToast } from "@workspace/ui";
-import { subscribeSkipped } from "@/lib/bulk-alt-progress";
+import { subscribeSkipped, subscribeApproved } from "@/lib/bulk-alt-progress";
 
 /** Server-side cap on URLs per suggest-alt-batch request (mirrors the API). */
 export const MAX_URLS_PER_BATCH = 50;
@@ -78,13 +78,15 @@ export function useAltReview({
   initialItems,
   total,
   initialSkipped,
+  initialApproved,
   fetchNext,
   onSkippedChange,
+  onApprovedChange,
   onCompleted,
 }: {
   /**
    * Search filter the pass is scoped to. Used to subscribe to cross-tab skip
-   * updates persisted under the same filter key.
+   * and approval updates persisted under the same filter key.
    */
   filter: string;
   initialItems: MediaItem[];
@@ -95,6 +97,14 @@ export function useAltReview({
    * the progress count and in-session exclude set pick up where they left off.
    */
   initialSkipped: string[];
+  /**
+   * url→alt map of images already approved by a concurrent tab on the same
+   * filter (restored from the cross-tab channel). They're already excluded from
+   * `initialItems` (their server flag is cleared, so `total` doesn't count them
+   * either); seeded into the in-session exclude set so a later cross-tab event
+   * for the same URL isn't mistaken for a new approval and double-counted.
+   */
+  initialApproved?: Record<string, string>;
   fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
   /**
    * Called whenever an image is skipped, with the full set of URLs skipped so
@@ -102,6 +112,12 @@ export function useAltReview({
    * close/reopen (and page reload) without re-showing skipped images.
    */
   onSkippedChange?: (skippedUrls: string[]) => void;
+  /**
+   * Called whenever an image is approved, with the full url→alt map approved so
+   * far this pass. The parent persists this on the cross-tab channel so other
+   * open tabs running the same pass reflect it as already handled.
+   */
+  onApprovedChange?: (approved: Record<string, string>) => void;
   /** Called once the backlog is fully cleared, so the parent can reset state. */
   onCompleted?: () => void;
 }): AltReview {
@@ -134,11 +150,22 @@ export function useAltReview({
   }));
   // Every URL handled this session (approved/skipped/errored), excluded when
   // loading the next window so nothing can reappear and loop forever. Seeded
-  // with skips restored from a prior, interrupted run of this pass.
-  const seenRef = useRef<Set<string>>(new Set(initialSkipped));
+  // with skips restored from a prior, interrupted run of this pass AND with any
+  // images a concurrent tab already approved (so a later cross-tab event for the
+  // same URL isn't counted as a fresh approval).
+  const seenRef = useRef<Set<string>>(
+    new Set([...initialSkipped, ...Object.keys(initialApproved ?? {})]),
+  );
   // The subset of `seenRef` that was skipped (not approved/errored). This is
   // what we persist so a reopened pass doesn't re-show skipped images.
   const skippedRef = useRef<Set<string>>(new Set(initialSkipped));
+  // The url→alt map of images approved this pass. Persisted on the cross-tab
+  // channel so other open tabs reflect them as handled. Seeded with approvals a
+  // concurrent tab already made (their flag is cleared, so `total` excludes them
+  // and we must NOT also add them to the session count).
+  const approvedRef = useRef<Record<string, string>>({
+    ...(initialApproved ?? {}),
+  });
   const [advancing, setAdvancing] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -241,6 +268,9 @@ export function useAltReview({
         onSuccess: () => {
           setState(url, { kind: "approved", alt: trimmed });
           setSession((s) => ({ ...s, approved: s.approved + 1 }));
+          seenRef.current.add(url);
+          approvedRef.current[url] = trimmed;
+          onApprovedChange?.({ ...approvedRef.current });
           queryClient.invalidateQueries({ queryKey: ["/api/cms/media"] });
         },
         onError: () => {
@@ -290,6 +320,37 @@ export function useAltReview({
         return next ?? prev;
       });
       setSession((s) => ({ ...s, skipped: s.skipped + added.length }));
+    });
+  }, [filter]);
+
+  // Keep this pass in sync with approvals made in another open tab. When another
+  // tab approves an image it writes the url→alt to the cross-tab channel; we
+  // pick that up via the `storage` event and fold any URLs we haven't already
+  // handled into this tab's running progress so a concurrent tab can't
+  // re-suggest or re-count an image already approved elsewhere. Items still in
+  // this window are flipped to "approved" with the exact alt the other tab saved.
+  useEffect(() => {
+    return subscribeApproved(filter, (entries) => {
+      const added: string[] = [];
+      for (const [url, alt] of Object.entries(entries)) {
+        if (seenRef.current.has(url)) continue;
+        seenRef.current.add(url);
+        approvedRef.current[url] = alt;
+        added.push(url);
+      }
+      if (added.length === 0) return;
+      setStates((prev) => {
+        let next: Record<string, ItemState> | null = null;
+        for (const url of added) {
+          const existing = prev[url];
+          if (existing !== undefined && existing.kind !== "approved") {
+            next ??= { ...prev };
+            next[url] = { kind: "approved", alt: entries[url] ?? "" };
+          }
+        }
+        return next ?? prev;
+      });
+      setSession((s) => ({ ...s, approved: s.approved + added.length }));
     });
   }, [filter]);
 

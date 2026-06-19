@@ -4,6 +4,10 @@ import {
   saveSkipped,
   clearSkipped,
   subscribeSkipped,
+  loadApproved,
+  saveApproved,
+  clearApproved,
+  subscribeApproved,
 } from "../bulk-alt-progress";
 
 /** Minimal in-memory localStorage stand-in for the node test environment. */
@@ -178,5 +182,166 @@ describe("subscribeSkipped (cross-tab sync)", () => {
   it("returns a no-op when events are unavailable", () => {
     vi.stubGlobal("window", { localStorage: makeStorage() });
     expect(() => subscribeSkipped("", () => {})()).not.toThrow();
+  });
+});
+
+describe("bulk-alt-progress approved persistence", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", { localStorage: makeStorage() });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns an empty map when nothing is stored", () => {
+    expect(loadApproved("")).toEqual({});
+    expect(loadApproved("cats")).toEqual({});
+  });
+
+  it("round-trips saved url→alt entries", () => {
+    saveApproved("", { a: "alt a", b: "alt b" });
+    expect(loadApproved("")).toEqual({ a: "alt a", b: "alt b" });
+  });
+
+  it("scopes progress per search filter", () => {
+    saveApproved("", { whole: "library" });
+    saveApproved("cats", { filtered: "alt" });
+    expect(loadApproved("")).toEqual({ whole: "library" });
+    expect(loadApproved("cats")).toEqual({ filtered: "alt" });
+  });
+
+  it("clears only the targeted filter", () => {
+    saveApproved("", { a: "alt a" });
+    saveApproved("cats", { b: "alt b" });
+    clearApproved("cats");
+    expect(loadApproved("cats")).toEqual({});
+    expect(loadApproved("")).toEqual({ a: "alt a" });
+  });
+
+  it("does not collide with the skipped channel for the same filter", () => {
+    saveSkipped("cats", ["s1"]);
+    saveApproved("cats", { a: "alt a" });
+    expect(loadSkipped("cats")).toEqual(["s1"]);
+    expect(loadApproved("cats")).toEqual({ a: "alt a" });
+  });
+
+  it("ignores malformed stored values", () => {
+    window.localStorage.setItem("headout-cms:bulk-alt-approved:", "not json");
+    expect(loadApproved("")).toEqual({});
+    window.localStorage.setItem(
+      "headout-cms:bulk-alt-approved:",
+      JSON.stringify(["an", "array"]),
+    );
+    expect(loadApproved("")).toEqual({});
+  });
+
+  it("drops non-string alt values", () => {
+    window.localStorage.setItem(
+      "headout-cms:bulk-alt-approved:",
+      JSON.stringify({ a: "ok", b: 1, c: null, d: "fine" }),
+    );
+    expect(loadApproved("")).toEqual({ a: "ok", d: "fine" });
+  });
+
+  it("does not throw when storage is unavailable", () => {
+    vi.stubGlobal("window", undefined);
+    expect(() => saveApproved("", { a: "x" })).not.toThrow();
+    expect(loadApproved("")).toEqual({});
+    expect(() => clearApproved("")).not.toThrow();
+  });
+
+  it("unions with already-persisted entries instead of clobbering them", () => {
+    // Simulates another tab persisting {a} before this tab writes {b}.
+    saveApproved("", { a: "alt a" });
+    saveApproved("", { b: "alt b" });
+    expect(loadApproved("")).toEqual({ a: "alt a", b: "alt b" });
+  });
+
+  it("lets a later write win for the same URL (re-saved alt)", () => {
+    saveApproved("", { a: "first" });
+    saveApproved("", { a: "second" });
+    expect(loadApproved("")).toEqual({ a: "second" });
+  });
+});
+
+describe("subscribeApproved (cross-tab sync)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("notifies on a matching key write and reloads the approved map", () => {
+    const win = makeWindowWithEvents();
+    vi.stubGlobal("window", win);
+
+    const seen: Record<string, string>[] = [];
+    const unsubscribe = subscribeApproved("cats", (entries) =>
+      seen.push(entries),
+    );
+
+    saveApproved("cats", { a: "alt a" });
+    win.emitStorage("headout-cms:bulk-alt-approved:cats");
+
+    expect(seen).toEqual([{ a: "alt a" }]);
+    unsubscribe();
+  });
+
+  it("ignores writes to a different filter's key", () => {
+    const win = makeWindowWithEvents();
+    vi.stubGlobal("window", win);
+
+    const seen: Record<string, string>[] = [];
+    subscribeApproved("cats", (entries) => seen.push(entries));
+
+    saveApproved("dogs", { x: "alt x" });
+    win.emitStorage("headout-cms:bulk-alt-approved:dogs");
+
+    expect(seen).toEqual([]);
+  });
+
+  it("ignores writes to the skipped channel's key", () => {
+    const win = makeWindowWithEvents();
+    vi.stubGlobal("window", win);
+
+    const seen: Record<string, string>[] = [];
+    subscribeApproved("cats", (entries) => seen.push(entries));
+
+    saveSkipped("cats", ["s1"]);
+    win.emitStorage("headout-cms:bulk-alt-skipped:cats");
+
+    expect(seen).toEqual([]);
+  });
+
+  it("treats a full storage clear (key === null) as a change", () => {
+    const win = makeWindowWithEvents();
+    vi.stubGlobal("window", win);
+
+    const seen: Record<string, string>[] = [];
+    subscribeApproved("cats", (entries) => seen.push(entries));
+
+    win.emitStorage(null);
+
+    expect(seen).toEqual([{}]);
+  });
+
+  it("stops notifying after unsubscribe", () => {
+    const win = makeWindowWithEvents();
+    vi.stubGlobal("window", win);
+
+    const seen: Record<string, string>[] = [];
+    const unsubscribe = subscribeApproved("cats", (entries) =>
+      seen.push(entries),
+    );
+    unsubscribe();
+
+    saveApproved("cats", { a: "alt a" });
+    win.emitStorage("headout-cms:bulk-alt-approved:cats");
+
+    expect(seen).toEqual([]);
+  });
+
+  it("returns a no-op when events are unavailable", () => {
+    vi.stubGlobal("window", { localStorage: makeStorage() });
+    expect(() => subscribeApproved("", () => {})()).not.toThrow();
   });
 });

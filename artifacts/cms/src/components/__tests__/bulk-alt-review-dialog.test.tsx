@@ -117,11 +117,15 @@ function instText(inst: TestRenderer.ReactTestInstance): string {
 }
 
 function render(
-  props: Omit<Parameters<typeof ReviewBody>[0], "initialSkipped"> & {
+  props: Omit<
+    Parameters<typeof ReviewBody>[0],
+    "initialSkipped" | "initialApproved"
+  > & {
     initialSkipped?: string[];
+    initialApproved?: Record<string, string>;
   },
 ) {
-  const resolved = { initialSkipped: [], ...props };
+  const resolved = { initialSkipped: [], initialApproved: {}, ...props };
   let renderer!: TestRenderer.ReactTestRenderer;
   act(() => {
     renderer = TestRenderer.create(createElement(ReviewBody, resolved));
@@ -273,6 +277,7 @@ describe("ReviewBody — skipped review & clear", () => {
     const onSkippedChange = vi.fn();
     const fetchNext = vi.fn().mockResolvedValue(refetched);
     const renderer = render({
+      filter: "",
       initialItems: makeItems(1),
       total: 2,
       initialSkipped: skipped,
@@ -310,6 +315,7 @@ describe("ReviewBody — skipped review & clear", () => {
     const onSkippedChange = vi.fn();
     const fetchNext = vi.fn().mockResolvedValue([]);
     const renderer = render({
+      filter: "",
       initialItems: makeItems(1),
       total: 2,
       initialSkipped: skipped,

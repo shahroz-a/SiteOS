@@ -43,6 +43,12 @@ export interface BulkSuggestSession {
    * progress count and in-session exclude set pick up where they left off.
    */
   skipped: string[];
+  /**
+   * url→alt map of images already approved by a concurrent tab on the same
+   * filter (restored from the cross-tab channel). Already excluded from `items`;
+   * seeded so a later cross-tab event for the same URL isn't double-counted.
+   */
+  approved: Record<string, string>;
 }
 
 interface BulkAltReviewDialogProps {
@@ -61,6 +67,12 @@ interface BulkAltReviewDialogProps {
    * close/reopen (and page reload) without re-showing skipped images.
    */
   onSkippedChange?: (skippedUrls: string[]) => void;
+  /**
+   * Called whenever an image is approved, with the full url→alt map approved so
+   * far this pass. The parent persists this on the cross-tab channel so other
+   * open tabs running the same pass reflect it as already handled.
+   */
+  onApprovedChange?: (approved: Record<string, string>) => void;
   /** Called once the backlog is fully cleared, so the parent can reset state. */
   onCompleted?: () => void;
 }
@@ -71,6 +83,7 @@ export function BulkAltReviewDialog({
   onOpenChange,
   fetchNext,
   onSkippedChange,
+  onApprovedChange,
   onCompleted,
 }: BulkAltReviewDialogProps) {
   return (
@@ -82,8 +95,10 @@ export function BulkAltReviewDialog({
             initialItems={session.items}
             total={session.total}
             initialSkipped={session.skipped}
+            initialApproved={session.approved}
             fetchNext={fetchNext}
             onSkippedChange={onSkippedChange}
+            onApprovedChange={onApprovedChange}
             onCompleted={onCompleted}
             onClose={() => onOpenChange(false)}
           />
@@ -98,8 +113,10 @@ export function ReviewBody({
   initialItems,
   total,
   initialSkipped,
+  initialApproved,
   fetchNext,
   onSkippedChange,
+  onApprovedChange,
   onCompleted,
   onClose,
 }: {
@@ -107,8 +124,10 @@ export function ReviewBody({
   initialItems: MediaItem[];
   total: number;
   initialSkipped: string[];
+  initialApproved: Record<string, string>;
   fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
   onSkippedChange?: (skippedUrls: string[]) => void;
+  onApprovedChange?: (approved: Record<string, string>) => void;
   onCompleted?: () => void;
   onClose: () => void;
 }) {
