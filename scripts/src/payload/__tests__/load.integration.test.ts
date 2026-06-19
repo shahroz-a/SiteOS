@@ -211,7 +211,10 @@ function fixtureExport(): PayloadExport {
   };
 }
 
-describe("Payload export → real Payload load (integration)", () => {
+// Booting/querying the ephemeral Payload SQLite instance can exceed the 5s
+// default test timeout under load; give every test in this integration suite
+// headroom via the suite-level options object.
+describe("Payload export → real Payload load (integration)", { timeout: 30_000 }, () => {
   let instance: TestPayload;
   let result: Awaited<ReturnType<typeof loadPayloadExport>>;
   const data = fixtureExport();

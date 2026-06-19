@@ -131,14 +131,14 @@ describe("createBlock", () => {
 /* ------------------------------------------------------------------ */
 
 describe("blocksToComponentTree", () => {
-  it("emits the crawler array shape keyed by `type`", () => {
+  it("emits the crawler array shape keyed by `blockType`", () => {
     const blocks: EditorBlock[] = [
       { id: "1", type: "heading", text: "Title", data: { level: 3 } },
       { id: "2", type: "richText", data: { html: "<p>Body</p>" } },
     ];
     expect(blocksToComponentTree(blocks)).toEqual([
-      { type: "heading", text: "Title", data: { level: 3 } },
-      { type: "richText", data: { html: "<p>Body</p>" } },
+      { blockType: "heading", text: "Title", data: { level: 3 } },
+      { blockType: "richText", data: { html: "<p>Body</p>" } },
     ]);
   });
 
@@ -153,9 +153,9 @@ describe("blocksToComponentTree", () => {
     ];
     expect(blocksToComponentTree(blocks)).toEqual([
       {
-        type: "section",
+        blockType: "section",
         data: { heading: "Group" },
-        children: [{ type: "heading", text: "Inner", data: { level: 2 } }],
+        children: [{ blockType: "heading", text: "Inner", data: { level: 2 } }],
       },
     ]);
   });
@@ -163,7 +163,7 @@ describe("blocksToComponentTree", () => {
   it("fills missing fields with empty defaults (no undefined leaks)", () => {
     const tree = blocksToComponentTree([{ id: "1", type: "hero", data: {} }]);
     expect(tree[0]).toEqual({
-      type: "hero",
+      blockType: "hero",
       data: { title: "", subtitle: "", eyebrow: "", imageUrl: "", imageAlt: "" },
     });
   });
@@ -396,7 +396,7 @@ describe("editor model — inserted images reach the rendered structure", () => 
 
     const tree = input.componentTree as CTNode[];
     expect(Array.isArray(tree)).toBe(true);
-    const img = tree.find((n) => n.type === "image");
+    const img = tree.find((n) => n.blockType === "image");
     expect(img).toBeDefined();
     expect(img?.data?.src).toBe("https://cdn.headout.com/library/skyline.jpg");
     expect(img?.data?.alt).toBe("library shot");
@@ -418,15 +418,15 @@ describe("editor model — inserted images reach the rendered structure", () => 
       imageBlock("https://cdn.headout.com/library/body.jpg"),
     ]) as CTNode[];
 
-    expect(tree.find((n) => n.type === "hero")?.data?.imageUrl).toBe(
+    expect(tree.find((n) => n.blockType === "hero")?.data?.imageUrl).toBe(
       "https://cdn.headout.com/library/hero.jpg",
     );
-    const galleryNode = tree.find((n) => n.type === "gallery");
+    const galleryNode = tree.find((n) => n.blockType === "gallery");
     expect(galleryNode?.data?.images?.map((i) => i.src)).toEqual([
       "https://cdn.headout.com/library/g1.jpg",
       "https://cdn.headout.com/library/g2.jpg",
     ]);
-    expect(tree.find((n) => n.type === "image")?.data?.src).toBe(
+    expect(tree.find((n) => n.blockType === "image")?.data?.src).toBe(
       "https://cdn.headout.com/library/body.jpg",
     );
   });
@@ -462,7 +462,7 @@ describe("editor model — inserted images reach the rendered structure", () => 
     // Re-emitting must keep the image in the rendered structure.
     const reEmitted = detailToInput(detail, blocks, { title: detail.title });
     const tree = reEmitted.componentTree as CTNode[];
-    expect(tree.find((n) => n.type === "image")?.data?.src).toBe(
+    expect(tree.find((n) => n.blockType === "image")?.data?.src).toBe(
       "https://cdn.headout.com/library/round-trip.jpg",
     );
   });

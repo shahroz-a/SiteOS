@@ -53,6 +53,25 @@ router.post(
       return;
     }
 
+    const scheduledFor = parsed.data.scheduledFor ?? null;
+
+    // Validate the scheduling precondition BEFORE the (expensive, side-effecting)
+    // publish gate: a `scheduled` move with a missing/past date is a malformed
+    // request (400), not an SEO failure, and must not run the validation engine
+    // or write a validation_reports row. Messages mirror transitionPost's.
+    if (to === "scheduled") {
+      if (!scheduledFor) {
+        res
+          .status(400)
+          .json({ error: "A future scheduledFor date is required to schedule" });
+        return;
+      }
+      if (scheduledFor.getTime() <= Date.now()) {
+        res.status(400).json({ error: "scheduledFor must be in the future" });
+        return;
+      }
+    }
+
     // Publish gate: making content public (publish now or schedule) runs the
     // SEO/content validation engine and blocks on any critical failure. The
     // gate always records a validation_reports row, so every publish attempt is
@@ -69,7 +88,6 @@ router.post(
       }
     }
 
-    const scheduledFor = parsed.data.scheduledFor ?? null;
     const result = await transitionPost(id, to, scheduledFor);
     if (!result.ok) {
       if (result.error === "not-found") {
