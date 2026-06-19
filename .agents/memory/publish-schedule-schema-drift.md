@@ -22,14 +22,19 @@ gap very likely exists in **production** (it was never pushed there either);
 prod only gets schema via a **re-publish** (publish diffs dev→prod), and the
 agent must not run DDL against prod.
 
-**How to re-sync dev (idempotent, autocommit — ADD VALUE can't run in a txn):**
+**Self-healing (dev):** `scripts/src/ensure-publishing-shapes.ts` (`pnpm
+--filter @workspace/scripts run ensure:publishing`) re-applies it
+idempotently and is wired into `scripts/post-merge.sh` next to
+`ensure:analytics` / `ensure:search-indexes`, so a dev rollback/restore
+self-heals. The DDL it runs (each statement autocommit — ADD VALUE can't run in
+a txn):
 ```
 ALTER TYPE "page_status" ADD VALUE IF NOT EXISTS 'review' BEFORE 'published';
 ALTER TYPE "page_status" ADD VALUE IF NOT EXISTS 'scheduled' BEFORE 'published';
 ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "scheduled_for" timestamp with time zone;
 CREATE INDEX IF NOT EXISTS "pages_scheduled_for_idx" ON "pages" ("scheduled_for");
 ```
-Run via a tsx script inside the `scripts/` pkg (so `@workspace/db` resolves) and
-`db.execute(sql\`...\`)`. Verify the live-DB test
-`cms-publishing.integration.test.ts` (gated `VERIFY_CMS_WRITE=1`) goes green —
-it's the canary for this exact drift.
+**Prod:** the agent can't run DDL on prod or publish — prod gets these shapes
+only when the user re-publishes (publish diffs dev→prod). Verify the live-DB
+test `cms-publishing.integration.test.ts` (gated `VERIFY_CMS_WRITE=1`) goes
+green — it's the canary for this exact drift.
