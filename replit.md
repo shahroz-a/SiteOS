@@ -99,7 +99,7 @@ All under `/api`. Slugs are the public identifier — internal UUIDs never appea
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- **Do not upload or duplicate blog images.** Always preserve and reuse the original `https://cdn-img.headout.com/...` URLs extracted from the source pages. Store only image metadata (URL, alt text, caption, dimensions, position, usage) in the DB. All public blog pages AND the internal CMS must render images directly from the original Headout CDN — never re-host migrated images in object storage. (The CMS image-upload pipeline under `/storage/uploads/*` is only for genuinely new editor-supplied images, not for migrated content.)
 
 ## Gotchas
 

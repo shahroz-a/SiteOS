@@ -109,3 +109,36 @@ describe("GET /api/storage/uploads (RBAC)", () => {
     }
   });
 });
+
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+describe("POST /api/storage/uploads/request-url (size guard)", () => {
+  const permitted = ROLES.find(canList) as Role;
+
+  it("rejects an oversized declared size before issuing an upload URL", async () => {
+    const res = await request(app)
+      .post("/api/storage/uploads/request-url")
+      .set("Authorization", bearer(permitted))
+      .send({
+        name: "huge.jpg",
+        size: MAX_IMAGE_BYTES + 1,
+        contentType: "image/jpeg",
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/too large/i);
+    expect(res.body.uploadURL).toBeUndefined();
+  });
+
+  it("still enforces RBAC before the size guard", async () => {
+    const denied = ROLES.find((r) => !canList(r)) as Role;
+    const res = await request(app)
+      .post("/api/storage/uploads/request-url")
+      .set("Authorization", bearer(denied))
+      .send({
+        name: "huge.jpg",
+        size: MAX_IMAGE_BYTES + 1,
+        contentType: "image/jpeg",
+      });
+    expect(res.status).toBe(403);
+  });
+});

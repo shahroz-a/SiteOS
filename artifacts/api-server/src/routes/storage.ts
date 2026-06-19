@@ -13,7 +13,13 @@ import {
   ObjectStorageService,
   ObjectNotFoundError,
   ObjectValidationError,
+  MAX_IMAGE_BYTES,
 } from "../lib/objectStorage";
+
+/** Shared "too large" message, reused by the request-url guard and finalize. */
+const tooLargeMessage = `Image is too large (max ${Math.floor(
+  MAX_IMAGE_BYTES / (1024 * 1024),
+)} MB).`;
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -40,9 +46,20 @@ router.post(
       return;
     }
 
-    try {
-      const { name, size, contentType } = parsed.data;
+    const { name, size, contentType } = parsed.data;
 
+    // Fail fast on an oversized *declared* size: refuse to hand out an upload
+    // URL at all, so an honest client never starts transferring the bytes.
+    // (Replit's object-storage signer can only sign the `host` header, so a
+    // GCS-level `x-goog-content-length-range` constraint on the presigned PUT
+    // is not available — a client that lies about its size is still caught
+    // after upload by the finalize magic-byte + real-size check below.)
+    if (size > MAX_IMAGE_BYTES) {
+      res.status(400).json({ error: tooLargeMessage });
+      return;
+    }
+
+    try {
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
       const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
 
