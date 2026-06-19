@@ -233,7 +233,13 @@ export default function SavedScreen() {
         },
       });
     },
-    [activeSelected, removeFromCollection, restoreToCollection, collections, showUndoToast],
+    [
+      activeSelected,
+      removeFromCollection,
+      restoreToCollection,
+      collections,
+      showUndoToast,
+    ],
   );
 
   const countFor = useCallback(

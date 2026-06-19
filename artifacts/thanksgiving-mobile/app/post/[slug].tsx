@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Platform,
   Pressable,
@@ -18,7 +19,12 @@ import { ErrorView, LoadingView } from "@/components/StateViews";
 import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
 import { useFavorites } from "@/hooks/useFavorites";
-import { useGetPostBySlug, type FaqItem } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/useToast";
+import {
+  useGetPostBySlug,
+  type FaqItem,
+  type PostSummary,
+} from "@workspace/api-client-react";
 
 function formatDate(value?: string | null): string | null {
   if (!value) return null;
@@ -64,13 +70,43 @@ export default function PostDetailScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { isFavorite, toggleFavorite, removeFavorite, restoreFavorite } =
+    useFavorites();
+  const { showUndoToast } = useToast();
   const [collectionsOpen, setCollectionsOpen] = useState(false);
 
   const { data: post, isLoading, isError, refetch } = useGetPostBySlug(slug);
 
   const date = formatDate(post?.publishedAt);
   const saved = post ? isFavorite(post.id) : false;
+
+  const handleToggleFavorite = useCallback(
+    (target: PostSummary) => {
+      if (!isFavorite(target.id)) {
+        toggleFavorite(target);
+        return;
+      }
+      // Un-saving also drops the article from every collection and custom
+      // order, so offer an undo via the global snackbar.
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
+      const snapshot = removeFavorite(target.id);
+      if (snapshot) {
+        showUndoToast({
+          message: "Removed from saved",
+          onAction: () => restoreFavorite(snapshot),
+        });
+      }
+    },
+    [
+      isFavorite,
+      toggleFavorite,
+      removeFavorite,
+      restoreFavorite,
+      showUndoToast,
+    ],
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -119,7 +155,7 @@ export default function PostDetailScreen() {
             testID="favorite-toggle"
             accessibilityRole="button"
             accessibilityLabel={saved ? "Remove from saved" : "Save article"}
-            onPress={() => toggleFavorite(post)}
+            onPress={() => handleToggleFavorite(post)}
             style={[
               styles.actionButton,
               {

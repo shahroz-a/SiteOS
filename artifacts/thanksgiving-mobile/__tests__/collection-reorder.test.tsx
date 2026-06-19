@@ -48,7 +48,17 @@ jest.mock("expo-image", () => {
 
 // Imported after mocks so the components pick them up.
 import { FavoritesProvider } from "@/hooks/useFavorites";
+import { ToastProvider } from "@/hooks/useToast";
 import SavedScreen from "@/app/(tabs)/saved";
+
+// SavedScreen surfaces an undo toast when un-saving, so it needs both providers.
+function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <FavoritesProvider>
+      <ToastProvider>{children}</ToastProvider>
+    </FavoritesProvider>
+  );
+}
 
 const COLLECTIONS = [
   { id: "alpha", name: "Alpha", createdAt: 1 },
@@ -122,9 +132,9 @@ describe("collection chip reordering", () => {
     await seedCollections();
 
     render(
-      <FavoritesProvider>
+      <Providers>
         <SavedScreen />
-      </FavoritesProvider>,
+      </Providers>,
     );
 
     // Chips render once hydration completes, in their seeded order.
@@ -163,9 +173,9 @@ describe("collection chip reordering", () => {
     await seedCollections();
 
     const first = render(
-      <FavoritesProvider>
+      <Providers>
         <SavedScreen />
-      </FavoritesProvider>,
+      </Providers>,
     );
 
     await waitFor(() =>
@@ -194,9 +204,9 @@ describe("collection chip reordering", () => {
 
     // A fresh provider must rehydrate the saved order from storage on mount.
     render(
-      <FavoritesProvider>
+      <Providers>
         <SavedScreen />
-      </FavoritesProvider>,
+      </Providers>,
     );
 
     await waitFor(() =>

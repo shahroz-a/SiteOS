@@ -35,6 +35,30 @@ export type RemovedFromCollection = {
 };
 
 /**
+ * A snapshot of a fully un-saved article, captured the moment the heart is
+ * toggled off so the action can be undone. Un-saving is more destructive than a
+ * single-collection removal: it drops the post from favorites entirely AND from
+ * every collection and custom order it lived in. This snapshot records the full
+ * post (so it can be re-stored without a network call), its position in the
+ * favorites list, every collection it belonged to, and its slot in each of
+ * those collections' custom orders — enough for `restoreFavorite` to put it back
+ * exactly where it was.
+ */
+export type RemovedFavorite = {
+  post: PostSummary;
+  /** Index in the favorites list at removal time (save-order position). */
+  favoriteIndex: number;
+  /** Ids of the collections the post belonged to. */
+  collectionIds: string[];
+  /**
+   * Per-collection slot in that collection's custom order at removal time, keyed
+   * by collection id. -1 means the post had no explicit custom-order slot (it
+   * fell back to save order), so there is nothing to restore for that collection.
+   */
+  orderIndexes: Record<string, number>;
+};
+
+/**
  * Persisted collections payload. `membership` maps a post id to the set of
  * collection ids it belongs to, so a single saved article can live in many
  * collections at once. `order` maps a collection id to a reader-defined
@@ -57,8 +81,18 @@ type FavoritesContextValue = {
   isFavorite: (id: string) => boolean;
   /** Add the post if absent, remove it if present. Returns the new state. */
   toggleFavorite: (post: PostSummary) => boolean;
-  /** Remove a post from favorites. */
-  removeFavorite: (id: string) => void;
+  /**
+   * Fully un-save a post: drop it from favorites and from every collection and
+   * custom order it belonged to. Returns a snapshot that can be passed to
+   * `restoreFavorite` to undo the whole removal, or null if the post was not
+   * saved.
+   */
+  removeFavorite: (id: string) => RemovedFavorite | null;
+  /**
+   * Undo a `removeFavorite`: re-save the post at its previous save-order slot and
+   * restore all of its collection memberships and custom-order positions.
+   */
+  restoreFavorite: (snapshot: RemovedFavorite) => void;
 
   /** Reader-defined collections, in the reader's custom (or creation) order. */
   collections: Collection[];
@@ -270,16 +304,68 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     return nowFavorite;
   }, []);
 
-  const removeFavorite = useCallback((id: string) => {
-    setFavorites((prev) => prev.filter((p) => p.id !== id));
-    setMembership((prev) => {
-      if (!prev[id]) return prev;
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    setOrder((prev) => dropPostFromOrder(prev, id));
-  }, []);
+  const removeFavorite = useCallback(
+    (id: string): RemovedFavorite | null => {
+      // Capture a full snapshot before mutating so the un-save can be undone.
+      const favoriteIndex = favorites.findIndex((p) => p.id === id);
+      if (favoriteIndex === -1) return null;
+      const post = favorites[favoriteIndex];
+      const collectionIds = membership[id] ? [...membership[id]] : [];
+      const orderIndexes: Record<string, number> = {};
+      for (const cid of collectionIds) {
+        orderIndexes[cid] = order[cid]?.indexOf(id) ?? -1;
+      }
+
+      setFavorites((prev) => prev.filter((p) => p.id !== id));
+      setMembership((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setOrder((prev) => dropPostFromOrder(prev, id));
+
+      return { post, favoriteIndex, collectionIds, orderIndexes };
+    },
+    [favorites, membership, order],
+  );
+
+  const restoreFavorite = useCallback(
+    ({ post, favoriteIndex, collectionIds, orderIndexes }: RemovedFavorite) => {
+      setFavorites((prev) => {
+        if (prev.some((p) => p.id === post.id)) return prev;
+        const next = [...prev];
+        next.splice(Math.min(favoriteIndex, next.length), 0, toStoredSummary(post));
+        return next;
+      });
+      if (collectionIds.length === 0) return;
+      setMembership((prev) => {
+        const current = prev[post.id] ?? [];
+        const merged = [...current];
+        for (const cid of collectionIds) {
+          if (!merged.includes(cid)) merged.push(cid);
+        }
+        return { ...prev, [post.id]: merged };
+      });
+      // Re-insert the post at its previous slot in each collection's custom
+      // order. Collections where it had no explicit slot (index < 0) fall back
+      // to save order, so there is nothing to restore there.
+      setOrder((prev) => {
+        let next = prev;
+        for (const cid of collectionIds) {
+          const idx = orderIndexes[cid] ?? -1;
+          if (idx < 0) continue;
+          const ids = next[cid] ?? [];
+          if (ids.includes(post.id)) continue;
+          const arr = [...ids];
+          arr.splice(Math.min(idx, arr.length), 0, post.id);
+          next = { ...next, [cid]: arr };
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   const createCollection = useCallback((name: string) => {
     const trimmed = name.trim();
@@ -471,6 +557,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       isFavorite,
       toggleFavorite,
       removeFavorite,
+      restoreFavorite,
       collections,
       createCollection,
       reorderCollections,
@@ -491,6 +578,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       isFavorite,
       toggleFavorite,
       removeFavorite,
+      restoreFavorite,
       collections,
       createCollection,
       reorderCollections,

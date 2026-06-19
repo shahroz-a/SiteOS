@@ -400,6 +400,77 @@ describe("useFavorites — favorite removal prunes membership", () => {
     expect(h.value.collectionCount(cId)).toBe(0);
   });
 
+  it("removeFavorite returns null for a post that is not saved", async () => {
+    const h = await setup();
+    let snapshot: unknown;
+    await act(async () => {
+      snapshot = h.value.removeFavorite("missing");
+    });
+    expect(snapshot).toBeNull();
+  });
+
+  it("restoreFavorite undoes an un-save: re-saves and restores all memberships and custom order", async () => {
+    const h = await setup();
+    let a = "";
+    let b = "";
+    await act(async () => {
+      a = h.value.createCollection("A")!.id;
+      b = h.value.createCollection("B")!.id;
+    });
+    // Save three posts; p2 lives in both collections, with a custom order in A.
+    await act(async () => {
+      h.value.toggleFavorite(makePost("p1"));
+      h.value.toggleFavorite(makePost("p2"));
+      h.value.toggleFavorite(makePost("p3"));
+      h.value.togglePostCollection(makePost("p2"), a);
+      h.value.togglePostCollection(makePost("p2"), b);
+      h.value.togglePostCollection(makePost("pX"), a);
+    });
+    await act(async () => {
+      // Custom order in A puts p2 after pX.
+      h.value.reorderCollection(a, ["pX", "p2"]);
+    });
+    // Save order is most-recent-first; filing pX into A auto-saved it last, so
+    // it sits at the front: [pX, p3, p2, p1].
+    expect(h.value.favorites.map((p) => p.id)).toEqual([
+      "pX",
+      "p3",
+      "p2",
+      "p1",
+    ]);
+
+    let snapshot:
+      | ReturnType<typeof h.value.removeFavorite>
+      | undefined;
+    await act(async () => {
+      snapshot = h.value.removeFavorite("p2");
+    });
+    // Fully un-saved: gone from favorites and from both collections + A's order.
+    expect(snapshot).not.toBeNull();
+    expect(h.value.isFavorite("p2")).toBe(false);
+    expect(h.value.getPostCollections("p2")).toEqual([]);
+    expect(h.value.collectionCount(a)).toBe(1);
+    expect(h.value.collectionCount(b)).toBe(0);
+    expect(h.value.getCollectionPosts(a).map((p) => p.id)).toEqual(["pX"]);
+
+    await act(async () => {
+      h.value.restoreFavorite(snapshot!);
+    });
+    // Re-saved at its original save-order slot (between p3 and p1).
+    expect(h.value.favorites.map((p) => p.id)).toEqual([
+      "pX",
+      "p3",
+      "p2",
+      "p1",
+    ]);
+    // Both memberships restored.
+    expect(h.value.getPostCollections("p2").sort()).toEqual([a, b].sort());
+    expect(h.value.collectionCount(a)).toBe(2);
+    expect(h.value.collectionCount(b)).toBe(1);
+    // Custom order slot in A restored exactly (p2 back after pX).
+    expect(h.value.getCollectionPosts(a).map((p) => p.id)).toEqual(["pX", "p2"]);
+  });
+
   it("toggleFavorite returns the new state and prunes membership on un-save", async () => {
     const h = await setup();
     let cId = "";

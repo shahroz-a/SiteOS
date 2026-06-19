@@ -1,11 +1,13 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { memo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
+import { memo, useCallback } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useToast } from "@/hooks/useToast";
 import type { PostSummary } from "@workspace/api-client-react";
 
 type Props = {
@@ -43,9 +45,37 @@ function PostCardBase({
   onLongPress,
 }: Props) {
   const colors = useColors();
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { isFavorite, toggleFavorite, removeFavorite, restoreFavorite } =
+    useFavorites();
+  const { showUndoToast } = useToast();
   const date = formatDate(post.publishedAt);
   const saved = isFavorite(post.id);
+
+  const handleToggleFavorite = useCallback(() => {
+    if (!saved) {
+      toggleFavorite(post);
+      return;
+    }
+    // Un-saving is destructive (drops collections + custom order too), so offer
+    // an undo via the global snackbar that works from any screen.
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    const snapshot = removeFavorite(post.id);
+    if (snapshot) {
+      showUndoToast({
+        message: "Removed from saved",
+        onAction: () => restoreFavorite(snapshot),
+      });
+    }
+  }, [
+    saved,
+    post,
+    toggleFavorite,
+    removeFavorite,
+    restoreFavorite,
+    showUndoToast,
+  ]);
 
   return (
     <Pressable
@@ -145,7 +175,7 @@ function PostCardBase({
             hitSlop={8}
             onPress={(e) => {
               e.stopPropagation();
-              toggleFavorite(post);
+              handleToggleFavorite();
             }}
             style={({ pressed }) => [
               styles.favButton,

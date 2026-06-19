@@ -59,6 +59,16 @@ import { ToastProvider } from "@/hooks/useToast";
 import SavedScreen from "@/app/(tabs)/saved";
 import PostDetailScreen from "@/app/post/[slug]";
 
+// The heart toggle now offers an undo via the global toast, so every screen
+// under test needs both providers. Wrap them together to mirror the root layout.
+function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <FavoritesProvider>
+      <ToastProvider>{children}</ToastProvider>
+    </FavoritesProvider>
+  );
+}
+
 beforeEach(async () => {
   await AsyncStorage.clear();
   mockRouter.push.mockClear();
@@ -70,12 +80,10 @@ describe("favorites end to end", () => {
     const post = makePost();
 
     render(
-      <ToastProvider>
-        <FavoritesProvider>
+      <Providers>
         <PostCard post={post} onPress={() => {}} />
         <SavedScreen />
-        </FavoritesProvider>
-      </ToastProvider>,
+      </Providers>,
     );
 
     // Saved tab starts empty once hydration completes.
@@ -113,12 +121,10 @@ describe("favorites end to end", () => {
     mockSlug = detail.slug;
 
     render(
-      <ToastProvider>
-        <FavoritesProvider>
+      <Providers>
         <PostDetailScreen />
         <SavedScreen />
-        </FavoritesProvider>
-      </ToastProvider>,
+      </Providers>,
     );
 
     await waitFor(() =>
@@ -149,11 +155,9 @@ describe("favorites end to end", () => {
     const onRemove = jest.fn();
 
     const { rerender } = render(
-      <ToastProvider>
-        <FavoritesProvider>
+      <Providers>
         <PostCard post={post} onPress={() => {}} />
-        </FavoritesProvider>
-      </ToastProvider>,
+      </Providers>,
     );
 
     // No collection context → no remove affordance.
@@ -162,15 +166,13 @@ describe("favorites end to end", () => {
     ).toBeNull();
 
     rerender(
-      <ToastProvider>
-        <FavoritesProvider>
+      <Providers>
         <PostCard
           post={post}
           onPress={() => {}}
           onRemoveFromCollection={onRemove}
         />
-        </FavoritesProvider>
-      </ToastProvider>,
+      </Providers>,
     );
 
     const btn = screen.getByTestId(`remove-from-collection-${post.slug}`);
@@ -193,11 +195,9 @@ describe("favorites end to end", () => {
     );
 
     render(
-      <ToastProvider>
-        <FavoritesProvider>
+      <Providers>
         <SavedScreen />
-        </FavoritesProvider>
-      </ToastProvider>,
+      </Providers>,
     );
 
     await waitFor(() =>
@@ -246,11 +246,9 @@ describe("favorites end to end", () => {
     );
 
     render(
-      <ToastProvider>
-        <FavoritesProvider>
+      <Providers>
         <SavedScreen />
-        </FavoritesProvider>
-      </ToastProvider>,
+      </Providers>,
     );
 
     await waitFor(() =>
@@ -297,11 +295,9 @@ describe("favorites end to end", () => {
 
     // First session: favorite a post and let it persist.
     const first = render(
-      <ToastProvider>
-        <FavoritesProvider>
+      <Providers>
         <PostCard post={post} onPress={() => {}} />
-        </FavoritesProvider>
-      </ToastProvider>,
+      </Providers>,
     );
 
     await waitFor(() =>
@@ -323,11 +319,9 @@ describe("favorites end to end", () => {
 
     // Second session: a fresh provider must rehydrate from storage on mount.
     render(
-      <ToastProvider>
-        <FavoritesProvider>
+      <Providers>
         <SavedScreen />
-        </FavoritesProvider>
-      </ToastProvider>,
+      </Providers>,
     );
 
     await waitFor(() =>
