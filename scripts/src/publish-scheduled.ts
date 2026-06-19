@@ -138,7 +138,7 @@ export async function run(
       .insert(auditLogsTable)
       .values({
         action: "article.publish.scheduled",
-        entityType: "post",
+        entityType: "page",
         entityId: post.id,
         before: { status: "scheduled" },
         after: { status: "published", publishedAt: post.scheduledFor },

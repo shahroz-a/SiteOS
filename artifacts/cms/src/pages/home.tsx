@@ -211,9 +211,25 @@ function ListCardSkeleton() {
   );
 }
 
+const ACTIVITY_ACTION_LABELS: Record<string, string> = {
+  "article.publish.scheduled": "Auto-published a scheduled post",
+  "post.publish": "Published a post",
+  "post.transition": "Changed a post's status",
+  "post.update": "Updated a post",
+  "post.restore": "Restored a version",
+  "article.approve": "Approved a held-back article",
+};
+
 function activitySummary(entry: CmsDashboardActivity): string {
+  const verb =
+    ACTIVITY_ACTION_LABELS[entry.action] ??
+    entry.action.replace(/[._]/g, " ");
+  // Scheduler-driven events have no human actor — attribute them to the
+  // automation rather than a misleading "Someone".
+  if (entry.action === "article.publish.scheduled" && !entry.actorEmail) {
+    return `Scheduler · ${verb}`;
+  }
   const actor = entry.actorEmail ?? "Someone";
-  const verb = entry.action.replace(/[._]/g, " ");
   return `${actor} · ${verb}`;
 }
 

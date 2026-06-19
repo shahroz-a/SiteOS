@@ -5,6 +5,8 @@ import {
   pagesTable,
   redirectsTable,
   previewTokensTable,
+  auditLogsTable,
+  crawlLogsTable,
 } from "@workspace/db";
 import type { Permission } from "@workspace/cms-auth";
 import {
@@ -123,6 +125,13 @@ export async function transitionPost(
  * stamping `publishedAt` with the originally-scheduled time (falling back to
  * now) and clearing `scheduledFor`. Returns the ids that were published so a
  * caller can invalidate caches / log. Safe to call repeatedly.
+ *
+ * Each auto-publish is recorded in the CMS audit trail (action
+ * `article.publish.scheduled`, no human actor, entityType `page`) so editors can
+ * see a history of what the scheduler published and when — mirroring the
+ * standalone scheduled-deployment job (`scripts/src/publish-scheduled.ts`). A
+ * durable `crawl_logs` line is also written. Both are best-effort and never fail
+ * the publish itself.
  */
 export async function publishDueScheduledPosts(
   now: Date = new Date(),
@@ -142,7 +151,50 @@ export async function publishDueScheduledPosts(
         lte(pagesTable.scheduledFor, now),
       ),
     )
-    .returning({ id: pagesTable.id });
+    .returning({
+      id: pagesTable.id,
+      slug: pagesTable.slug,
+      title: pagesTable.title,
+      pathname: pagesTable.pathname,
+      publishedAt: pagesTable.publishedAt,
+    });
+
+  for (const row of rows) {
+    const publishedAtIso = row.publishedAt
+      ? row.publishedAt.toISOString()
+      : null;
+    // CMS audit trail row — no human actor, so the lifecycle change is still
+    // visible to editors as a scheduled auto-publish.
+    await exec
+      .insert(auditLogsTable)
+      .values({
+        action: "article.publish.scheduled",
+        entityType: "page",
+        entityId: row.id,
+        before: { status: "scheduled" },
+        after: { status: "published", publishedAt: publishedAtIso },
+        metadata: { source: "in-process-scheduler", slug: row.slug },
+      })
+      .catch(() => {});
+    // Durable crawl-log line for parity with the standalone job.
+    await exec
+      .insert(crawlLogsTable)
+      .values({
+        url: row.pathname,
+        level: "info",
+        message: `Auto-published scheduled post ${row.slug} (${row.title})`,
+        details: {
+          id: row.id,
+          slug: row.slug,
+          title: row.title,
+          pathname: row.pathname,
+          publishedAt: publishedAtIso,
+          action: "publish-scheduled",
+        },
+      })
+      .catch(() => {});
+  }
+
   return rows.map((r) => r.id);
 }
 

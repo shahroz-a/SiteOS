@@ -36,6 +36,7 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: "post.restore", label: "Restored a version" },
   { value: "post.update", label: "Updated a post" },
   { value: "post.publish", label: "Published a post" },
+  { value: "article.publish.scheduled", label: "Auto-published (scheduled)" },
   { value: "article.approve", label: "Approved a held-back article" },
   { value: MEDIA_UPDATE_ACTION, label: "Edited image description" },
 ];
@@ -57,6 +58,8 @@ const ACTION_LABELS: Record<string, string> = {
   "post.restore": "Restored a version",
   "post.update": "Updated a post",
   "post.publish": "Published a post",
+  "article.publish.scheduled": "Auto-published (scheduled)",
+  "article.approve": "Approved a held-back article",
   [MEDIA_UPDATE_ACTION]: "Edited image description",
 };
 
