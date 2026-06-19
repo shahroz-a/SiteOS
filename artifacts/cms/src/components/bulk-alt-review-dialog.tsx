@@ -153,8 +153,10 @@ export function ReviewBody({
     initialItems,
     total,
     initialSkipped,
+    initialApproved,
     fetchNext,
     onSkippedChange,
+    onApprovedChange,
     onCompleted,
   });
 
