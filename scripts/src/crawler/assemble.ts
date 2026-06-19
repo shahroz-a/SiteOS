@@ -11,6 +11,7 @@ import {
   canonicalizeUrl,
   classifyUrl,
   countWords,
+  isCleanBlogUrl,
   parentPathOf,
   sha256,
   slugFromUrl,
@@ -73,6 +74,14 @@ export function assemblePage(
   const redirectTarget =
     fetch.redirectChain.length > 0 ? fetch.finalUrl : null;
 
+  // Filter the recorded redirect chain to hops whose OLD path (`from`) is a
+  // clean, blog-serveable URL, using the SAME predicate as frontier expansion.
+  // Malformed/off-blog source-markup junk (embedded URLs, query strings, map
+  // links, bare domains, mis-cased/doubled paths) is dropped here — at the point
+  // the page's chain is built — so it can never reach the redirect list. The raw
+  // `fetch.redirectChain` is still used above for off-blog/loop detection.
+  const redirectChain = fetch.redirectChain.filter((hop) => isCleanBlogUrl(hop.from));
+
   // Content hash over the meaningful, lossless content representation.
   const contentHash = sha256(
     JSON.stringify({ title: raw.title, cleanedHtml: raw.cleanedHtml, componentTree }),
@@ -91,7 +100,7 @@ export function assemblePage(
     language: raw.language,
     httpStatus: fetch.httpStatus,
     redirectTarget,
-    redirectChain: fetch.redirectChain,
+    redirectChain,
     hreflang: raw.hreflang,
     sitemapSource: discovered?.sitemapSource ?? null,
     sitemapLastmod: discovered?.lastmod ?? null,

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { classifyUrl, collapseSlashes, isFrontierDiscovered, isMalformedBlogUrl } from "../util";
+import {
+  classifyUrl,
+  collapseSlashes,
+  isCleanBlogUrl,
+  isFrontierDiscovered,
+  isMalformedBlogUrl,
+} from "../util";
 
 const BASE = "https://www.headout.com/blog";
 
@@ -111,6 +117,33 @@ describe("isMalformedBlogUrl", () => {
 
   it("returns true for an unparseable URL", () => {
     expect(isMalformedBlogUrl("http://")).toBe(true);
+  });
+});
+
+describe("isCleanBlogUrl", () => {
+  it("accepts a clean on-blog article URL", () => {
+    expect(isCleanBlogUrl(`${BASE}/singapore-zoo/`)).toBe(true);
+    expect(isCleanBlogUrl(`${BASE}/category/things-to-do-city-singapore/`)).toBe(true);
+  });
+
+  it("accepts a URL once accidental repeated slashes are collapsed", () => {
+    expect(isCleanBlogUrl(`${BASE}/acropolis-athens//tickets/`)).toBe(true);
+    expect(isCleanBlogUrl(`${BASE}/singapore-zoo//`)).toBe(true);
+  });
+
+  it("rejects off-blog URLs (the blog can't serve them)", () => {
+    expect(isCleanBlogUrl("https://www.headout.com/statue-of-liberty-cruises-c-121/")).toBe(false);
+    expect(isCleanBlogUrl("https://www.example.com/blog/external/")).toBe(false);
+  });
+
+  it("rejects non-page asset URLs", () => {
+    expect(isCleanBlogUrl(`${BASE}/wp-content/uploads/2020/x.jpg`)).toBe(false);
+  });
+
+  it("rejects structurally malformed source-markup junk", () => {
+    expect(isCleanBlogUrl(`${BASE}/athens-in-august/introducingathens.com/bus`)).toBe(false);
+    expect(isCleanBlogUrl(`${BASE}/aladdin/:%22https://en.wikipedia.org/x`)).toBe(false);
+    expect(isCleanBlogUrl(`${BASE}/best-broadway-shows-january/%22`)).toBe(false);
   });
 });
 

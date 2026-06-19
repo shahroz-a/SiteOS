@@ -135,6 +135,24 @@ export function isMalformedBlogUrl(url: string): boolean {
 }
 
 /**
+ * The single shared gate for "is this href a clean, crawlable blog URL we should
+ * act on": it lives under the blog prefix, isn't a non-page asset, and isn't
+ * structurally malformed source-markup junk. Accidental repeated slashes are
+ * collapsed first (so `…/foo//bar` is judged by its canonical `…/foo/bar` form),
+ * matching how the frontier normalises before enqueuing.
+ *
+ * Using ONE predicate across frontier expansion, redirect-chain capture, and
+ * redirect storage guarantees a malformed/off-blog href can never slip through
+ * one path while being filtered by another — the bad hrefs that produced the
+ * junk redirect rows are dropped consistently at every stage, so they never
+ * inflate the queue's permanent-failure count or reach the redirect list.
+ */
+export function isCleanBlogUrl(url: string): boolean {
+  const collapsed = collapseSlashes(url);
+  return isBlogUrl(collapsed) && !isAssetUrl(collapsed) && !isMalformedBlogUrl(collapsed);
+}
+
+/**
  * True when a queue item was discovered by frontier link-expansion (its
  * `discoveredFrom` is the page it was found on) rather than from a sitemap.
  * A frontier link that 404s is a dead internal link in source content — cruft,

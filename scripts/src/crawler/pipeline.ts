@@ -23,6 +23,7 @@ import {
   collapseSlashes,
   isAssetUrl,
   isBlogUrl,
+  isCleanBlogUrl,
   isFrontierDiscovered,
   isMalformedBlogUrl,
   sleep,
@@ -180,7 +181,7 @@ export async function processItem(
     // fetch problems, not garbage source markup that can never resolve.
     for (const link of page.internalLinks) {
       const href = collapseSlashes(link.href);
-      if (isBlogUrl(href) && !isAssetUrl(href) && !isMalformedBlogUrl(href)) {
+      if (isCleanBlogUrl(href)) {
         await enqueueOne(href, item.url, 10);
       }
     }
