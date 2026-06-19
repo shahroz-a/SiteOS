@@ -18,6 +18,11 @@ import {
   BulkAltReviewDialog,
   type BulkSuggestSession,
 } from "@/components/bulk-alt-review-dialog";
+import {
+  loadSkipped,
+  saveSkipped,
+  clearSkipped,
+} from "@/lib/bulk-alt-progress";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useToast } from "@workspace/ui";
 import { ImagePlus, Sparkles } from "lucide-react";
@@ -94,13 +99,21 @@ export default function MediaPage() {
 
   const startBulkSuggest = async () => {
     setBulkLoading(true);
+    // Snapshot the filter for the whole session so debounce settling or a
+    // filter change behind the dialog can't shift the persistence scope.
+    const filter = q;
     try {
-      const first = await gatherFlagged(new Set());
+      // Resume an interrupted pass: skipped images from a prior run (for this
+      // search filter) stay flagged but shouldn't be re-shown.
+      const skipped = loadSkipped(filter);
+      const first = await gatherFlagged(new Set(skipped));
       if (first.length === 0) {
+        // Nothing left to review — any leftover skip state is stale.
+        clearSkipped(filter);
         toast({ title: "No flagged images to suggest for." });
         return;
       }
-      setBulkSession({ items: first, total: totalIssues });
+      setBulkSession({ filter, items: first, total: totalIssues, skipped });
     } catch {
       toast({
         title: "Couldn't load flagged images",
@@ -245,6 +258,12 @@ export default function MediaPage() {
           if (!open) setBulkSession(null);
         }}
         fetchNext={(exclude) => gatherFlagged(new Set(exclude))}
+        onSkippedChange={(skipped) => {
+          if (bulkSession) saveSkipped(bulkSession.filter, skipped);
+        }}
+        onCompleted={() => {
+          if (bulkSession) clearSkipped(bulkSession.filter);
+        }}
       />
 
       <MediaPicker

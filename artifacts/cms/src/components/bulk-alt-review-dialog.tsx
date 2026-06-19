@@ -44,10 +44,22 @@ type ItemState =
 
 /** A bulk-suggestion session: the first window plus the size of the whole backlog. */
 export interface BulkSuggestSession {
+  /**
+   * Search filter snapshotted at session start. Progress is persisted under
+   * this key, so a filter change behind the dialog can't write/clear progress
+   * against the wrong scope mid-pass.
+   */
+  filter: string;
   /** First bounded window of flagged images to review. */
   items: MediaItem[];
   /** Total flagged images across the whole filtered set at session start. */
   total: number;
+  /**
+   * URLs skipped in an earlier, interrupted run of this pass (restored from
+   * persistence). They're already excluded from `items`; seeded here so the
+   * progress count and in-session exclude set pick up where they left off.
+   */
+  skipped: string[];
 }
 
 interface BulkAltReviewDialogProps {
@@ -60,6 +72,14 @@ interface BulkAltReviewDialogProps {
    * handled this session. Returns an empty array when the backlog is cleared.
    */
   fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
+  /**
+   * Called whenever an image is skipped, with the full set of URLs skipped so
+   * far this pass. The parent persists this so the pass survives a
+   * close/reopen (and page reload) without re-showing skipped images.
+   */
+  onSkippedChange?: (skippedUrls: string[]) => void;
+  /** Called once the backlog is fully cleared, so the parent can reset state. */
+  onCompleted?: () => void;
 }
 
 export function BulkAltReviewDialog({
@@ -67,6 +87,8 @@ export function BulkAltReviewDialog({
   open,
   onOpenChange,
   fetchNext,
+  onSkippedChange,
+  onCompleted,
 }: BulkAltReviewDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,7 +97,10 @@ export function BulkAltReviewDialog({
           <ReviewBody
             initialItems={session.items}
             total={session.total}
+            initialSkipped={session.skipped}
             fetchNext={fetchNext}
+            onSkippedChange={onSkippedChange}
+            onCompleted={onCompleted}
             onClose={() => onOpenChange(false)}
           />
         ) : null}
@@ -87,12 +112,18 @@ export function BulkAltReviewDialog({
 export function ReviewBody({
   initialItems,
   total,
+  initialSkipped,
   fetchNext,
+  onSkippedChange,
+  onCompleted,
   onClose,
 }: {
   initialItems: MediaItem[];
   total: number;
+  initialSkipped: string[];
   fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
+  onSkippedChange?: (skippedUrls: string[]) => void;
+  onCompleted?: () => void;
   onClose: () => void;
 }) {
   const { toast } = useToast();
@@ -117,10 +148,18 @@ export function ReviewBody({
 
   // Running session totals, incremented exactly once per editor action so the
   // overall progress is exact regardless of how many windows have scrolled by.
-  const [session, setSession] = useState({ approved: 0, skipped: 0 });
+  // Skips carry over from an interrupted earlier run of this pass.
+  const [session, setSession] = useState(() => ({
+    approved: 0,
+    skipped: initialSkipped.length,
+  }));
   // Every URL handled this session (approved/skipped/errored), excluded when
-  // loading the next window so nothing can reappear and loop forever.
-  const seenRef = useRef<Set<string>>(new Set());
+  // loading the next window so nothing can reappear and loop forever. Seeded
+  // with skips restored from a prior, interrupted run of this pass.
+  const seenRef = useRef<Set<string>>(new Set(initialSkipped));
+  // The subset of `seenRef` that was skipped (not approved/errored). This is
+  // what we persist so a reopened pass doesn't re-show skipped images.
+  const skippedRef = useRef<Set<string>>(new Set(initialSkipped));
   const [advancing, setAdvancing] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -239,6 +278,9 @@ export function ReviewBody({
   const skip = (url: string) => {
     setState(url, { kind: "skipped" });
     setSession((s) => ({ ...s, skipped: s.skipped + 1 }));
+    seenRef.current.add(url);
+    skippedRef.current.add(url);
+    onSkippedChange?.([...skippedRef.current]);
   };
 
   // Current-window tallies, used to drive the per-window flow (not the overall
@@ -266,6 +308,9 @@ export function ReviewBody({
       const next = await fetchNextRef.current([...seenRef.current]);
       if (next.length === 0) {
         setDone(true);
+        // Backlog cleared (only skipped images remain). The pass is complete,
+        // so drop its persisted skip state — a future pass starts fresh.
+        onCompleted?.();
         return;
       }
       windowItemsRef.current = next;
