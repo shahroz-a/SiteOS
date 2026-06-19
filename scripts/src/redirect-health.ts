@@ -83,26 +83,41 @@ function parseArgs(argv: string[]): Options {
 }
 
 /**
+ * The slice of the DB client this job needs. Defaults to the module-level `db`,
+ * but tests can inject a fake/transaction so the whole run (and its best-effort
+ * audit/crawl writes) can be captured or nested inside a rollback boundary.
+ */
+export type HealthExecutor = Pick<typeof db, "select" | "update" | "insert">;
+
+/**
  * Build the set of normalised paths the blog actually serves, so an on-blog
  * redirect target can be checked for existence deterministically. Includes every
  * page's pathname in ANY status (a held-back draft is pending review, not dead),
  * the explicit blog category/author routes, and the index.
  */
-export async function loadServedPaths(): Promise<Set<string>> {
+export async function loadServedPaths(
+  executor: HealthExecutor = db,
+): Promise<Set<string>> {
   const served = new Set<string>();
   served.add(normalizeTargetPath("/blog/"));
 
-  const pages = await db.select({ pathname: pagesTable.pathname }).from(pagesTable);
+  const pages = await executor
+    .select({ pathname: pagesTable.pathname })
+    .from(pagesTable);
   for (const p of pages) {
     if (p.pathname) served.add(normalizeTargetPath(p.pathname));
   }
 
-  const cats = await db.select({ slug: categoriesTable.slug }).from(categoriesTable);
+  const cats = await executor
+    .select({ slug: categoriesTable.slug })
+    .from(categoriesTable);
   for (const c of cats) {
     if (c.slug) served.add(normalizeTargetPath(`/blog/category/${c.slug}`));
   }
 
-  const authors = await db.select({ slug: authorsTable.slug }).from(authorsTable);
+  const authors = await executor
+    .select({ slug: authorsTable.slug })
+    .from(authorsTable);
   for (const a of authors) {
     if (a.slug) served.add(normalizeTargetPath(`/blog/author/${a.slug}`));
   }
@@ -185,8 +200,11 @@ export interface RedirectHealthResult {
   dryRun: boolean;
 }
 
-export async function run(opts: Options): Promise<RedirectHealthResult> {
-  const active: ActiveRedirect[] = await db
+export async function run(
+  opts: Options,
+  executor: HealthExecutor = db,
+): Promise<RedirectHealthResult> {
+  const active: ActiveRedirect[] = await executor
     .select({
       id: redirectsTable.id,
       fromPath: redirectsTable.fromPath,
@@ -196,7 +214,7 @@ export async function run(opts: Options): Promise<RedirectHealthResult> {
     .from(redirectsTable)
     .where(eq(redirectsTable.isActive, true));
 
-  const served = await loadServedPaths();
+  const served = await loadServedPaths(executor);
 
   // Split by kind. On-blog is resolved against the corpus (deterministic);
   // off-blog needs a network probe (unless --no-network).
@@ -231,7 +249,7 @@ export async function run(opts: Options): Promise<RedirectHealthResult> {
     // Persist bookkeeping for every checked redirect (so off-blog corroboration
     // carries across runs), then deactivate when the policy says so.
     if (!opts.dryRun) {
-      await db
+      await executor
         .update(redirectsTable)
         .set({
           targetCheckFailures: decision.failures,
@@ -264,7 +282,7 @@ export async function run(opts: Options): Promise<RedirectHealthResult> {
         // CMS audit-trail row — no human actor, so editors see the automated
         // cleanup in the same activity feed as manual redirect edits, clearly
         // labelled as a scheduled deactivation. Best-effort; never fail the job.
-        await db
+        await executor
           .insert(auditLogsTable)
           .values({
             action: "redirect.deactivate.auto",
@@ -287,7 +305,7 @@ export async function run(opts: Options): Promise<RedirectHealthResult> {
 
         // Durable crawl-log line; survives in the prod DB after the ephemeral
         // scheduled-deployment container is gone. Best-effort.
-        await db
+        await executor
           .insert(crawlLogsTable)
           .values({
             url: r.fromPath,
