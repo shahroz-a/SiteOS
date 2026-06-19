@@ -1,3 +1,28 @@
 # Memory index
 
 - [Held-back broken articles](held-back-articles.md) — failed-validation pages persisted as `pages.status="draft"` (reuses enum, no migration); read API already filters published; re-crawl auto-republish, sign-off NOT sticky.
+- [Stale workflow-supervisor env](stale-workflow-env.md) — a deleted secret can linger in a long-running workflow process and re-inherit across restarts; only a full workspace reload clears it. Don't let implicit env precedence hijack connections.
+- [drizzle-kit push on Replit Helium Postgres](drizzle-push-helium.md) — `push` silently dies during "Pulling schema"; use `generate` SQL then apply via executeSql.
+- [Drizzle CASE → pgEnum cast](drizzle-enum-case-cast.md) — assigning a `sql` CASE/expression to an enum column needs `::<enum>`; bare literals coerce but CASE results are text (crashed crawler markFailed on first retry-exhausted page).
+- [Crawler NUL/binary write-sink crash](crawler-write-sink-nul.md) — one binary response can abort the whole crawl via uncaught throws on the error path; make every text sink NUL-safe and error-logging non-fatal; keep assets out of the frontier.
+- [pages-table bulk read OOM](pages-table-bulk-read-oom.md) — `original_html` (~500MB) dominates the pages table; batch jobs must project columns, never `select(*)`, or they OOM the Node heap.
+- [Headout crawl render mode (HTTP vs Playwright)](headout-crawl-render-mode.md) — HTTP is content-complete for article bodies at 100–600× the speed; Playwright only adds a few lazy-loaded images. Prefer HTTP for the full crawl.
+- [Playwright Chromium on Replit](replit-playwright-chromium.md) — `playwright install` download is firewall-blocked here; install Nix `chromium` and launch with `executablePath`.
+- [pkill self-match in the bash tool](shell-pkill-self-match.md) — `pkill -f foo` also matches the running shell (pattern is in its argv) and SIGTERMs it (exit 143, no output). Use the `[f]oo` bracket trick.
+- [Content-fidelity migrations](content-fidelity-migrations.md) — author source content yourself as a data file; design subagents paraphrase/drop/"fix" content if they transcribe it.
+- [opacity-0 + animate-in hides content](animate-in-invisible-content.md) — always-visible content must NOT use an opacity-0 base with animate-in; it vanishes under reduced-motion / iframe contexts.
+- [Supabase pooler connection](supabase-pooler-connection.md) — use Session Pooler URL (port 5432) not direct db host (IPv6-only); ssl no-verify, drizzle push-force not push.
+- [Orval path+query param collision](orval-path-query-collision.md) — operations mixing a path param and query params emit a zod value + TS type of the same name → TS2308; avoid nesting.
+- [Drizzle silent unknown keys](drizzle-silent-unknown-keys.md) — wrong-table column in .values()/.set() neither type-errors (via intermediate var) nor throws; it's silently dropped. Verify with SELECT.
+- [Crawler content-hash idempotency](crawler-content-hash-idempotency.md) — re-crawl shows "changed" only vs older-code rows; prove idempotency via current-code double-store, not pre-existing rows.
+- [Crawler test harness](crawler-test-harness.md) — vitest tests for extract/idempotency; store test mocks @workspace/db with an in-memory fake; mutate <h1> to change contentHash.
+- [Read-API test harness](api-read-test-harness.md) — fake Drizzle for lib/posts + routes; join `eq(col,col)` passes two column refs (resolve both); fixture ids must be real UUIDs.
+- [componentTree shape divergence](component-tree-shape-divergence.md) — crawler stores pages.componentTree as array, importer as object; API contract must accept both (oneOf) or detail 500s.
+- [Artifact dev-port registration](artifact-port-registration.md) — mid-session artifacts fail dev workflow port probe (DIDNT_OPEN_A_PORT) until repl reboot; .replit [[ports]] regenerates from tomls only at boot; no tool adds it.
+- [Payload peer-variant typecheck breakage](payload-peer-variant-typecheck.md) — Payload forks drizzle-orm (libsql vs pg) and vite (tsx 4.21 vs 4.22) peer variants → typecheck-only TS2769; fix via scripts tsconfig paths redirect + tsx override, not import restructuring.
+- [Prerender-blog test harness](prerender-blog-test-harness.md) — runner exports run/main behind isEntrypoint guard; DIST_DIR read from BLOG_DIST at import, so set env before dynamic import.
+- [Internal-link resolution is shared](internal-link-resolution.md) — resolveInternalLinks() in import/persist.ts is the only href→page matcher; both crawler and Payload importer must call it once after all pages exist.
+- [Playwright browser deps on NixOS](playwright-nixos-browser-deps.md) — downloaded Chromium needs Nix libs (glib…libgbm) via installSystemDependencies; redirect output to file; one spec/run; pool exhaustion ≠ test bug.
+- [Real-data round-trip gating](realdata-roundtrip-gating.md) — opt-in real-DB export→load→import test gates on VERIFY_REAL_DATA (NOT always-set DATABASE_URL); tx-rollback + stubbed media keep it non-destructive; compare reimport vs export (hero normalized).
+- [Expo dev-server reachability](expo-dev-server-reachability.md) — Metro healthy but workflow DIDNT_OPEN_A_PORT can be structural; verify Expo code with `expo export --platform web` since bash can't keep a dev server alive.
+- [Expo jest testing](expo-jest-testing.md) — mobile artifact tested via its own jest-expo runner (not root vitest); pnpm-aware transformIgnorePatterns, `mock`-prefixed factory vars, and synthetic `stopPropagation` on card-toggle presses are the gotchas.
