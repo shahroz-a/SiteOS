@@ -2325,6 +2325,11 @@ components:
           enum: [json, csv, markdown, payload]
         content:
           type: string
+        dryRun:
+          type: boolean
+          description: >-
+            When true, run the import inside a rolled-back transaction and return
+            the same summary without persisting any changes (a preview).
 
     ContentRestoreInput:
       type: object

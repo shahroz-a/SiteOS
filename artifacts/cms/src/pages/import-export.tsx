@@ -13,6 +13,8 @@ import {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -109,9 +111,17 @@ export default function ImportExportPage() {
   });
 
   const [importFormat, setImportFormat] = useState<ImportFormat>("json");
+  const [previewFirst, setPreviewFirst] = useState(true);
   const [importResult, setImportResult] = useState<ContentImportResult | null>(
     null,
   );
+  // A computed-but-not-yet-committed dry-run, held so "Confirm import" can
+  // re-run the exact same bytes for real.
+  const [pendingPreview, setPendingPreview] = useState<{
+    filename: string;
+    content: string;
+    result: ContentImportResult;
+  } | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
   const restoreFileRef = useRef<HTMLInputElement>(null);
 
@@ -173,10 +183,46 @@ export default function ImportExportPage() {
   async function handleImportFile(file: File) {
     try {
       const content = await readFile(file);
+      if (previewFirst) {
+        const result = await importMutation.mutateAsync({
+          data: { format: importFormat, content, dryRun: true },
+        });
+        setPendingPreview({ filename: file.name, content, result });
+        setImportResult(null);
+        toast({
+          title: "Preview ready",
+          description: "Review the changes below, then confirm to apply them.",
+        });
+      } else {
+        const result = await importMutation.mutateAsync({
+          data: { format: importFormat, content },
+        });
+        setPendingPreview(null);
+        setImportResult(result);
+        toast({
+          title: "Import complete",
+          description: `${result.postsCreated} created, ${result.postsUpdated} updated`,
+        });
+      }
+    } catch {
+      toast({
+        title: previewFirst ? "Preview failed" : "Import failed",
+        description: "Check the file format and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      if (importFileRef.current) importFileRef.current.value = "";
+    }
+  }
+
+  async function handleConfirmPreview() {
+    if (!pendingPreview) return;
+    try {
       const result = await importMutation.mutateAsync({
-        data: { format: importFormat, content },
+        data: { format: importFormat, content: pendingPreview.content },
       });
       setImportResult(result);
+      setPendingPreview(null);
       toast({
         title: "Import complete",
         description: `${result.postsCreated} created, ${result.postsUpdated} updated`,
@@ -187,8 +233,6 @@ export default function ImportExportPage() {
         description: "Check the file format and try again.",
         variant: "destructive",
       });
-    } finally {
-      if (importFileRef.current) importFileRef.current.value = "";
     }
   }
 
@@ -294,8 +338,27 @@ export default function ImportExportPage() {
                     onClick={() => importFileRef.current?.click()}
                     disabled={importMutation.isPending}
                   >
-                    {importMutation.isPending ? "Importing…" : "Choose file"}
+                    {importMutation.isPending
+                      ? previewFirst
+                        ? "Previewing…"
+                        : "Importing…"
+                      : "Choose file"}
                   </Button>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 p-3">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="preview-first" className="text-sm">
+                      Preview changes first
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Run a dry-run and review what would change before writing.
+                    </p>
+                  </div>
+                  <Switch
+                    id="preview-first"
+                    checked={previewFirst}
+                    onCheckedChange={setPreviewFirst}
+                  />
                 </div>
                 <input
                   ref={importFileRef}
@@ -315,6 +378,39 @@ export default function ImportExportPage() {
           </CardContent>
         </Card>
       </div>
+
+      {pendingPreview ? (
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle>Preview — nothing has been saved yet</CardTitle>
+            <CardDescription>
+              This is what importing{" "}
+              <span className="font-medium text-foreground">
+                {pendingPreview.filename}
+              </span>{" "}
+              would change. Confirm to apply it, or cancel to discard.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ImportSummary result={pendingPreview.result} />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={handleConfirmPreview}
+                disabled={importMutation.isPending}
+              >
+                {importMutation.isPending ? "Importing…" : "Confirm import"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setPendingPreview(null)}
+                disabled={importMutation.isPending}
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {importResult ? (
         <Card>

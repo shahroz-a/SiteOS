@@ -642,123 +642,149 @@ export async function resolveInternalLinks(exec: Executor): Promise<number> {
 }
 
 /**
+ * Sentinel thrown to force a transaction rollback once a dry-run has computed
+ * its result. Drizzle rolls back the transaction when its callback throws, so we
+ * carry the result on the error and unwrap it outside the transaction.
+ */
+class DryRunRollback extends Error {
+  constructor(public readonly result: ImportResult) {
+    super("dry-run rollback");
+    this.name = "DryRunRollback";
+  }
+}
+
+/**
  * Non-destructively import a bundle: upsert taxonomy by slug, then upsert each
  * post by canonical URL (create if new; rewrite children only when the content
  * hash changed, snapshotting a version each time). Runs in a single transaction
  * with the executor threaded to every nested write.
+ *
+ * When `options.dryRun` is true, the exact same work runs inside the transaction
+ * but it is rolled back instead of committed, so the returned summary reflects
+ * what *would* change without persisting anything (a preview).
  */
 export async function importContentBundle(
   raw: ContentBundle,
+  options: { dryRun?: boolean } = {},
 ): Promise<ImportResult> {
   const bundle = normalizeBundle(raw);
-  return db.transaction(async (txRaw) => {
-    const tx = txRaw as unknown as Executor;
-    await upsertAuthors(tx, bundle);
-    const categoryIdBySlug = await upsertCategories(tx, bundle);
-    const tagIdBySlug = await upsertTags(tx, bundle);
+  try {
+    return await db.transaction(async (txRaw) => {
+      const tx = txRaw as unknown as Executor;
+      await upsertAuthors(tx, bundle);
+      const categoryIdBySlug = await upsertCategories(tx, bundle);
+      const tagIdBySlug = await upsertTags(tx, bundle);
 
-    const authorIdBySlug = new Map(
-      (await tx.select({ id: authorsTable.id, slug: authorsTable.slug }).from(authorsTable)).map(
-        (r) => [r.slug, r.id],
-      ),
-    );
+      const authorIdBySlug = new Map(
+        (await tx.select({ id: authorsTable.id, slug: authorsTable.slug }).from(authorsTable)).map(
+          (r) => [r.slug, r.id],
+        ),
+      );
 
-    const result: ImportResult = {
-      authorsUpserted: bundle.authors.length,
-      categoriesUpserted: bundle.categories.length,
-      tagsUpserted: bundle.tags.length,
-      postsCreated: 0,
-      postsUpdated: 0,
-      postsUnchanged: 0,
-      internalLinksResolved: 0,
-    };
-
-    for (const post of bundle.posts) {
-      const hash = contentHashOf(post);
-      const authorId = post.authorSlug
-        ? (authorIdBySlug.get(post.authorSlug) ?? null)
-        : null;
-      const primaryCategoryId = post.primaryCategorySlug
-        ? (categoryIdBySlug.get(post.primaryCategorySlug) ?? null)
-        : null;
-
-      const [existing] = await tx
-        .select({ id: pagesTable.id })
-        .from(pagesTable)
-        .where(eq(pagesTable.canonicalUrl, post.canonicalUrl))
-        .limit(1);
-
-      const pageValues = {
-        slug: post.slug,
-        title: post.title,
-        subtitle: post.subtitle ?? null,
-        excerpt: post.excerpt ?? null,
-        status: (post.status === "published" ? "published" : "draft") as
-          | "published"
-          | "draft",
-        language: post.language || "en",
-        originalUrl: post.originalUrl ?? post.canonicalUrl,
-        canonicalUrl: post.canonicalUrl,
-        pathname: post.pathname,
-        parentPath: post.parentPath ?? null,
-        authorId,
-        primaryCategoryId,
-        featuredImageUrl: post.featuredImageUrl ?? null,
-        featuredImageAlt: post.featuredImageAlt ?? null,
-        cleanedHtml: post.contentHtml ?? null,
-        richText: post.richText ?? null,
-        componentTree: post.componentTree ?? null,
-        readingTimeMinutes: post.readingTimeMinutes ?? null,
-        wordCount: post.wordCount ?? null,
-        publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
-        modifiedAt: post.modifiedAt ? new Date(post.modifiedAt) : null,
+      const result: ImportResult = {
+        authorsUpserted: bundle.authors.length,
+        categoriesUpserted: bundle.categories.length,
+        tagsUpserted: bundle.tags.length,
+        postsCreated: 0,
+        postsUpdated: 0,
+        postsUnchanged: 0,
+        internalLinksResolved: 0,
       };
 
-      if (!existing) {
-        const [pageRow] = await tx
-          .insert(pagesTable)
-          .values(pageValues)
-          .returning({ id: pagesTable.id });
-        const pageId = pageRow!.id;
-        await writePostChildren(tx, pageId, post, categoryIdBySlug, tagIdBySlug);
-        await snapshotVersion(tx, pageId, hash, "Imported");
-        result.postsCreated += 1;
-        continue;
-      }
+      for (const post of bundle.posts) {
+        const hash = contentHashOf(post);
+        const authorId = post.authorSlug
+          ? (authorIdBySlug.get(post.authorSlug) ?? null)
+          : null;
+        const primaryCategoryId = post.primaryCategorySlug
+          ? (categoryIdBySlug.get(post.primaryCategorySlug) ?? null)
+          : null;
 
-      const pageId = existing.id;
-      // Only rewrite when content actually changed (idempotent re-import).
-      const versions = await tx
-        .select({
-          versionNumber: pageVersionsTable.versionNumber,
-          contentHash: pageVersionsTable.contentHash,
-        })
-        .from(pageVersionsTable)
-        .where(eq(pageVersionsTable.pageId, pageId));
-      const latest = versions.sort((a, b) => b.versionNumber - a.versionNumber)[0];
-      if (latest && latest.contentHash === hash) {
-        // Still refresh lightweight page-level fields, but skip child rewrite.
+        const [existing] = await tx
+          .select({ id: pagesTable.id })
+          .from(pagesTable)
+          .where(eq(pagesTable.canonicalUrl, post.canonicalUrl))
+          .limit(1);
+
+        const pageValues = {
+          slug: post.slug,
+          title: post.title,
+          subtitle: post.subtitle ?? null,
+          excerpt: post.excerpt ?? null,
+          status: (post.status === "published" ? "published" : "draft") as
+            | "published"
+            | "draft",
+          language: post.language || "en",
+          originalUrl: post.originalUrl ?? post.canonicalUrl,
+          canonicalUrl: post.canonicalUrl,
+          pathname: post.pathname,
+          parentPath: post.parentPath ?? null,
+          authorId,
+          primaryCategoryId,
+          featuredImageUrl: post.featuredImageUrl ?? null,
+          featuredImageAlt: post.featuredImageAlt ?? null,
+          cleanedHtml: post.contentHtml ?? null,
+          richText: post.richText ?? null,
+          componentTree: post.componentTree ?? null,
+          readingTimeMinutes: post.readingTimeMinutes ?? null,
+          wordCount: post.wordCount ?? null,
+          publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
+          modifiedAt: post.modifiedAt ? new Date(post.modifiedAt) : null,
+        };
+
+        if (!existing) {
+          const [pageRow] = await tx
+            .insert(pagesTable)
+            .values(pageValues)
+            .returning({ id: pagesTable.id });
+          const pageId = pageRow!.id;
+          await writePostChildren(tx, pageId, post, categoryIdBySlug, tagIdBySlug);
+          await snapshotVersion(tx, pageId, hash, "Imported");
+          result.postsCreated += 1;
+          continue;
+        }
+
+        const pageId = existing.id;
+        // Only rewrite when content actually changed (idempotent re-import).
+        const versions = await tx
+          .select({
+            versionNumber: pageVersionsTable.versionNumber,
+            contentHash: pageVersionsTable.contentHash,
+          })
+          .from(pageVersionsTable)
+          .where(eq(pageVersionsTable.pageId, pageId));
+        const latest = versions.sort((a, b) => b.versionNumber - a.versionNumber)[0];
+        if (latest && latest.contentHash === hash) {
+          // Still refresh lightweight page-level fields, but skip child rewrite.
+          await tx
+            .update(pagesTable)
+            .set({ ...pageValues, updatedAt: new Date() })
+            .where(eq(pagesTable.id, pageId));
+          result.postsUnchanged += 1;
+          continue;
+        }
+
         await tx
           .update(pagesTable)
           .set({ ...pageValues, updatedAt: new Date() })
           .where(eq(pagesTable.id, pageId));
-        result.postsUnchanged += 1;
-        continue;
+        await clearPostChildren(tx, pageId);
+        await writePostChildren(tx, pageId, post, categoryIdBySlug, tagIdBySlug);
+        await snapshotVersion(tx, pageId, hash, "Imported (updated)");
+        result.postsUpdated += 1;
       }
 
-      await tx
-        .update(pagesTable)
-        .set({ ...pageValues, updatedAt: new Date() })
-        .where(eq(pagesTable.id, pageId));
-      await clearPostChildren(tx, pageId);
-      await writePostChildren(tx, pageId, post, categoryIdBySlug, tagIdBySlug);
-      await snapshotVersion(tx, pageId, hash, "Imported (updated)");
-      result.postsUpdated += 1;
-    }
-
-    result.internalLinksResolved = await resolveInternalLinks(tx);
-    return result;
-  });
+      result.internalLinksResolved = await resolveInternalLinks(tx);
+      if (options.dryRun) {
+        // Computed everything; throw to roll back so nothing is persisted.
+        throw new DryRunRollback(result);
+      }
+      return result;
+    });
+  } catch (err) {
+    if (err instanceof DryRunRollback) return err.result;
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------

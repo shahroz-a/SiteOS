@@ -97,9 +97,10 @@ router.post(
   requireAuth,
   requirePermission("content.create"),
   async (req: Request, res: Response) => {
-    const { format, content } = (req.body ?? {}) as {
+    const { format, content, dryRun } = (req.body ?? {}) as {
       format?: unknown;
       content?: unknown;
+      dryRun?: unknown;
     };
     if (!isImportFormat(format)) {
       res
@@ -122,13 +123,17 @@ router.post(
       });
       return;
     }
-    const result = await importContentBundle(bundle);
-    await recordAudit(req, {
-      action: "content.import",
-      entityType: "bundle",
-      actorRole: req.cmsRole ?? null,
-      metadata: { format, ...result },
-    });
+    const isDryRun = dryRun === true;
+    const result = await importContentBundle(bundle, { dryRun: isDryRun });
+    // A dry run is a preview that persists nothing, so it is not an auditable event.
+    if (!isDryRun) {
+      await recordAudit(req, {
+        action: "content.import",
+        entityType: "bundle",
+        actorRole: req.cmsRole ?? null,
+        metadata: { format, ...result },
+      });
+    }
     res.json(result);
   },
 );

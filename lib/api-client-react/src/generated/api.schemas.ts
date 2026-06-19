@@ -753,6 +753,8 @@ export const ContentImportInputFormat = {
 export interface ContentImportInput {
   format: ContentImportInputFormat;
   content: string;
+  /** When true, run the import inside a rolled-back transaction and return the same summary without persisting any changes (a preview). */
+  dryRun?: boolean;
 }
 
 export interface ContentRestoreInput {

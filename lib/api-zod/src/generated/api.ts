@@ -1381,7 +1381,8 @@ export const ImportCmsContentHeader = zod.object({
 
 export const ImportCmsContentBody = zod.object({
   "format": zod.enum(['json', 'csv', 'markdown', 'payload']),
-  "content": zod.string()
+  "content": zod.string(),
+  "dryRun": zod.boolean().optional().describe('When true, run the import inside a rolled-back transaction and return the same summary without persisting any changes (a preview).')
 })
 
 export const ImportCmsContentResponse = zod.object({
