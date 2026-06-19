@@ -374,6 +374,7 @@ function DraggableChip({
     });
 
   const pan = Gesture.Pan()
+    .withTestId(`chip-pan-${id}`)
     .activateAfterLongPress(220)
     .onStart(() => {
       activeId.value = id;

@@ -2,7 +2,13 @@ module.exports = {
   preset: "jest-expo",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   roots: ["<rootDir>/__tests__"],
-  testMatch: ["<rootDir>/__tests__/**/*.test.tsx", "<rootDir>/__tests__/**/*.test.ts"],
+  // Only the package-root `__tests__/` holds jest-expo UI tests. Colocated
+  // unit tests (e.g. `hooks/__tests__/`) are vitest tests and must not be run
+  // here — jest's babel can't parse their top-level `await import`.
+  testMatch: [
+    "<rootDir>/__tests__/**/*.test.tsx",
+    "<rootDir>/__tests__/**/*.test.ts",
+  ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
