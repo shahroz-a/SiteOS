@@ -15,6 +15,7 @@
     "load:payload": "tsx ./src/load-payload.ts",
     "migrate:payload": "tsx ./src/migrate-payload.ts",
     "prerender:blog": "tsx ./src/prerender-blog.ts",
+    "redirect:health": "tsx ./src/redirect-health.ts",
     "categories:backfill": "tsx ./src/derive-categories.ts",
     "cleanup:redirects": "tsx ./src/cleanup-redirects.ts",
     "reclassify:non-blog": "tsx ./src/reclassify-non-blog-pages.ts",

@@ -67,6 +67,21 @@ export const redirectsTable = pgTable(
     toPath: text("to_path").notNull(),
     statusCode: integer("status_code").notNull().default(301),
     isActive: boolean("is_active").notNull().default(true),
+    // --- Target-health bookkeeping (see scripts/src/redirect-health.ts) ---
+    // Consecutive confirmed-dead readings of the target. Off-blog (network)
+    // targets must accumulate enough of these before auto-deactivation so a
+    // single flaky 404/timeout can't retire a working redirect; a healthy
+    // reading resets it to 0. On-blog (deterministic) targets need only one.
+    targetCheckFailures: integer("target_check_failures").notNull().default(0),
+    // When the target was last health-checked.
+    targetCheckedAt: timestamp("target_checked_at", { withTimezone: true }),
+    // Last observed final HTTP status for an off-blog target (null for on-blog
+    // targets, which are checked against the page corpus, not the network).
+    targetLastStatus: integer("target_last_status"),
+    // Why the auto-deactivator flipped isActive to false (null while active).
+    // An operator reviews/undoes by reading this + the deactivation report.
+    deactivatedReason: text("deactivated_reason"),
+    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-06-19T14:54:01.626Z",
+  "dryRun": false,
+  "offBlogDeadThreshold": 2,
+  "checked": 217,
+  "deactivatedCount": 2,
+  "atRiskCount": 0,
+  "deactivated": [
+    {
+      "id": "b7394914-1e31-4b4c-9540-4fb4fdf0890a",
+      "fromPath": "/blog/best-day-trips-from-paris/",
+      "toPath": "/blog/day-trips-from-paris/",
+      "kind": "on-blog",
+      "reason": "on-blog-target-missing",
+      "status": null,
+      "failures": 1
+    },
+    {
+      "id": "d879f649-6e75-48a6-9764-fb9c109ad6b0",
+      "fromPath": "/blog/aladdin-on-broadway/:%22https://en.wikipedia.org/wiki/Jonathan_Freeman_(actor)%22",
+      "toPath": "/blog/aladdin-on-broadway/:%22https:/en.wikipedia.org/wiki/Jonathan_Freeman_(actor",
+      "kind": "on-blog",
+      "reason": "on-blog-target-missing",
+      "status": null,
+      "failures": 1
+    }
+  ],
+  "atRisk": []
+}
