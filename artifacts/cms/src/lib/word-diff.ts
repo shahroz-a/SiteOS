@@ -36,11 +36,13 @@ function lcsSegments(a: string[], b: string[], out: DiffSegment[]): void {
   const m = b.length;
   if (n === 0 && m === 0) return;
   if (n === 0) {
-    out.push({ op: "insert", text: b.join("") });
+    // Push per token (not joined) so callers that inspect individual tokens
+    // — e.g. the HTML diff distinguishing tags from text — keep working.
+    for (const t of b) out.push({ op: "insert", text: t });
     return;
   }
   if (m === 0) {
-    out.push({ op: "delete", text: a.join("") });
+    for (const t of a) out.push({ op: "delete", text: t });
     return;
   }
 
@@ -83,13 +85,12 @@ function lcsSegments(a: string[], b: string[], out: DiffSegment[]): void {
 }
 
 /**
- * Produce an ordered list of equal/insert/delete segments turning `before`
- * into `after`, diffed at word granularity. Shared leading/trailing tokens are
- * emitted as `equal` context so localized edits read clearly.
+ * Diff two token arrays into a flat, per-token list of equal/insert/delete
+ * segments (NOT merged). Shared leading/trailing tokens are emitted as `equal`
+ * context so localized edits read clearly; a very large differing middle falls
+ * back to a coarse delete+insert to keep the browser responsive.
  */
-export function diffWords(before: string, after: string): DiffSegment[] {
-  const a = tokenize(before);
-  const b = tokenize(after);
+function diffTokens(a: string[], b: string[]): DiffSegment[] {
   const segments: DiffSegment[] = [];
 
   let start = 0;
@@ -103,23 +104,92 @@ export function diffWords(before: string, after: string): DiffSegment[] {
     endB--;
   }
 
-  if (start > 0) {
-    segments.push({ op: "equal", text: a.slice(0, start).join("") });
-  }
+  for (let i = 0; i < start; i++) segments.push({ op: "equal", text: a[i] });
 
   const midA = a.slice(start, endA);
   const midB = b.slice(start, endB);
 
   if (midA.length * midB.length > MAX_MATRIX) {
-    if (midA.length) segments.push({ op: "delete", text: midA.join("") });
-    if (midB.length) segments.push({ op: "insert", text: midB.join("") });
+    for (const t of midA) segments.push({ op: "delete", text: t });
+    for (const t of midB) segments.push({ op: "insert", text: t });
   } else {
     lcsSegments(midA, midB, segments);
   }
 
-  if (endA < a.length) {
-    segments.push({ op: "equal", text: a.slice(endA).join("") });
-  }
+  for (let i = endA; i < a.length; i++) segments.push({ op: "equal", text: a[i] });
 
-  return mergeSegments(segments);
+  return segments;
+}
+
+/**
+ * Produce an ordered list of equal/insert/delete segments turning `before`
+ * into `after`, diffed at word granularity. Shared leading/trailing tokens are
+ * emitted as `equal` context so localized edits read clearly.
+ */
+export function diffWords(before: string, after: string): DiffSegment[] {
+  return mergeSegments(diffTokens(tokenize(before), tokenize(after)));
+}
+
+/**
+ * Split HTML into a token stream where each tag (`<p>`, `<a href=…>`, `<img …>`)
+ * is one atomic token and the text between tags is split into word/whitespace
+ * runs. This lets the diff treat markup as structure and only highlight the
+ * text that actually changed.
+ */
+function tokenizeHtml(value: string): string[] {
+  return value.match(/<[^>]+>|[^<\s]+|\s+/g) ?? [];
+}
+
+const HTML_TAG_RE = /^<[^>]+>$/;
+
+/**
+ * Produce a rendered-friendly diff of two HTML bodies. Tags from the shared and
+ * the resulting ("after") structure pass through untouched so the output still
+ * renders as a formatted article; only changed *text* is wrapped — insertions in
+ * `<ins class="diff-ins">`, deletions in `<del class="diff-del">` — so the two
+ * can be styled distinctly. Deleted tags are dropped (the surviving structure is
+ * the "after" document) while their text is kept, struck-through, inline.
+ *
+ * The returned string is intended to be fed through the shared
+ * `@workspace/blog-renderer` rendering pipeline, which sanitizes it before it is
+ * injected into the DOM.
+ */
+export function diffHtml(before: string, after: string): string {
+  const segments = diffTokens(tokenizeHtml(before), tokenizeHtml(after));
+
+  let out = "";
+  let pendingIns = "";
+  let pendingDel = "";
+
+  const flush = () => {
+    if (pendingDel) {
+      out += `<del class="diff-del">${pendingDel}</del>`;
+      pendingDel = "";
+    }
+    if (pendingIns) {
+      out += `<ins class="diff-ins">${pendingIns}</ins>`;
+      pendingIns = "";
+    }
+  };
+
+  for (const seg of segments) {
+    const isTag = HTML_TAG_RE.test(seg.text);
+    if (seg.op === "equal") {
+      flush();
+      out += seg.text;
+    } else if (seg.op === "insert") {
+      if (isTag) {
+        flush();
+        out += seg.text;
+      } else {
+        pendingIns += seg.text;
+      }
+    } else {
+      // delete: drop removed tags, keep removed text struck-through inline.
+      if (!isTag) pendingDel += seg.text;
+    }
+  }
+  flush();
+
+  return out;
 }

@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { diffWords, type DiffSegment } from "../word-diff";
+import { diffWords, diffHtml, type DiffSegment } from "../word-diff";
+
+/** Strip the diff `<ins>`/`<del>` wrappers, keeping inner text + other tags. */
+function stripDiffMarkup(html: string): string {
+  return html
+    .replace(/<ins class="diff-ins">/g, "")
+    .replace(/<del class="diff-del">[\s\S]*?<\/del>/g, "")
+    .replace(/<\/ins>/g, "");
+}
 
 function reconstructBefore(segments: DiffSegment[]): string {
   return segments
@@ -91,5 +99,72 @@ describe("diffWords", () => {
     expect(reconstructAfter(segs)).toBe(after);
     expect(segs.some((s) => s.op === "delete")).toBe(true);
     expect(segs.some((s) => s.op === "insert")).toBe(true);
+  });
+});
+
+describe("diffHtml", () => {
+  it("returns the unchanged HTML structure when nothing changed", () => {
+    const html = "<p>Hello world</p>";
+    expect(diffHtml(html, html)).toBe(html);
+  });
+
+  it("keeps the surrounding tags intact and only wraps added text", () => {
+    const out = diffHtml("<p>Hello world</p>", "<p>Hello brave world</p>");
+    expect(out).toContain("<p>");
+    expect(out).toContain("</p>");
+    expect(out).toContain('<ins class="diff-ins">');
+    expect(out).toContain("brave");
+    expect(out).not.toContain('<del class="diff-del">');
+    // The tags are never wrapped inside the diff markup.
+    expect(out).not.toContain("<ins class=\"diff-ins\"><p>");
+  });
+
+  it("wraps removed text in a del while preserving the new structure", () => {
+    const out = diffHtml("<p>Hello brave world</p>", "<p>Hello world</p>");
+    expect(out).toContain('<del class="diff-del">');
+    expect(out).toContain("brave");
+    expect(out).not.toContain('<ins class="diff-ins">');
+    expect(stripDiffMarkup(out)).toBe("<p>Hello world</p>");
+  });
+
+  it("highlights both sides of a replacement", () => {
+    const out = diffHtml(
+      "<p>The quick fox</p>",
+      "<p>The slow fox</p>",
+    );
+    expect(out).toContain('<del class="diff-del">');
+    expect(out).toContain("quick");
+    expect(out).toContain('<ins class="diff-ins">');
+    expect(out).toContain("slow");
+  });
+
+  it("does not emit tags removed in the after version", () => {
+    // The <strong> wrapper was removed; its tags should be dropped, leaving the
+    // text in the surviving structure.
+    const out = diffHtml(
+      "<p><strong>Important</strong> note</p>",
+      "<p>Important note</p>",
+    );
+    expect(out).not.toContain("<strong>");
+    expect(out).not.toContain("</strong>");
+    expect(out).toContain("Important");
+    expect(out).toContain("note");
+  });
+
+  it("treats a brand-new tag as part of the surviving structure", () => {
+    const out = diffHtml(
+      "<p>Important note</p>",
+      "<p><strong>Important</strong> note</p>",
+    );
+    expect(out).toContain("<strong>");
+    expect(out).toContain("</strong>");
+  });
+
+  it("does not execute or alter script-like content (diffs as text)", () => {
+    const before = "<p>safe</p>";
+    const after = "<p>safe</p><p>added</p>";
+    const out = diffHtml(before, after);
+    expect(out).toContain("<p>");
+    expect(out).toContain("added");
   });
 });

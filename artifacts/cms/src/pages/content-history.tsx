@@ -43,8 +43,9 @@ import {
 } from "@workspace/ui/alert-dialog";
 import { Skeleton } from "@workspace/ui/skeleton";
 import { useToast } from "@workspace/ui";
+import { ContentRenderer } from "@workspace/blog-renderer";
 import { useCmsAuth } from "@/lib/cms-auth-context";
-import { diffWords } from "@/lib/word-diff";
+import { diffWords, diffHtml } from "@/lib/word-diff";
 
 const STATUS_VARIANTS: Record<PageStatus, "default" | "secondary" | "outline"> =
   {
@@ -120,6 +121,27 @@ function InlineWordDiff({
   );
 }
 
+function RenderedHtmlDiff({
+  before,
+  after,
+}: {
+  before: string;
+  after: string;
+}) {
+  const diffed = useMemo(() => diffHtml(before, after), [before, after]);
+  return (
+    <div
+      className={
+        "max-h-[32rem] overflow-auto rounded border border-border/60 bg-background px-3 py-2 " +
+        "[&_ins.diff-ins]:rounded-sm [&_ins.diff-ins]:bg-emerald-500/15 [&_ins.diff-ins]:text-emerald-700 [&_ins.diff-ins]:no-underline dark:[&_ins.diff-ins]:text-emerald-300 " +
+        "[&_del.diff-del]:rounded-sm [&_del.diff-del]:bg-rose-500/15 [&_del.diff-del]:text-rose-700 [&_del.diff-del]:line-through dark:[&_del.diff-del]:text-rose-300"
+      }
+    >
+      <ContentRenderer post={{ contentHtml: diffed }} />
+    </div>
+  );
+}
+
 function ValueSwap({ change }: { change: VersionFieldChange }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
@@ -143,6 +165,8 @@ function ValueSwap({ change }: { change: VersionFieldChange }) {
   );
 }
 
+type BodyDiffMode = "source" | "rendered";
+
 function ChangeRow({ change }: { change: VersionFieldChange }) {
   // Inline word diffs read far better for text fields (article body, excerpt,
   // subtitle, SEO copy, etc.). Non-text fields (numbers, arrays, objects) fall
@@ -152,17 +176,54 @@ function ChangeRow({ change }: { change: VersionFieldChange }) {
     isTextValue(change.before) &&
     isTextValue(change.after);
 
+  // The article body is stored as HTML. Offer a "rendered" view so reviewers can
+  // compare how the article actually looks, not its raw markup.
+  const isHtmlBody = change.field === "contentHtml" && useInlineDiff;
+  const [mode, setMode] = useState<BodyDiffMode>("rendered");
+
+  const before = (change.before as string | null | undefined) ?? "";
+  const after = (change.after as string | null | undefined) ?? "";
+
   return (
     <div className="space-y-1.5 rounded-md border border-border/60 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm font-medium">{change.label}</div>
-        {useInlineDiff ? <DiffLegend /> : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {useInlineDiff ? <DiffLegend /> : null}
+          {isHtmlBody ? (
+            <div className="inline-flex overflow-hidden rounded-md border border-border/60 text-xs">
+              <button
+                type="button"
+                onClick={() => setMode("rendered")}
+                aria-pressed={mode === "rendered"}
+                className={
+                  mode === "rendered"
+                    ? "bg-primary px-2.5 py-1 font-medium text-primary-foreground"
+                    : "bg-transparent px-2.5 py-1 text-muted-foreground hover:text-foreground"
+                }
+              >
+                Rendered
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("source")}
+                aria-pressed={mode === "source"}
+                className={
+                  mode === "source"
+                    ? "bg-primary px-2.5 py-1 font-medium text-primary-foreground"
+                    : "bg-transparent px-2.5 py-1 text-muted-foreground hover:text-foreground"
+                }
+              >
+                Source
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
-      {useInlineDiff ? (
-        <InlineWordDiff
-          before={(change.before as string | null | undefined) ?? ""}
-          after={(change.after as string | null | undefined) ?? ""}
-        />
+      {isHtmlBody && mode === "rendered" ? (
+        <RenderedHtmlDiff before={before} after={after} />
+      ) : useInlineDiff ? (
+        <InlineWordDiff before={before} after={after} />
       ) : (
         <ValueSwap change={change} />
       )}
