@@ -70,6 +70,7 @@ const MEDIA_FIELD_LABELS: Record<string, string> = {
   alt: "Alt text",
   title: "Title",
   caption: "Caption",
+  credit: "Credit",
   altStatus: "Status",
 };
 
@@ -218,7 +219,7 @@ function MediaChange({ entry }: { entry: AuditLogEntry }) {
   const before = entry.before ?? {};
   const after = entry.after ?? {};
   const url = mediaImageUrl(entry);
-  const ordered = ["alt", "title", "caption", "altStatus"];
+  const ordered = ["alt", "title", "caption", "credit", "altStatus"];
   const keys = Array.from(
     new Set([...ordered, ...Object.keys(before), ...Object.keys(after)]),
   ).filter((k) => k !== "url" && (k in before || k in after));

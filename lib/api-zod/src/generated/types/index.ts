@@ -171,6 +171,8 @@ export * from './tag';
 export * from './tagSummary';
 export * from './updateMediaAltInput';
 export * from './updateMediaAltResponse';
+export * from './updateMediaMetadataInput';
+export * from './updateMediaMetadataResponse';
 export * from './updateUserRoleRequest';
 export * from './uploadedImage';
 export * from './uploadedImageListResponse';

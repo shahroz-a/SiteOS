@@ -1142,6 +1142,46 @@ export interface UpdateMediaAltResponse {
 }
 
 /**
+ * Reviewed metadata for a media item. At least one of title/caption/credit must be present; an explicit null or empty string clears that field. Only the provided fields are changed.
+ */
+export interface UpdateMediaMetadataInput {
+  /** The CDN URL identifying the media item to update. */
+  url: string;
+  /**
+     * The reviewed title to apply to every usage of this image.
+     * @maxLength 500
+     * @nullable
+     */
+  title?: string | null;
+  /**
+     * The reviewed caption to apply to every usage of this image.
+     * @maxLength 2000
+     * @nullable
+     */
+  caption?: string | null;
+  /**
+     * The reviewed credit/attribution to apply to every usage of this image.
+     * @maxLength 500
+     * @nullable
+     */
+  credit?: string | null;
+}
+
+export interface UpdateMediaMetadataResponse {
+  url: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  caption: string | null;
+  /** @nullable */
+  credit: string | null;
+  /** How many image usages (rows) were updated across all pages. */
+  updatedUsages: number;
+  /** Which metadata fields actually changed value (audited). */
+  changedFields: string[];
+}
+
+/**
  * A page that references a media item, with the alt text used there.
  */
 export interface MediaUsagePage {

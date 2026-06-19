@@ -829,6 +829,38 @@ export const UpdateCmsMediaAltResponse = zod.object({
 
 
 /**
+ * @summary Save reviewed metadata (title, caption and/or credit) for a media item, updating every usage of the image (keyed by CDN URL) across all pages (requires media.manage). At least one of title/caption/credit must be provided; each save is recorded in the audit trail.
+ */
+export const UpdateCmsMediaMetadataHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const updateCmsMediaMetadataBodyTitleMax = 500;
+
+export const updateCmsMediaMetadataBodyCaptionMax = 2000;
+
+export const updateCmsMediaMetadataBodyCreditMax = 500;
+
+
+
+export const UpdateCmsMediaMetadataBody = zod.object({
+  "url": zod.string().url().describe('The CDN URL identifying the media item to update.'),
+  "title": zod.string().max(updateCmsMediaMetadataBodyTitleMax).nullish().describe('The reviewed title to apply to every usage of this image.'),
+  "caption": zod.string().max(updateCmsMediaMetadataBodyCaptionMax).nullish().describe('The reviewed caption to apply to every usage of this image.'),
+  "credit": zod.string().max(updateCmsMediaMetadataBodyCreditMax).nullish().describe('The reviewed credit\/attribution to apply to every usage of this image.')
+}).describe('Reviewed metadata for a media item. At least one of title\/caption\/credit must be present; an explicit null or empty string clears that field. Only the provided fields are changed.')
+
+export const UpdateCmsMediaMetadataResponse = zod.object({
+  "url": zod.string(),
+  "title": zod.string().nullable(),
+  "caption": zod.string().nullable(),
+  "credit": zod.string().nullable(),
+  "updatedUsages": zod.number().describe('How many image usages (rows) were updated across all pages.'),
+  "changedFields": zod.array(zod.string()).describe('Which metadata fields actually changed value (audited).')
+})
+
+
+/**
  * The review queue of articles kept out of the public read API because content-fidelity validation failed (pages.status="draft"). Each entry's verdict is re-scored at request time through the current validator, so the displayed status/score/issues always reflect the live rules — never a stale verdict from an older validator.
  * @summary List articles held back from the public API for editor review (requires review.approve)
  */

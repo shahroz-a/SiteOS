@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useSuggestCmsMediaAlt,
   useUpdateCmsMediaAlt,
+  useUpdateCmsMediaMetadata,
   type MediaItem,
 } from "@workspace/api-client-react";
 import {
@@ -17,6 +18,7 @@ import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
 import { Separator } from "@workspace/ui/separator";
 import { Textarea } from "@workspace/ui/textarea";
+import { Input } from "@workspace/ui/input";
 import { Label } from "@workspace/ui/label";
 import { Spinner } from "@workspace/ui/spinner";
 import { useToast } from "@workspace/ui";
@@ -62,14 +64,23 @@ function DetailsBody({ item }: { item: MediaItem }) {
   const [failed, setFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [alt, setAlt] = useState(item.alt ?? "");
+  const [title, setTitle] = useState(item.title ?? "");
+  const [caption, setCaption] = useState(item.caption ?? "");
+  const [credit, setCredit] = useState(item.credit ?? "");
   const altMeta = ALT_STATUS_META[item.altStatus];
   const dimensions = formatDimensions(item.width, item.height);
 
   const suggestMutation = useSuggestCmsMediaAlt();
   const updateMutation = useUpdateCmsMediaAlt();
+  const metadataMutation = useUpdateCmsMediaMetadata();
 
   const trimmedAlt = alt.trim();
   const isDirty = trimmedAlt !== (item.alt ?? "").trim();
+
+  const metadataDirty =
+    title.trim() !== (item.title ?? "").trim() ||
+    caption.trim() !== (item.caption ?? "").trim() ||
+    credit.trim() !== (item.credit ?? "").trim();
 
   const copyUrl = async () => {
     try {
@@ -128,8 +139,46 @@ function DetailsBody({ item }: { item: MediaItem }) {
     );
   };
 
+  const saveMetadata = () => {
+    metadataMutation.mutate(
+      {
+        data: {
+          url: item.url,
+          title: title.trim(),
+          caption: caption.trim(),
+          credit: credit.trim(),
+        },
+      },
+      {
+        onSuccess: (res) => {
+          queryClient.invalidateQueries({ queryKey: ["/api/cms/media"] });
+          toast({
+            title:
+              res.changedFields.length > 0
+                ? "Image details saved"
+                : "No changes to save",
+            description:
+              res.changedFields.length > 0
+                ? `Updated ${res.updatedUsages} image${
+                    res.updatedUsages === 1 ? "" : "s"
+                  }.`
+                : undefined,
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Couldn't save image details",
+            description: "Please try again.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
+
   const isSuggesting = suggestMutation.isPending;
   const isSaving = updateMutation.isPending;
+  const isSavingMetadata = metadataMutation.isPending;
 
   return (
     <>
@@ -255,10 +304,71 @@ function DetailsBody({ item }: { item: MediaItem }) {
 
         <Separator />
 
+        <div className="space-y-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Image details
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="media-title" className="text-sm font-medium">
+              Title
+            </Label>
+            <Input
+              id="media-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Add a title…"
+              disabled={isSavingMetadata}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="media-caption" className="text-sm font-medium">
+              Caption
+            </Label>
+            <Textarea
+              id="media-caption"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              rows={2}
+              placeholder="Add a caption…"
+              disabled={isSavingMetadata}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="media-credit" className="text-sm font-medium">
+              Credit
+            </Label>
+            <Input
+              id="media-credit"
+              value={credit}
+              onChange={(e) => setCredit(e.target.value)}
+              placeholder="Add a credit/attribution…"
+              disabled={isSavingMetadata}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Edits apply to every usage of this image and are recorded in the
+            audit log.
+          </p>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              onClick={saveMetadata}
+              disabled={!metadataDirty || isSavingMetadata}
+            >
+              {isSavingMetadata ? (
+                <Spinner className="size-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save details
+            </Button>
+          </div>
+        </div>
+
+        <Separator />
+
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          <Field label="Title" value={item.title} />
-          <Field label="Caption" value={item.caption} />
-          <Field label="Credit" value={item.credit} />
           <Field label="Dimensions" value={dimensions} />
           <Field label="Type" value={item.mimeType} />
           <Field label="Role" value={item.role} />

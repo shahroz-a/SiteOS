@@ -93,6 +93,8 @@ import type {
   Tag,
   UpdateMediaAltInput,
   UpdateMediaAltResponse,
+  UpdateMediaMetadataInput,
+  UpdateMediaMetadataResponse,
   UpdateUserRoleRequest,
   UploadFinalizeRequest,
   UploadFinalizeResult,
@@ -2432,6 +2434,77 @@ export const useUpdateCmsMediaAlt = <TError = ErrorType<CmsBadRequestResponse | 
         TContext
       > => {
       return useMutation(getUpdateCmsMediaAltMutationOptions(options));
+    }
+
+export const getUpdateCmsMediaMetadataUrl = () => {
+
+
+
+
+  return `/api/cms/media/metadata`
+}
+
+/**
+ * @summary Save reviewed metadata (title, caption and/or credit) for a media item, updating every usage of the image (keyed by CDN URL) across all pages (requires media.manage). At least one of title/caption/credit must be provided; each save is recorded in the audit trail.
+ */
+export const updateCmsMediaMetadata = async (updateMediaMetadataInput: UpdateMediaMetadataInput, options?: RequestInit): Promise<UpdateMediaMetadataResponse> => {
+
+  return customFetch<UpdateMediaMetadataResponse>(getUpdateCmsMediaMetadataUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateMediaMetadataInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCmsMediaMetadataMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsMediaMetadata>>, TError,{data: BodyType<UpdateMediaMetadataInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCmsMediaMetadata>>, TError,{data: BodyType<UpdateMediaMetadataInput>}, TContext> => {
+
+const mutationKey = ['updateCmsMediaMetadata'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCmsMediaMetadata>>, {data: BodyType<UpdateMediaMetadataInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCmsMediaMetadata(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCmsMediaMetadataMutationResult = NonNullable<Awaited<ReturnType<typeof updateCmsMediaMetadata>>>
+    export type UpdateCmsMediaMetadataMutationBody = BodyType<UpdateMediaMetadataInput>
+    export type UpdateCmsMediaMetadataMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>
+
+    /**
+ * @summary Save reviewed metadata (title, caption and/or credit) for a media item, updating every usage of the image (keyed by CDN URL) across all pages (requires media.manage). At least one of title/caption/credit must be provided; each save is recorded in the audit trail.
+ */
+export const useUpdateCmsMediaMetadata = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsMediaMetadata>>, TError,{data: BodyType<UpdateMediaMetadataInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCmsMediaMetadata>>,
+        TError,
+        {data: BodyType<UpdateMediaMetadataInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCmsMediaMetadataMutationOptions(options));
     }
 
 export const getListCmsHeldBackArticlesUrl = () => {

@@ -265,6 +265,95 @@ export async function updateAltByUrl(
   return { updatedUsages: updated.length, before, after };
 }
 
+/** The editable, free-text metadata fields of a media item (no alt). */
+export type MediaMetadataField = "title" | "caption" | "credit";
+
+export const MEDIA_METADATA_FIELDS: MediaMetadataField[] = [
+  "title",
+  "caption",
+  "credit",
+];
+
+/** Before/after snapshot of a media item's free-text metadata. */
+export type MetadataSnapshot = Record<MediaMetadataField, string | null>;
+
+/** A partial set of metadata edits — only the present keys are changed. */
+export type MetadataEdits = Partial<Record<MediaMetadataField, string | null>>;
+
+/** Result of saving reviewed metadata, with before/after for auditing. */
+export interface UpdateMetadataResult {
+  updatedUsages: number;
+  before: MetadataSnapshot;
+  after: MetadataSnapshot;
+  /** Fields whose representative value actually changed (drives the audit). */
+  changedFields: MediaMetadataField[];
+}
+
+/** Trim a free-text metadata value; empty (after trim) clears the field. */
+function normalizeMetadataValue(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * Persist reviewed free-text metadata (title/caption/credit) for a media item:
+ * every `images` row sharing the given CDN `url` is updated, mirroring
+ * `updateAltByUrl` (the library aggregates by URL, so one edit applies to every
+ * page that uses the image). Only the fields present in `edits` are written; an
+ * explicit null/empty value clears that field. `before`/`after` snapshot the
+ * representative value of each field (the first non-empty value across usages,
+ * matching `groupedCte`) so the audit trail can show a faithful diff;
+ * `changedFields` is the subset whose representative value actually changed.
+ * `updatedUsages` is how many rows changed; 0 means no image with that URL.
+ */
+export async function updateMetadataByUrl(
+  url: string,
+  edits: MetadataEdits,
+): Promise<UpdateMetadataResult> {
+  // Snapshot the representative value of each field before editing — the first
+  // non-empty value across usages, matching how the library lists metadata.
+  const beforeRes = await db.execute(sql`
+    SELECT
+      (array_agg(title) FILTER (WHERE title IS NOT NULL AND title <> ''))[1] AS title,
+      (array_agg(caption) FILTER (WHERE caption IS NOT NULL AND caption <> ''))[1] AS caption,
+      (array_agg(credit) FILTER (WHERE credit IS NOT NULL AND credit <> ''))[1] AS credit
+    FROM images
+    WHERE url = ${url}
+  `);
+  const beforeRow = (beforeRes.rows[0] ?? {}) as Record<string, unknown>;
+  const before: MetadataSnapshot = {
+    title: toStringOrNull(beforeRow.title),
+    caption: toStringOrNull(beforeRow.caption),
+    credit: toStringOrNull(beforeRow.credit),
+  };
+
+  // Build the column set from only the provided fields (normalized).
+  const set: MetadataEdits = {};
+  for (const field of MEDIA_METADATA_FIELDS) {
+    if (field in edits) set[field] = normalizeMetadataValue(edits[field]);
+  }
+
+  const updated = await db
+    .update(imagesTable)
+    .set(set)
+    .where(eq(imagesTable.url, url))
+    .returning({ id: imagesTable.id });
+
+  // Every usage now shares the written value, so the after representative for a
+  // changed field is exactly what we set; untouched fields keep their before.
+  const after: MetadataSnapshot = { ...before };
+  for (const field of MEDIA_METADATA_FIELDS) {
+    if (field in set) after[field] = set[field] ?? null;
+  }
+
+  const changedFields = MEDIA_METADATA_FIELDS.filter(
+    (field) => field in set && before[field] !== after[field],
+  );
+
+  return { updatedUsages: updated.length, before, after, changedFields };
+}
+
 export interface ListMediaParams {
   page: number;
   limit: number;

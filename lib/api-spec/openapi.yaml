@@ -900,6 +900,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /cms/media/metadata:
+    patch:
+      tags: [cms]
+      operationId: updateCmsMediaMetadata
+      summary: >-
+        Save reviewed metadata (title, caption and/or credit) for a media item,
+        updating every usage of the image (keyed by CDN URL) across all pages
+        (requires media.manage). At least one of title/caption/credit must be
+        provided; each save is recorded in the audit trail.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMediaMetadataInput"
+      responses:
+        "200":
+          description: The updated metadata and how many usages were changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateMediaMetadataResponse"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          description: No image with the given URL exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /cms/held-back-articles:
     get:
       tags: [cms]
@@ -4175,6 +4213,71 @@ components:
         updatedUsages:
           type: integer
           description: How many image usages (rows) were updated across all pages.
+
+    UpdateMediaMetadataInput:
+      type: object
+      description: >-
+        Reviewed metadata for a media item. At least one of title/caption/credit
+        must be present; an explicit null or empty string clears that field. Only
+        the provided fields are changed.
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The CDN URL identifying the media item to update.
+        title:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+          description: The reviewed title to apply to every usage of this image.
+        caption:
+          type:
+            - string
+            - 'null'
+          maxLength: 2000
+          description: The reviewed caption to apply to every usage of this image.
+        credit:
+          type:
+            - string
+            - 'null'
+          maxLength: 500
+          description: The reviewed credit/attribution to apply to every usage of this image.
+
+    UpdateMediaMetadataResponse:
+      type: object
+      required:
+        - url
+        - title
+        - caption
+        - credit
+        - updatedUsages
+        - changedFields
+      properties:
+        url:
+          type: string
+        title:
+          type:
+            - string
+            - 'null'
+        caption:
+          type:
+            - string
+            - 'null'
+        credit:
+          type:
+            - string
+            - 'null'
+        updatedUsages:
+          type: integer
+          description: How many image usages (rows) were updated across all pages.
+        changedFields:
+          type: array
+          description: Which metadata fields actually changed value (audited).
+          items:
+            type: string
 
     MediaUsagePage:
       type: object
