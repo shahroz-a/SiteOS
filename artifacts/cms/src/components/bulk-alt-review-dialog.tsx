@@ -78,6 +78,7 @@ export function BulkAltReviewDialog({
       <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         {open && session ? (
           <ReviewBody
+            filter={session.filter}
             initialItems={session.items}
             total={session.total}
             initialSkipped={session.skipped}
@@ -93,6 +94,7 @@ export function BulkAltReviewDialog({
 }
 
 export function ReviewBody({
+  filter,
   initialItems,
   total,
   initialSkipped,
@@ -101,6 +103,7 @@ export function ReviewBody({
   onCompleted,
   onClose,
 }: {
+  filter: string;
   initialItems: MediaItem[];
   total: number;
   initialSkipped: string[];
@@ -127,6 +130,7 @@ export function ReviewBody({
     retry,
     retryAllFailed,
   } = useAltReview({
+    filter,
     initialItems,
     total,
     initialSkipped,

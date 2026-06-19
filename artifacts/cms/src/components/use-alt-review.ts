@@ -6,6 +6,7 @@ import {
   type MediaItem,
 } from "@workspace/api-client-react";
 import { useToast } from "@workspace/ui";
+import { subscribeSkipped } from "@/lib/bulk-alt-progress";
 
 /** Server-side cap on URLs per suggest-alt-batch request (mirrors the API). */
 export const MAX_URLS_PER_BATCH = 50;
@@ -73,6 +74,7 @@ export interface AltReview {
  * the state transitions can be exercised in isolation.
  */
 export function useAltReview({
+  filter,
   initialItems,
   total,
   initialSkipped,
@@ -80,6 +82,11 @@ export function useAltReview({
   onSkippedChange,
   onCompleted,
 }: {
+  /**
+   * Search filter the pass is scoped to. Used to subscribe to cross-tab skip
+   * updates persisted under the same filter key.
+   */
+  filter: string;
   initialItems: MediaItem[];
   total: number;
   /**
@@ -254,6 +261,37 @@ export function useAltReview({
     skippedRef.current.add(url);
     onSkippedChange?.([...skippedRef.current]);
   };
+
+  // Keep this pass in sync with the same pass running in another open tab. When
+  // another tab skips an image it persists the updated skip set; we pick that up
+  // via the `storage` event and fold any URLs we haven't already handled into
+  // this tab's running progress so the two tabs converge instead of diverging.
+  useEffect(() => {
+    return subscribeSkipped(filter, (skippedUrls) => {
+      const added: string[] = [];
+      for (const url of skippedUrls) {
+        if (seenRef.current.has(url)) continue;
+        seenRef.current.add(url);
+        skippedRef.current.add(url);
+        added.push(url);
+      }
+      if (added.length === 0) return;
+      // Reflect any newly-skipped image that happens to be in the current
+      // window so it isn't re-reviewed here.
+      setStates((prev) => {
+        let next: Record<string, ItemState> | null = null;
+        for (const url of added) {
+          const existing = prev[url];
+          if (existing !== undefined && existing.kind !== "skipped") {
+            next ??= { ...prev };
+            next[url] = { kind: "skipped" };
+          }
+        }
+        return next ?? prev;
+      });
+      setSession((s) => ({ ...s, skipped: s.skipped + added.length }));
+    });
+  }, [filter]);
 
   const setAltDraft = (url: string, alt: string) =>
     setState(url, { kind: "ready", alt });

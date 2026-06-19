@@ -102,6 +102,7 @@ function mk(url: string): MediaItem {
  * hook test's Probe pattern.
  */
 function renderReview(args: {
+  filter?: string;
   initialItems: MediaItem[];
   total: number;
   initialSkipped?: string[];
@@ -109,7 +110,7 @@ function renderReview(args: {
   onSkippedChange?: (skippedUrls: string[]) => void;
   onCompleted?: () => void;
 }) {
-  const hookArgs = { initialSkipped: [], ...args };
+  const hookArgs = { filter: "", initialSkipped: [], ...args };
   const ref: { current: AltReview | null } = { current: null };
   function Probe() {
     ref.current = useAltReview(hookArgs);
