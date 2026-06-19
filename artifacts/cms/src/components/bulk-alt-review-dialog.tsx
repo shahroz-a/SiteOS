@@ -122,6 +122,8 @@ export function ReviewBody({
     setAltDraft,
     approve,
     skip,
+    reviewSkipped,
+    clearSkippedState,
     retry,
     retryAllFailed,
   } = useAltReview({
@@ -155,9 +157,32 @@ export function ReviewBody({
               {session.approved} approved
             </Badge>
             {session.skipped > 0 ? (
-              <Badge variant="secondary" className="font-normal">
-                {session.skipped} skipped
-              </Badge>
+              <span className="inline-flex items-center overflow-hidden rounded-md border border-border/60">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 gap-1 rounded-none px-2 text-xs font-normal"
+                  onClick={reviewSkipped}
+                  disabled={advancing}
+                  title="Bring your skipped images back into this pass"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Review {session.skipped} skipped
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 rounded-none border-l border-border/60 px-1.5 text-xs font-normal text-muted-foreground"
+                  onClick={clearSkippedState}
+                  disabled={advancing}
+                  title="Forget the skipped images (clears saved skip state)"
+                  aria-label="Clear skipped images"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </span>
             ) : null}
             {counts.error > 0 ? (
               <Badge

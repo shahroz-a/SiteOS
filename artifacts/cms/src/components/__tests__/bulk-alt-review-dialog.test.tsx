@@ -160,7 +160,6 @@ describe("ReviewBody — suggestion mapping across chunks", () => {
 
     const renderer = render({
       initialItems: items,
-      initialSkipped: [],
       total: items.length,
       initialSkipped: [],
       fetchNext: vi.fn().mockResolvedValue([]),
@@ -214,7 +213,6 @@ describe("ReviewBody — approve & skip", () => {
     const fetchNext = vi.fn().mockResolvedValue([]);
     const renderer = render({
       initialItems: items,
-      initialSkipped: [],
       total: items.length,
       initialSkipped: [],
       fetchNext,
@@ -257,6 +255,83 @@ describe("ReviewBody — approve & skip", () => {
   });
 });
 
+describe("ReviewBody — skipped review & clear", () => {
+  it("surfaces restored skips as a count and pulls them back in via Review", async () => {
+    const skipped = ["https://cdn-img.headout.com/old-1.jpg"];
+    const refetched = makeItems(1);
+    suggestMutate.mockImplementation(
+      (
+        { data }: { data: { urls: string[] } },
+        { onSuccess }: { onSuccess: (r: { results: unknown[] }) => void },
+      ) => {
+        onSuccess({
+          results: data.urls.map((url) => ({ url, suggestion: `ALT::${url}` })),
+        });
+      },
+    );
+
+    const onSkippedChange = vi.fn();
+    const fetchNext = vi.fn().mockResolvedValue(refetched);
+    const renderer = render({
+      initialItems: makeItems(1),
+      total: 2,
+      initialSkipped: skipped,
+      fetchNext,
+      onSkippedChange,
+      onClose: vi.fn(),
+    });
+
+    // The restored skip count is visible and actionable.
+    expect(textOf(renderer.toJSON())).toContain("Review 1 skipped");
+
+    // Click "Review … skipped" → it excludes nothing previously-skipped, so the
+    // gather pulls that image back into the queue.
+    await act(async () => {
+      const reviewBtn = renderer.root
+        .findAllByType("button")
+        .find((b) =>
+          instText(b).replace(/\s+/g, " ").includes("Review 1 skipped"),
+        )!;
+      reviewBtn.props.onClick();
+    });
+
+    // The previously-skipped url is no longer excluded from the gather.
+    const excludeArg = fetchNext.mock.calls.at(-1)![0] as string[];
+    expect(excludeArg).not.toContain(skipped[0]);
+    // Persistence was cleared and the counter reset.
+    expect(onSkippedChange).toHaveBeenLastCalledWith([]);
+    const json = textOf(renderer.toJSON());
+    expect(json).not.toContain("Review 1 skipped");
+    expect(fetchNext).toHaveBeenCalled();
+  });
+
+  it("Clear forgets restored skips without reviewing them", () => {
+    const skipped = ["https://cdn-img.headout.com/old-1.jpg"];
+    const onSkippedChange = vi.fn();
+    const fetchNext = vi.fn().mockResolvedValue([]);
+    const renderer = render({
+      initialItems: makeItems(1),
+      total: 2,
+      initialSkipped: skipped,
+      fetchNext,
+      onSkippedChange,
+      onClose: vi.fn(),
+    });
+
+    expect(textOf(renderer.toJSON())).toContain("Review 1 skipped");
+
+    const clearBtn = renderer.root
+      .findAllByType("button")
+      .find((b) => b.props["aria-label"] === "Clear skipped images")!;
+    act(() => clearBtn.props.onClick());
+
+    // Persistence cleared, count zeroed, and no window reload was triggered.
+    expect(onSkippedChange).toHaveBeenLastCalledWith([]);
+    expect(fetchNext).not.toHaveBeenCalled();
+    expect(textOf(renderer.toJSON())).not.toContain("skipped");
+  });
+});
+
 describe("ReviewBody — failed chunk", () => {
   it("marks exactly the failed chunks' rows as errored and toasts once", () => {
     const items = makeItems(120); // 3 chunks: [0..49] [50..99] [100..119]
@@ -290,7 +365,6 @@ describe("ReviewBody — failed chunk", () => {
 
     const renderer = render({
       initialItems: items,
-      initialSkipped: [],
       total: items.length,
       initialSkipped: [],
       fetchNext: vi.fn().mockResolvedValue([]),

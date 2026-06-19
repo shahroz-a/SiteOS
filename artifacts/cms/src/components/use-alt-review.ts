@@ -53,6 +53,13 @@ export interface AltReview {
   approve: (url: string, alt: string) => void;
   /** Mark one image as skipped. */
   skip: (url: string) => void;
+  /** Pull every image skipped so far this pass back into the review queue. */
+  reviewSkipped: () => void;
+  /**
+   * Forget the images skipped this pass without reviewing them: clears the
+   * persisted skip state and zeroes the count.
+   */
+  clearSkippedState: () => void;
   /** Re-request a suggestion for one previously-failed image. */
   retry: (url: string) => void;
   /** Re-request suggestions for every failed image in the current window. */
@@ -251,6 +258,54 @@ export function useAltReview({
   const setAltDraft = (url: string, alt: string) =>
     setState(url, { kind: "ready", alt });
 
+  // Pull every image skipped so far this pass back into the review queue. The
+  // skipped URLs stay flagged on the server, so it's enough to drop them from
+  // the seen/skipped sets and reload a window — they'll be gathered again.
+  const reviewSkipped = async () => {
+    const skippedUrls = [...skippedRef.current];
+    if (skippedUrls.length === 0 || advancing) return;
+    setAdvancing(true);
+    for (const url of skippedUrls) seenRef.current.delete(url);
+    skippedRef.current.clear();
+    onSkippedChange?.([]);
+    setSession((s) => ({ ...s, skipped: 0 }));
+    setDone(false);
+    try {
+      const next = await fetchNextRef.current([...seenRef.current]);
+      if (next.length === 0) {
+        setDone(true);
+        onCompleted?.();
+        return;
+      }
+      windowItemsRef.current = next;
+      setQueue(next);
+      setStates(
+        Object.fromEntries(next.map((it) => [it.url, { kind: "pending" }])),
+      );
+      setWindowKey((k) => k + 1);
+    } catch {
+      toast({
+        title: "Couldn't load your skipped images",
+        description: "Reopen the suggestion pass to try again.",
+        variant: "destructive",
+      });
+      setDone(true);
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
+  // Forget the skipped images without reviewing them: clears the persisted skip
+  // state and zeroes the count. They stay flagged on the server, so a future
+  // pass starts fresh on them.
+  const clearSkippedState = () => {
+    if (skippedRef.current.size === 0) return;
+    for (const url of skippedRef.current) seenRef.current.delete(url);
+    skippedRef.current.clear();
+    onSkippedChange?.([]);
+    setSession((s) => ({ ...s, skipped: 0 }));
+  };
+
   // Current-window tallies, used to drive the per-window flow (not the overall
   // progress, which is tracked exactly by `session`).
   const counts = queue.reduce<WindowCounts>(
@@ -333,6 +388,8 @@ export function useAltReview({
     setAltDraft,
     approve,
     skip,
+    reviewSkipped,
+    clearSkippedState,
     retry,
     retryAllFailed,
   };
