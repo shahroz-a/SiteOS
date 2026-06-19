@@ -14,6 +14,8 @@
  * around.
  */
 
+import { randomUUID } from "node:crypto";
+
 type ColRef = { __table: string; __col: string };
 type Cond =
   | { __op: "eq"; col: ColRef; val: unknown }
@@ -261,6 +263,14 @@ class InsertBuilder {
         Object.assign(existing, this._conflict!.set);
         out.push(existing);
       } else {
+        // Mirror DB-generated column defaults so callers that read back the
+        // inserted row (e.g. saved-views serialize → RETURNING) see the same
+        // shape a real INSERT … RETURNING would: a `defaultRandom()` uuid `id`
+        // and `defaultNow()` / `.$onUpdate()` timestamps.
+        const now = new Date();
+        if (!("id" in v)) v.id = randomUUID();
+        if (!("createdAt" in v)) v.createdAt = now;
+        if (!("updatedAt" in v)) v.updatedAt = now;
         dest.push(v);
         out.push(v);
       }
@@ -327,6 +337,7 @@ class UpdateBuilder {
 
 class DeleteBuilder {
   private cond?: Cond;
+  private _proj?: Record<string, unknown>;
   private _ran = false;
 
   constructor(
@@ -338,18 +349,24 @@ class DeleteBuilder {
     this.cond = cond;
     return this;
   }
+  returning(proj?: Record<string, unknown>) {
+    this._proj = proj;
+    return this;
+  }
 
   private run(): Row[] {
     if (this._ran) return [];
     this._ran = true;
     const dest = this.tables[this.table] ?? [];
     const kept: Row[] = [];
+    const removed: Row[] = [];
     for (const r of dest) {
       const combined: Combined = { [this.table]: r };
       if (this.cond && !evalCond(this.cond, combined)) kept.push(r);
+      else removed.push(r);
     }
     this.tables[this.table] = kept;
-    return [];
+    return projectRows(removed, this._proj);
   }
 
   then(resolve: (rows: Row[]) => unknown, reject?: (e: unknown) => unknown) {
@@ -417,6 +434,7 @@ export function makeDbMock(tables: Tables) {
     sessionsTable: tableProxy("sessions"),
     auditLogsTable: tableProxy("audit_logs"),
     validationReportsTable: tableProxy("validation_reports"),
+    savedViewsTable: tableProxy("saved_views"),
   };
 }
 
