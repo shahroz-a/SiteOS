@@ -52,6 +52,24 @@ type Leader = { slug: string; name: string; views: number };
 type TimePoint = { period: string; value: number };
 
 /**
+ * Per-(day, slug) page-view counts unified across BOTH storage tiers: the
+ * pre-aggregated `page_view_daily` rollup (completed past days, kept small) and
+ * the still-raw `page_views` event log (the current day, plus any not-yet-rolled
+ * days if the scheduled job is behind). The rollup job guarantees a given day
+ * lives in exactly one tier — it aggregates and deletes a day's raw rows in one
+ * transaction — so the `union all` can never double-count. Every analytics
+ * aggregate over view counts builds on this so it stays correct and fast no
+ * matter how recently the rollup ran.
+ */
+const COMBINED_VIEWS = sql`
+  select day::date as day, page_id, slug, views from page_view_daily
+  union all
+  select date(viewed_at) as day, page_id, slug, count(*)::int as views
+  from page_views
+  group by date(viewed_at), page_id, slug
+`;
+
+/**
  * Build every content-analytics aggregate in one concurrent pass. Each query is
  * a single targeted aggregate (no N+1, no `select *`); independent queries run
  * via Promise.all so the whole snapshot resolves in roughly one round-trip's
@@ -101,21 +119,22 @@ async function viewsQuery() {
     last7: number;
     last30: number;
   }>(sql`
+    with combined as (${COMBINED_VIEWS})
     select
-      count(*)::int as total,
-      count(*) filter (where viewed_at >= now() - interval '7 days')::int as last7,
-      count(*) filter (where viewed_at >= now() - interval '30 days')::int as last30
-    from page_views
+      coalesce(sum(views), 0)::int as total,
+      coalesce(sum(views) filter (where day >= current_date - 6), 0)::int as last7,
+      coalesce(sum(views) filter (where day >= current_date - 29), 0)::int as last30
+    from combined
   `);
   const totals = totalsRes.rows[0];
 
   const dailyRes = await db.execute<{ period: string; value: number }>(sql`
-    select to_char(d.day, 'YYYY-MM-DD') as period, coalesce(count(pv.id), 0)::int as value
+    with combined as (${COMBINED_VIEWS})
+    select to_char(d.day, 'YYYY-MM-DD') as period, coalesce(sum(c.views), 0)::int as value
     from generate_series(
       current_date - interval '29 days', current_date, interval '1 day'
     ) d(day)
-    left join page_views pv
-      on pv.viewed_at >= d.day and pv.viewed_at < d.day + interval '1 day'
+    left join combined c on c.day = d.day::date
     group by d.day
     order by d.day
   `);
@@ -134,12 +153,13 @@ async function viewsQuery() {
 /** Most-viewed pages, joined to their current title. */
 async function topPagesQuery(): Promise<Leader[]> {
   const res = await db.execute<{ slug: string; name: string; views: number }>(sql`
-    select pv.slug as slug,
-           coalesce(p.title, pv.slug) as name,
-           count(*)::int as views
-    from page_views pv
-    left join pages p on p.id = pv.page_id
-    group by pv.slug, p.title
+    with combined as (${COMBINED_VIEWS})
+    select c.slug as slug,
+           coalesce(max(p.title), c.slug) as name,
+           sum(c.views)::int as views
+    from combined c
+    left join pages p on p.id = c.page_id
+    group by c.slug
     order by views desc
     limit ${LEADER_LIMIT}
   `);
@@ -153,9 +173,10 @@ async function topPagesQuery(): Promise<Leader[]> {
 /** Most-viewed authors (sum of their pages' views). */
 async function topAuthorsQuery(): Promise<Leader[]> {
   const res = await db.execute<{ slug: string; name: string; views: number }>(sql`
-    select a.slug as slug, a.name as name, count(*)::int as views
-    from page_views pv
-    join pages p on p.id = pv.page_id
+    with combined as (${COMBINED_VIEWS})
+    select a.slug as slug, a.name as name, sum(c.views)::int as views
+    from combined c
+    join pages p on p.id = c.page_id
     join authors a on a.id = p.author_id
     group by a.id, a.slug, a.name
     order by views desc
@@ -171,11 +192,12 @@ async function topAuthorsQuery(): Promise<Leader[]> {
 /** Most-viewed categories (by their pages' primary category). */
 async function topCategoriesQuery(): Promise<Leader[]> {
   const res = await db.execute<{ slug: string; name: string; views: number }>(sql`
-    select c.slug as slug, c.name as name, count(*)::int as views
-    from page_views pv
-    join pages p on p.id = pv.page_id
-    join categories c on c.id = p.primary_category_id
-    group by c.id, c.slug, c.name
+    with combined as (${COMBINED_VIEWS})
+    select cat.slug as slug, cat.name as name, sum(c.views)::int as views
+    from combined c
+    join pages p on p.id = c.page_id
+    join categories cat on cat.id = p.primary_category_id
+    group by cat.id, cat.slug, cat.name
     order by views desc
     limit ${LEADER_LIMIT}
   `);
@@ -189,9 +211,10 @@ async function topCategoriesQuery(): Promise<Leader[]> {
 /** Most-viewed tags (via the page<->tag junction). */
 async function topTagsQuery(): Promise<Leader[]> {
   const res = await db.execute<{ slug: string; name: string; views: number }>(sql`
-    select t.slug as slug, t.name as name, count(*)::int as views
-    from page_views pv
-    join page_tags pt on pt.page_id = pv.page_id
+    with combined as (${COMBINED_VIEWS})
+    select t.slug as slug, t.name as name, sum(c.views)::int as views
+    from combined c
+    join page_tags pt on pt.page_id = c.page_id
     join tags t on t.id = pt.tag_id
     group by t.id, t.slug, t.name
     order by views desc

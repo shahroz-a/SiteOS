@@ -15,7 +15,7 @@ const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
  * production convention for faster, dependency-light startup). Add more entry
  * points here as other scripts need a production build.
  */
-const ENTRY_POINTS = ["src/redirect-health.ts"];
+const ENTRY_POINTS = ["src/redirect-health.ts", "src/rollup-page-views.ts"];
 
 async function buildAll() {
   const distDir = path.resolve(scriptsDir, "dist");
