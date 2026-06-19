@@ -312,6 +312,51 @@ export interface UpdateUserRoleRequest {
 }
 
 /**
+ * @nullable
+ */
+export type AuditLogEntryBefore = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type AuditLogEntryAfter = { [key: string]: unknown } | null;
+
+/**
+ * @nullable
+ */
+export type AuditLogEntryMetadata = { [key: string]: unknown } | null;
+
+export interface AuditLogEntry {
+  id: string;
+  /** The privileged action performed, e.g. "user.role.update". */
+  action: string;
+  /** @nullable */
+  actorId: string | null;
+  /** @nullable */
+  actorEmail: string | null;
+  /** @nullable */
+  actorRole: string | null;
+  /** @nullable */
+  entityType: string | null;
+  /** @nullable */
+  entityId: string | null;
+  /** @nullable */
+  before: AuditLogEntryBefore;
+  /** @nullable */
+  after: AuditLogEntryAfter;
+  /** @nullable */
+  metadata: AuditLogEntryMetadata;
+  /** @nullable */
+  ipAddress: string | null;
+  createdAt: string;
+}
+
+export interface AuditLogListResponse {
+  items: AuditLogEntry[];
+  pagination: Pagination;
+}
+
+/**
  * 1-based page number
  */
 export type PageParamParameter = number;
@@ -382,5 +427,19 @@ export type HandleBrowserLoginCallbackParams = {
 code?: string;
 state?: string;
 iss?: string;
+};
+
+export type ListCmsAuditLogsParams = {
+/**
+ * 1-based page number
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * Number of items per page
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
 };
 

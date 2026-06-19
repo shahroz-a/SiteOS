@@ -431,6 +431,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /cms/audit-logs:
+    get:
+      tags: [cms]
+      operationId: listCmsAuditLogs
+      summary: List the audit trail of privileged CMS actions (requires audit.view)
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: A paginated list of audit log entries (newest first).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogListResponse"
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Insufficient permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
 components:
   parameters:
     SlugParam:
@@ -1002,3 +1032,62 @@ components:
       properties:
         role:
           $ref: "#/components/schemas/Role"
+
+    AuditLogEntry:
+      type: object
+      required:
+        - id
+        - action
+        - actorId
+        - actorEmail
+        - actorRole
+        - entityType
+        - entityId
+        - before
+        - after
+        - metadata
+        - ipAddress
+        - createdAt
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+          description: The privileged action performed, e.g. "user.role.update".
+        actorId:
+          type: [string, "null"]
+        actorEmail:
+          type: [string, "null"]
+        actorRole:
+          type: [string, "null"]
+        entityType:
+          type: [string, "null"]
+        entityId:
+          type: [string, "null"]
+        before:
+          type: [object, "null"]
+          additionalProperties: true
+        after:
+          type: [object, "null"]
+          additionalProperties: true
+        metadata:
+          type: [object, "null"]
+          additionalProperties: true
+        ipAddress:
+          type: [string, "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    AuditLogListResponse:
+      type: object
+      required:
+        - items
+        - pagination
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLogEntry"
+        pagination:
+          $ref: "#/components/schemas/Pagination"

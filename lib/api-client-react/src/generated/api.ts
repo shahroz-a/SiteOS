@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AuditLogListResponse,
   AuthUserEnvelope,
   Author,
   BeginBrowserLoginParams,
@@ -30,6 +31,7 @@ import type {
   ErrorEnvelope,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
+  ListCmsAuditLogsParams,
   ListPostsParams,
   LogoutSuccess,
   MobileTokenExchangeRequest,
@@ -1455,4 +1457,88 @@ export const useUpdateCmsUserRole = <TError = ErrorType<ErrorEnvelope>,
       > => {
       return useMutation(getUpdateCmsUserRoleMutationOptions(options));
     }
+
+export const getListCmsAuditLogsUrl = (params?: ListCmsAuditLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/cms/audit-logs?${stringifiedParams}` : `/api/cms/audit-logs`
+}
+
+/**
+ * @summary List the audit trail of privileged CMS actions (requires audit.view)
+ */
+export const listCmsAuditLogs = async (params?: ListCmsAuditLogsParams, options?: RequestInit): Promise<AuditLogListResponse> => {
+
+  return customFetch<AuditLogListResponse>(getListCmsAuditLogsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsAuditLogsQueryKey = (params?: ListCmsAuditLogsParams,) => {
+    return [
+    `/api/cms/audit-logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCmsAuditLogsQueryOptions = <TData = Awaited<ReturnType<typeof listCmsAuditLogs>>, TError = ErrorType<ErrorEnvelope>>(params?: ListCmsAuditLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsAuditLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsAuditLogsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsAuditLogs>>> = ({ signal }) => listCmsAuditLogs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsAuditLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsAuditLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsAuditLogs>>>
+export type ListCmsAuditLogsQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary List the audit trail of privileged CMS actions (requires audit.view)
+ */
+
+export function useListCmsAuditLogs<TData = Awaited<ReturnType<typeof listCmsAuditLogs>>, TError = ErrorType<ErrorEnvelope>>(
+ params?: ListCmsAuditLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsAuditLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsAuditLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import HomePage from "@/pages/home";
 import UsersPage from "@/pages/users";
+import AuditLogPage from "@/pages/audit-log";
 import { AppShell } from "@/components/app-shell";
 import { CmsAuthProvider, useCmsAuth } from "@/lib/cms-auth-context";
 
@@ -41,6 +42,11 @@ function AuthenticatedApp() {
         <Route path="/users">
           <RequirePermission permission="users.manage">
             <UsersPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/audit-log">
+          <RequirePermission permission="audit.view">
+            <AuditLogPage />
           </RequirePermission>
         </Route>
         <Route component={NotFound} />

@@ -1,9 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { asc, eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { asc, desc, eq, sql } from "drizzle-orm";
+import { db, usersTable, auditLogsTable } from "@workspace/db";
 import {
   GetCmsMeResponse,
   ListCmsUsersResponse,
+  ListCmsAuditLogsQueryParams,
+  ListCmsAuditLogsResponse,
   UpdateCmsUserRoleBody,
   UpdateCmsUserRoleParams,
   UpdateCmsUserRoleResponse,
@@ -137,6 +139,41 @@ router.patch(
         ...updated,
         role: normalizeRole(updated.role),
         createdAt: updated.createdAt.toISOString(),
+      }),
+    );
+  },
+);
+
+// Paginated audit trail of privileged CMS actions, newest first. Gated on
+// audit.view so admins/editors can see who changed what.
+router.get(
+  "/cms/audit-logs",
+  requireAuth,
+  requirePermission("audit.view"),
+  async (req: Request, res: Response) => {
+    const { page, limit } = ListCmsAuditLogsQueryParams.parse(req.query);
+    const offset = (page - 1) * limit;
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(auditLogsTable);
+    const total = count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    const rows = await db
+      .select()
+      .from(auditLogsTable)
+      .orderBy(desc(auditLogsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    res.json(
+      ListCmsAuditLogsResponse.parse({
+        items: rows.map((r) => ({
+          ...r,
+          createdAt: r.createdAt.toISOString(),
+        })),
+        pagination: { page, limit, total, totalPages },
       }),
     );
   },

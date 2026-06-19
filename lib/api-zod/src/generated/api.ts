@@ -454,3 +454,46 @@ export const UpdateCmsUserRoleResponse = zod.object({
 })
 
 
+/**
+ * @summary List the audit trail of privileged CMS actions (requires audit.view)
+ */
+export const listCmsAuditLogsQueryPageDefault = 1;
+
+export const listCmsAuditLogsQueryLimitDefault = 12;
+export const listCmsAuditLogsQueryLimitMax = 100;
+
+
+
+export const ListCmsAuditLogsQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listCmsAuditLogsQueryPageDefault).describe('1-based page number'),
+  "limit": zod.coerce.number().min(1).max(listCmsAuditLogsQueryLimitMax).default(listCmsAuditLogsQueryLimitDefault).describe('Number of items per page')
+})
+
+export const ListCmsAuditLogsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsAuditLogsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string().describe('The privileged action performed, e.g. \"user.role.update\".'),
+  "actorId": zod.string().nullable(),
+  "actorEmail": zod.string().nullable(),
+  "actorRole": zod.string().nullable(),
+  "entityType": zod.string().nullable(),
+  "entityId": zod.string().nullable(),
+  "before": zod.record(zod.string(), zod.unknown()).nullable(),
+  "after": zod.record(zod.string(), zod.unknown()).nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()).nullable(),
+  "ipAddress": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "pagination": zod.object({
+  "page": zod.number(),
+  "limit": zod.number(),
+  "total": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+

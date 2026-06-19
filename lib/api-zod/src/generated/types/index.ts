@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './auditLogEntry';
+export * from './auditLogEntryAfter';
+export * from './auditLogEntryBefore';
+export * from './auditLogEntryMetadata';
+export * from './auditLogListResponse';
 export * from './author';
 export * from './authorizationSessionHeaderParameter';
 export * from './authorSocial';
@@ -27,6 +32,7 @@ export * from './imageItem';
 export * from './jsonLdItem';
 export * from './jsonLdItemData';
 export * from './limitParamParameter';
+export * from './listCmsAuditLogsParams';
 export * from './listPostsParams';
 export * from './logoutSuccess';
 export * from './mobileTokenExchangeRequest';

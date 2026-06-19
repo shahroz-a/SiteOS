@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { FileText, Home, Users } from "lucide-react";
+import { FileText, Home, ScrollText, Users } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -31,6 +31,12 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "Content", href: "/content", icon: FileText },
   { label: "Users", href: "/users", icon: Users, permission: "users.manage" },
+  {
+    label: "Audit log",
+    href: "/audit-log",
+    icon: ScrollText,
+    permission: "audit.view",
+  },
 ];
 
 function initialsFor(name: string): string {
