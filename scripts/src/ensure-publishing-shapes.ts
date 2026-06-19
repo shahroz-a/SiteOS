@@ -32,12 +32,20 @@
 import { sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
 
+/**
+ * Minimal executor surface shared by the global `db` and a transaction handle.
+ * Threading this through lets the self-heal run against an injected transaction
+ * (e.g. a rolled-back one in tests) instead of only the global connection.
+ */
+export type Executor = Pick<typeof db, "execute">;
+
 // Enum values to ensure on `page_status`, in lockstep with
 // `lib/db/src/schema/enums.ts`: draft, review, scheduled, published, archived.
 // Each value is inserted BEFORE `published` so the enum ordering matches a fresh
 // schema create (review, then scheduled, both ahead of published). `ALTER TYPE
-// … ADD VALUE` cannot run inside a transaction, so each statement is executed
-// standalone (db.execute autocommits per statement).
+// … ADD VALUE` is run with IF NOT EXISTS, so a re-run is a no-op; the no-op form
+// is safe inside a transaction (only *using* a newly-added value in the same
+// transaction is disallowed).
 const ENUM_VALUES: Array<{ value: string; before: string }> = [
   { value: "review", before: "published" },
   { value: "scheduled", before: "published" },
@@ -45,13 +53,14 @@ const ENUM_VALUES: Array<{ value: string; before: string }> = [
 
 export async function ensurePublishingShapes(
   log: (m: string) => void = console.log,
+  executor: Executor = db,
 ): Promise<void> {
   log("Ensuring page_status enum has review/scheduled values…");
   for (const { value, before } of ENUM_VALUES) {
-    const existed = await enumValueExists("page_status", value);
+    const existed = await enumValueExists(executor, "page_status", value);
     // Static identifiers from this source file (never user input). ADD VALUE
     // can't be parameterized; IF NOT EXISTS makes the re-run a no-op.
-    await db.execute(
+    await executor.execute(
       sql.raw(
         `ALTER TYPE "page_status" ADD VALUE IF NOT EXISTS '${value}' BEFORE '${before}'`,
       ),
@@ -64,10 +73,10 @@ export async function ensurePublishingShapes(
   }
 
   log("Ensuring pages.scheduled_for column exists…");
-  const columnExisted = await columnExists("pages", "scheduled_for");
+  const columnExisted = await columnExists(executor, "pages", "scheduled_for");
   // Static DDL — column type matches lib/db/src/schema/pages.ts
   // (`timestamp with time zone`) so the publish-time dev→prod diff is a no-op.
-  await db.execute(
+  await executor.execute(
     sql.raw(
       `ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "scheduled_for" timestamp with time zone`,
     ),
@@ -79,8 +88,8 @@ export async function ensurePublishingShapes(
   );
 
   log("Ensuring pages_scheduled_for_idx index exists…");
-  const indexExisted = await indexExists("pages_scheduled_for_idx");
-  await db.execute(
+  const indexExisted = await indexExists(executor, "pages_scheduled_for_idx");
+  await executor.execute(
     sql.raw(
       `CREATE INDEX IF NOT EXISTS pages_scheduled_for_idx ON pages (scheduled_for)`,
     ),
@@ -95,10 +104,11 @@ export async function ensurePublishingShapes(
 }
 
 async function enumValueExists(
+  executor: Executor,
   enumName: string,
   value: string,
 ): Promise<boolean> {
-  const result = await db.execute(
+  const result = await executor.execute(
     sql`SELECT 1 FROM pg_enum e
         JOIN pg_type t ON t.oid = e.enumtypid
         WHERE t.typname = ${enumName} AND e.enumlabel = ${value}
@@ -108,10 +118,11 @@ async function enumValueExists(
 }
 
 async function columnExists(
+  executor: Executor,
   table: string,
   column: string,
 ): Promise<boolean> {
-  const result = await db.execute(
+  const result = await executor.execute(
     sql`SELECT 1 FROM information_schema.columns
         WHERE table_name = ${table} AND column_name = ${column}
         LIMIT 1`,
@@ -119,8 +130,11 @@ async function columnExists(
   return result.rows.length > 0;
 }
 
-async function indexExists(name: string): Promise<boolean> {
-  const result = await db.execute(
+async function indexExists(
+  executor: Executor,
+  name: string,
+): Promise<boolean> {
+  const result = await executor.execute(
     sql`SELECT 1 FROM pg_class WHERE relkind = 'i' AND relname = ${name} LIMIT 1`,
   );
   return result.rows.length > 0;
