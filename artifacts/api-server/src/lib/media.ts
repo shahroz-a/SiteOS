@@ -204,22 +204,65 @@ function cleanSuggestion(raw: string): string {
   return text;
 }
 
+/** Before/after snapshot of a media item's alt text for the audit trail. */
+export interface AltSnapshot {
+  alt: string | null;
+  altStatus: MediaAltStatus;
+}
+
+/** Result of saving reviewed alt text, with before/after for auditing. */
+export interface UpdateAltResult {
+  updatedUsages: number;
+  before: AltSnapshot;
+  after: AltSnapshot;
+}
+
 /**
  * Persist reviewed alt text for a media item: every `images` row sharing the
  * given CDN `url` is updated (the library aggregates by URL, so a single edit
- * applies to every page that uses the image). Returns how many rows changed;
- * 0 means no image with that URL exists.
+ * applies to every page that uses the image). `updatedUsages` is how many rows
+ * changed; 0 means no image with that URL exists. `before`/`after` capture the
+ * representative alt and its accessibility classification for the audit trail —
+ * the status is computed by the single source of truth (`altStatusCaseSql`).
  */
 export async function updateAltByUrl(
   url: string,
   alt: string,
-): Promise<number> {
+): Promise<UpdateAltResult> {
+  // Snapshot the representative (longest) alt and its status before editing.
+  const beforeRes = await db.execute(sql`
+    WITH grouped AS (
+      SELECT (array_agg(alt ORDER BY char_length(coalesce(alt, '')) DESC))[1] AS alt
+      FROM images
+      WHERE url = ${url}
+    )
+    SELECT alt, ${sql.raw(altStatusCaseSql("alt"))} AS alt_status
+    FROM grouped
+  `);
+  const beforeRow = (beforeRes.rows[0] ?? {}) as Record<string, unknown>;
+  const before: AltSnapshot = {
+    alt: toStringOrNull(beforeRow.alt),
+    altStatus: coerceAltStatus(beforeRow.alt_status),
+  };
+
   const updated = await db
     .update(imagesTable)
     .set({ alt })
     .where(eq(imagesTable.url, url))
     .returning({ id: imagesTable.id });
-  return updated.length;
+
+  // Every usage now shares the same alt, so the after status is deterministic.
+  const afterRes = await db.execute(sql`
+    SELECT ${sql.raw(altStatusCaseSql("alt_val"))} AS alt_status
+    FROM (SELECT ${alt}::text AS alt_val) t
+  `);
+  const afterRow = (afterRes.rows[0] ?? {}) as Record<string, unknown>;
+  const after: AltSnapshot = {
+    alt,
+    altStatus: coerceAltStatus(afterRow.alt_status),
+  };
+
+  return { updatedUsages: updated.length, before, after };
 }
 
 export interface ListMediaParams {

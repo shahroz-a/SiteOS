@@ -7,6 +7,7 @@ import {
   UpdateCmsMediaAltBody,
 } from "@workspace/api-zod";
 import { requireAuth, requirePermission } from "../middlewares/rbac";
+import { recordAudit } from "../lib/audit";
 import {
   listMedia,
   suggestAltText,
@@ -120,11 +121,25 @@ router.patch(
     }
 
     const { url, alt } = parsed.data;
-    const updatedUsages = await updateAltByUrl(url, alt);
+    const { updatedUsages, before, after } = await updateAltByUrl(url, alt);
     if (updatedUsages === 0) {
       res.status(404).json({ error: "No image with that URL exists." });
       return;
     }
+
+    // Record the alt-text change in the append-only audit trail so there is a
+    // record of who changed an image's alt text and when. The CDN URL is the
+    // stable media identifier (entityId), matching the audit-log display
+    // contract for `media.metadata.update` entries.
+    await recordAudit(req, {
+      action: "media.metadata.update",
+      entityType: "media",
+      entityId: url,
+      actorRole: req.cmsRole ?? null,
+      before: { alt: before.alt, altStatus: before.altStatus },
+      after: { alt: after.alt, altStatus: after.altStatus },
+      metadata: { url, updatedUsages },
+    });
 
     res.json({ url, alt, updatedUsages });
   },

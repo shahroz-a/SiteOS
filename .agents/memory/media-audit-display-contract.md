@@ -13,4 +13,4 @@ The CMS Audit Log screen renders `media.metadata.update` audit entries richly (t
 
 **How to apply:** when building the media metadata PATCH route in `artifacts/api-server/src/routes/cms-media.ts`, set those fields. The audit list endpoint (`GET /cms/audit-logs`) supports an `?action=` filter (server-side, pagination-correct), used by the "Image edits" toggle in `artifacts/cms/src/pages/audit-log.tsx`.
 
-Note: at the time this display was built, the PATCH producer did NOT yet exist — the display was implemented against this documented shape, verified via the server filter test and typecheck, not against live media-edit data.
+The PATCH producer now exists: `PATCH /cms/media/alt` calls `recordAudit` with this exact shape on success (entityId = CDN URL, before/after = {alt, altStatus}, metadata.url + updatedUsages). `updateAltByUrl` returns the before/after snapshot; altStatus is computed by the single source of truth `altStatusCaseSql` (no JS re-implementation). Only `alt`/`altStatus` are carried (an alt-text edit never touches title/caption).
