@@ -8,7 +8,9 @@ runner. The runner configs are scoped so they no longer overlap (each runner
 only sees its own files):
 
 - `artifacts/thanksgiving-mobile/__tests__/*.test.tsx` are **jest + @testing-library/react-native** tests (use `jest.mock`, render RN components). Run them with `pnpm --filter @workspace/thanksgiving-mobile run test` (jest). Jest is scoped via `roots`/`testMatch` (`<rootDir>/__tests__/**`) so it does NOT pick up `hooks/__tests__`.
-- `artifacts/thanksgiving-mobile/hooks/__tests__/*.test.tsx` are **vitest node** tests (`import { ... } from "vitest"`, `@vitest-environment node`). Run them with root `pnpm exec vitest run`. The root `vitest.config.ts` include is scoped to `artifacts/thanksgiving-mobile/hooks/**/*.test.{ts,tsx}` so vitest does NOT pick up the jest RTL test.
+- `artifacts/thanksgiving-mobile/hooks/__tests__/*.test.tsx` are **vitest node** tests (`import { ... } from "vitest"`, top-level `await import`, `@vitest-environment node`). The root `vitest.config.ts` include is scoped to `artifacts/thanksgiving-mobile/hooks/**/*.test.{ts,tsx}` so vitest does NOT pick up the jest RTL test.
+
+**One command runs both:** `pnpm --filter @workspace/thanksgiving-mobile run test` = `jest && pnpm run test:hooks`, where `test:hooks` is `vitest run` driven by a package-local `artifacts/thanksgiving-mobile/vitest.config.ts` (include scoped to `hooks/**`, environment node). The package config exists so vitest run from the package dir does NOT fall back to its default `**/*.test.{ts,tsx}` glob (which would grab the jest RTL test under `__tests__`). The root `vitest.config.ts` (used by root `pnpm exec vitest run`) still covers the mobile hooks too, so the hook specs run in both the root and per-package flows — duplication, not a regression.
 
 **Why the scoping matters:** before scoping, jest's `**/__tests__/**` glob also
 grabbed the vitest hooks file (parse error: `await is only valid in async
