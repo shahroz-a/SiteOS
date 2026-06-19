@@ -5,6 +5,8 @@ import {
   type CmsAnalytics,
   type AnalyticsLeader,
   type AnalyticsMaintenance,
+  type AnalyticsAutoPublish,
+  type AnalyticsRedirectHealth,
   type AnalyticsReferrer,
   type AnalyticsTimePoint,
 } from "@workspace/api-client-react";
@@ -437,6 +439,115 @@ function MaintenanceCard({ run }: { run: AnalyticsMaintenance | null }) {
   );
 }
 
+/**
+ * At-a-glance confirmation that the scheduled auto-publish job (promoting
+ * `scheduled` posts to `published` once their time arrives) is firing — labelled
+ * as an automated job, distinct from manual publishing. Sourced from the
+ * null-actor `article.publish.scheduled` audit_logs rows, so there's no separate
+ * producer.
+ */
+function AutoPublishCard({ run }: { run: AnalyticsAutoPublish | null }) {
+  return (
+    <Card className="border-border/60 bg-muted/20">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <span className="rounded-lg bg-muted/60 p-2 text-muted-foreground">
+            <CalendarClock className="size-5" aria-hidden />
+          </span>
+          <div className="space-y-0.5">
+            <CardTitle className="text-lg">Scheduled publishing</CardTitle>
+            <CardDescription>
+              Automated maintenance — promotes scheduled posts when due.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {run === null ? (
+          <p className="text-sm text-muted-foreground">
+            No scheduled posts have been auto-published yet. Posts set to publish
+            at a future time go live automatically once that time arrives.
+          </p>
+        ) : (
+          <div className="space-y-1 text-sm">
+            <div>
+              Last published{" "}
+              <span className="font-medium">{relativeTime(run.lastRunAt)}</span>
+              {run.lastSlug ? (
+                <>
+                  {" "}
+                  (<span className="font-medium">{run.lastSlug}</span>)
+                </>
+              ) : null}
+              ,{" "}
+              <span className="font-medium">{nf(run.totalPublished)}</span> post
+              {run.totalPublished === 1 ? "" : "s"} auto-published all-time.
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {absoluteTime(run.lastRunAt)}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * At-a-glance confirmation that the scheduled redirect-target-health job is
+ * firing — labelled as an automated job. It retires redirects whose targets are
+ * confirmed dead. Sourced from the null-actor `redirect.deactivate.auto`
+ * audit_logs rows, so there's no separate producer. Note an empty state here
+ * just means nothing has been deactivated (a healthy outcome), since the job
+ * only records a row when it actually retires a dead redirect.
+ */
+function RedirectHealthCard({ run }: { run: AnalyticsRedirectHealth | null }) {
+  return (
+    <Card className="border-border/60 bg-muted/20">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <span className="rounded-lg bg-muted/60 p-2 text-muted-foreground">
+            <Unlink className="size-5" aria-hidden />
+          </span>
+          <div className="space-y-0.5">
+            <CardTitle className="text-lg">Redirect cleanup</CardTitle>
+            <CardDescription>
+              Automated maintenance — retires redirects to dead targets.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {run === null ? (
+          <p className="text-sm text-muted-foreground">
+            No redirects have been auto-deactivated yet. The scheduled job
+            retires redirects only once their target is confirmed dead.
+          </p>
+        ) : (
+          <div className="space-y-1 text-sm">
+            <div>
+              Last deactivated{" "}
+              <span className="font-medium">{relativeTime(run.lastRunAt)}</span>,{" "}
+              <span className="font-medium">{nf(run.totalDeactivated)}</span>{" "}
+              redirect{run.totalDeactivated === 1 ? "" : "s"} retired all-time.
+            </div>
+            {run.lastFromPath ? (
+              <p className="text-xs text-muted-foreground">
+                Most recent: {run.lastFromPath}
+                {run.lastToPath ? ` → ${run.lastToPath}` : ""}
+                {run.lastReason ? ` (${run.lastReason})` : ""}
+              </p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              {absoluteTime(run.lastRunAt)}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function StatGrid({ data }: { data: CmsAnalytics }) {
   const { views, seo, health } = data;
   return (
@@ -596,7 +707,11 @@ export default function AnalyticsPage() {
 
           <ReferrerBoard rows={data.topReferrers} />
 
-          <MaintenanceCard run={data.maintenance} />
+          <div className="grid gap-4 lg:grid-cols-3">
+            <MaintenanceCard run={data.maintenance} />
+            <AutoPublishCard run={data.autoPublish} />
+            <RedirectHealthCard run={data.redirectHealth} />
+          </div>
 
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <BarChart3 className="size-3.5" />

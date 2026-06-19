@@ -5,9 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AnalyticsAutoPublish } from './analyticsAutoPublish';
 import type { AnalyticsHealth } from './analyticsHealth';
 import type { AnalyticsLeader } from './analyticsLeader';
 import type { AnalyticsMaintenance } from './analyticsMaintenance';
+import type { AnalyticsRedirectHealth } from './analyticsRedirectHealth';
 import type { AnalyticsReferrer } from './analyticsReferrer';
 import type { AnalyticsSeo } from './analyticsSeo';
 import type { AnalyticsTimePoint } from './analyticsTimePoint';
@@ -30,4 +32,8 @@ export interface CmsAnalytics {
   health: AnalyticsHealth;
   /** Most recent automated storage-cleanup (page-views rollup) run, or null if the scheduled job has never recorded a run. */
   maintenance: AnalyticsMaintenance | null;
+  /** Most recent automated auto-publish (scheduled-post promotion) activity, or null if the scheduled job has never recorded a run. */
+  autoPublish: AnalyticsAutoPublish | null;
+  /** Most recent automated redirect-target-health deactivation, or null if the scheduled job has never deactivated a redirect. */
+  redirectHealth: AnalyticsRedirectHealth | null;
 }

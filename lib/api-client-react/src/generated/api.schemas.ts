@@ -2187,6 +2187,34 @@ export interface AnalyticsMaintenance {
   cutoff: string;
 }
 
+/**
+ * Summary of the most recent automated auto-publish (scheduled-post promotion) activity, sourced from the null-actor `article.publish.scheduled` audit log rows. Lets operators confirm the scheduled publish job is firing without leaving the analytics screen.
+ */
+export interface AnalyticsAutoPublish {
+  /** When the most recent scheduled post was auto-published. */
+  lastRunAt: string;
+  /** Slug of the most recently auto-published post. */
+  lastSlug: string;
+  /** All-time count of posts auto-published by the scheduled job. */
+  totalPublished: number;
+}
+
+/**
+ * Summary of the most recent automated redirect-target-health deactivation, sourced from the null-actor `redirect.deactivate.auto` audit log rows. Lets operators confirm dead redirect targets are being retired without leaving the analytics screen.
+ */
+export interface AnalyticsRedirectHealth {
+  /** When the most recent redirect was auto-deactivated. */
+  lastRunAt: string;
+  /** Old path of the most recently deactivated redirect. */
+  lastFromPath: string;
+  /** Target path of the most recently deactivated redirect. */
+  lastToPath: string;
+  /** Why the most recent redirect was deactivated. */
+  lastReason: string;
+  /** All-time count of redirects auto-deactivated by the job. */
+  totalDeactivated: number;
+}
+
 export interface CmsAnalytics {
   generatedAt: string;
   views: AnalyticsViews;
@@ -2204,6 +2232,10 @@ export interface CmsAnalytics {
   health: AnalyticsHealth;
   /** Most recent automated storage-cleanup (page-views rollup) run, or null if the scheduled job has never recorded a run. */
   maintenance: AnalyticsMaintenance | null;
+  /** Most recent automated auto-publish (scheduled-post promotion) activity, or null if the scheduled job has never recorded a run. */
+  autoPublish: AnalyticsAutoPublish | null;
+  /** Most recent automated redirect-target-health deactivation, or null if the scheduled job has never deactivated a redirect. */
+  redirectHealth: AnalyticsRedirectHealth | null;
 }
 
 /**

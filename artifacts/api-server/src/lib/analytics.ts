@@ -139,6 +139,8 @@ export async function buildAnalytics() {
     contentGrowth,
     health,
     maintenance,
+    autoPublish,
+    redirectHealth,
   ] = await Promise.all([
     viewsQuery(),
     topPagesQuery(),
@@ -151,6 +153,8 @@ export async function buildAnalytics() {
     contentGrowthQuery(),
     healthQuery(),
     maintenanceQuery(),
+    autoPublishQuery(),
+    redirectHealthQuery(),
   ]);
 
   return {
@@ -166,6 +170,8 @@ export async function buildAnalytics() {
     contentGrowth,
     health,
     maintenance,
+    autoPublish,
+    redirectHealth,
   };
 }
 
@@ -455,5 +461,83 @@ export async function maintenanceQuery(exec: Executor = db) {
     buckets: Number(row.buckets ?? 0),
     referrerBuckets: Number(row.referrer_buckets ?? 0),
     cutoff: String(row.cutoff ?? ""),
+  };
+}
+
+/**
+ * Most-recent automated auto-publish (scheduled-post promotion) activity. Reuses
+ * the null-actor `article.publish.scheduled` audit_logs rows the scheduled
+ * publish job already writes (one per promoted post, no new producer work) so
+ * operators can confirm the scheduling job is firing. `lastRunAt` is the most
+ * recent promotion; `totalPublished` is the all-time count of auto-published
+ * posts. Returns null when the job has never recorded a run.
+ */
+async function autoPublishQuery() {
+  const res = await db.execute<{
+    last_run_at: string;
+    last_slug: string;
+    total: number;
+  }>(sql`
+    select
+      created_at as last_run_at,
+      coalesce(metadata->>'slug', '') as last_slug,
+      (
+        select count(*)
+        from audit_logs
+        where action = 'article.publish.scheduled'
+      ) as total
+    from audit_logs
+    where action = 'article.publish.scheduled'
+    order by created_at desc
+    limit 1
+  `);
+  const row = res.rows[0];
+  if (!row) return null;
+  return {
+    lastRunAt: new Date(row.last_run_at).toISOString(),
+    lastSlug: String(row.last_slug ?? ""),
+    totalPublished: Number(row.total ?? 0),
+  };
+}
+
+/**
+ * Most-recent automated redirect-target-health deactivation. Reuses the
+ * null-actor `redirect.deactivate.auto` audit_logs rows the scheduled
+ * redirect-health job already writes (one per retired redirect, no new producer
+ * work) so operators can confirm dead targets are being retired. `lastRunAt` is
+ * the most recent deactivation; `totalDeactivated` is the all-time count.
+ * Returns null when the job has never deactivated a redirect.
+ */
+async function redirectHealthQuery() {
+  const res = await db.execute<{
+    last_run_at: string;
+    last_from_path: string;
+    last_to_path: string;
+    last_reason: string;
+    total: number;
+  }>(sql`
+    select
+      created_at as last_run_at,
+      coalesce(metadata->>'fromPath', '') as last_from_path,
+      coalesce(metadata->>'toPath', '') as last_to_path,
+      coalesce(after->>'deactivatedReason', '') as last_reason,
+      (
+        select count(*)
+        from audit_logs
+        where action = 'redirect.deactivate.auto'
+      ) as total
+    from audit_logs
+    where action = 'redirect.deactivate.auto'
+    order by created_at desc
+    limit 1
+  `);
+  const row = res.rows[0];
+  if (!row) return null;
+  return {
+    lastRunAt: new Date(row.last_run_at).toISOString(),
+    lastFromPath: String(row.last_from_path ?? ""),
+    lastToPath: String(row.last_to_path ?? ""),
+    lastReason: String(row.last_reason ?? ""),
+    totalDeactivated: Number(row.total ?? 0),
   };
 }

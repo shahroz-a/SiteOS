@@ -450,7 +450,19 @@ export const GetCmsAnalyticsResponse = zod.object({
   "buckets": zod.number().describe('Distinct (day, slug) daily buckets written\/updated.'),
   "referrerBuckets": zod.number().describe('Distinct (day, referrer host) buckets written\/updated.'),
   "cutoff": zod.string().describe('Raw rows older than this timestamp were rolled up and removed.')
-}).describe('Summary of the most recent automated storage-cleanup (page-views rollup) run, sourced from the null-actor `analytics.rollup.auto` audit log row. Lets operators confirm the scheduled job is firing without leaving the analytics screen.'),zod.null()]).describe('Most recent automated storage-cleanup (page-views rollup) run, or null if the scheduled job has never recorded a run.')
+}).describe('Summary of the most recent automated storage-cleanup (page-views rollup) run, sourced from the null-actor `analytics.rollup.auto` audit log row. Lets operators confirm the scheduled job is firing without leaving the analytics screen.'),zod.null()]).describe('Most recent automated storage-cleanup (page-views rollup) run, or null if the scheduled job has never recorded a run.'),
+  "autoPublish": zod.union([zod.object({
+  "lastRunAt": zod.coerce.date().describe('When the most recent scheduled post was auto-published.'),
+  "lastSlug": zod.string().describe('Slug of the most recently auto-published post.'),
+  "totalPublished": zod.number().describe('All-time count of posts auto-published by the scheduled job.')
+}).describe('Summary of the most recent automated auto-publish (scheduled-post promotion) activity, sourced from the null-actor `article.publish.scheduled` audit log rows. Lets operators confirm the scheduled publish job is firing without leaving the analytics screen.'),zod.null()]).describe('Most recent automated auto-publish (scheduled-post promotion) activity, or null if the scheduled job has never recorded a run.'),
+  "redirectHealth": zod.union([zod.object({
+  "lastRunAt": zod.coerce.date().describe('When the most recent redirect was auto-deactivated.'),
+  "lastFromPath": zod.string().describe('Old path of the most recently deactivated redirect.'),
+  "lastToPath": zod.string().describe('Target path of the most recently deactivated redirect.'),
+  "lastReason": zod.string().describe('Why the most recent redirect was deactivated.'),
+  "totalDeactivated": zod.number().describe('All-time count of redirects auto-deactivated by the job.')
+}).describe('Summary of the most recent automated redirect-target-health deactivation, sourced from the null-actor `redirect.deactivate.auto` audit log rows. Lets operators confirm dead redirect targets are being retired without leaving the analytics screen.'),zod.null()]).describe('Most recent automated redirect-target-health deactivation, or null if the scheduled job has never deactivated a redirect.')
 })
 
 

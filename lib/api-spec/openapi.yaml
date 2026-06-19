@@ -6496,6 +6496,60 @@ components:
           type: string
           description: Raw rows older than this timestamp were rolled up and removed.
 
+    AnalyticsAutoPublish:
+      type: object
+      description: >-
+        Summary of the most recent automated auto-publish (scheduled-post
+        promotion) activity, sourced from the null-actor
+        `article.publish.scheduled` audit log rows. Lets operators confirm the
+        scheduled publish job is firing without leaving the analytics screen.
+      required:
+        - lastRunAt
+        - lastSlug
+        - totalPublished
+      properties:
+        lastRunAt:
+          type: string
+          format: date-time
+          description: When the most recent scheduled post was auto-published.
+        lastSlug:
+          type: string
+          description: Slug of the most recently auto-published post.
+        totalPublished:
+          type: integer
+          description: All-time count of posts auto-published by the scheduled job.
+
+    AnalyticsRedirectHealth:
+      type: object
+      description: >-
+        Summary of the most recent automated redirect-target-health
+        deactivation, sourced from the null-actor `redirect.deactivate.auto`
+        audit log rows. Lets operators confirm dead redirect targets are being
+        retired without leaving the analytics screen.
+      required:
+        - lastRunAt
+        - lastFromPath
+        - lastToPath
+        - lastReason
+        - totalDeactivated
+      properties:
+        lastRunAt:
+          type: string
+          format: date-time
+          description: When the most recent redirect was auto-deactivated.
+        lastFromPath:
+          type: string
+          description: Old path of the most recently deactivated redirect.
+        lastToPath:
+          type: string
+          description: Target path of the most recently deactivated redirect.
+        lastReason:
+          type: string
+          description: Why the most recent redirect was deactivated.
+        totalDeactivated:
+          type: integer
+          description: All-time count of redirects auto-deactivated by the job.
+
     CmsAnalytics:
       type: object
       required:
@@ -6511,6 +6565,8 @@ components:
         - contentGrowth
         - health
         - maintenance
+        - autoPublish
+        - redirectHealth
       properties:
         generatedAt:
           type: string
@@ -6558,6 +6614,20 @@ components:
             null if the scheduled job has never recorded a run.
           anyOf:
             - $ref: '#/components/schemas/AnalyticsMaintenance'
+            - type: 'null'
+        autoPublish:
+          description: >-
+            Most recent automated auto-publish (scheduled-post promotion)
+            activity, or null if the scheduled job has never recorded a run.
+          anyOf:
+            - $ref: '#/components/schemas/AnalyticsAutoPublish'
+            - type: 'null'
+        redirectHealth:
+          description: >-
+            Most recent automated redirect-target-health deactivation, or null
+            if the scheduled job has never deactivated a redirect.
+          anyOf:
+            - $ref: '#/components/schemas/AnalyticsRedirectHealth'
             - type: 'null'
 
     DeactivatedRedirect:
