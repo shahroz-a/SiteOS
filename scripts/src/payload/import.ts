@@ -49,6 +49,7 @@ import {
   type PayloadTagDoc,
 } from "./mapping.js";
 import { flattenBlocks } from "../import/transform.js";
+import { resolveInternalLinks } from "../import/persist.js";
 import type { BlockNode } from "../import/types.js";
 
 type ExportShape = Partial<PayloadExport> & {
@@ -103,6 +104,7 @@ export interface ImportStats {
   postsCreated: number;
   postsUpdated: number;
   postsUnchanged: number;
+  internalLinksResolved: number;
 }
 
 export async function importExport(
@@ -116,6 +118,7 @@ export async function importExport(
     postsCreated: 0,
     postsUpdated: 0,
     postsUnchanged: 0,
+    internalLinksResolved: 0,
   };
 
   // Index documents by their export id so relationship values (which reference
@@ -353,6 +356,12 @@ export async function importExport(
     if (heroMedia) stats.media++;
     stats.media += inlineMedia.length;
   }
+
+  // The export intentionally drops each internal link's `targetPageId` (links
+  // round-trip by `href` only). Now that every page exists, re-resolve targets
+  // by matching each link's href to a page's canonical URL — the same pass the
+  // crawler uses — so "related article" connections point at real pages again.
+  stats.internalLinksResolved = await resolveInternalLinks();
 
   return stats;
 }

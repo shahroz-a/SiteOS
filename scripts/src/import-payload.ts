@@ -50,7 +50,8 @@ async function main(): Promise<void> {
       `  hero media linked:   ${stats.media}\n` +
       `  posts created:       ${stats.postsCreated}\n` +
       `  posts updated:       ${stats.postsUpdated}\n` +
-      `  posts unchanged:     ${stats.postsUnchanged}`,
+      `  posts unchanged:     ${stats.postsUnchanged}\n` +
+      `  internal links resolved: ${stats.internalLinksResolved}`,
   );
 }
 
