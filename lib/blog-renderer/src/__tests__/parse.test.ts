@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { sanitizeContentHtml } from "./blog";
+import { prepareArticleHtml, sanitizeContentHtml } from "../parse";
 
 describe("sanitizeContentHtml (DOM path)", () => {
   it("strips the mod_pagespeed onload handler that crashed the blog", () => {
@@ -55,5 +55,25 @@ describe("sanitizeContentHtml (non-DOM fallback)", () => {
     expect(out).not.toMatch(/onload|onerror/i);
     expect(out).not.toContain("pagespeed");
     expect(out).toContain("src=y.jpg");
+  });
+});
+
+describe("prepareArticleHtml (the live render path)", () => {
+  it("strips the mod_pagespeed onload handler before render", () => {
+    // This is the function the renderer actually feeds into
+    // dangerouslySetInnerHTML, so it is the true crash-regression guard.
+    const raw =
+      "<p>Intro</p>" +
+      '<img src="https://cdn.example.com/x.jpg" ' +
+      'onload="pagespeed.CriticalImages.checkImageForCriticality(this);">';
+    const { html } = prepareArticleHtml(raw);
+    expect(html).not.toMatch(/onload/i);
+    expect(html).not.toContain("pagespeed.CriticalImages");
+    expect(html).toContain('src="https://cdn.example.com/x.jpg"');
+    expect(html).toContain("<p>Intro</p>");
+  });
+
+  it("returns falsy input unchanged with an empty toc", () => {
+    expect(prepareArticleHtml("")).toEqual({ html: "", toc: [] });
   });
 });
