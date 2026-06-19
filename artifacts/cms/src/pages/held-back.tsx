@@ -7,12 +7,15 @@ import {
   useApproveCmsHeldBackArticle,
   useReparseCmsHeldBackArticle,
   useGetCmsHeldBackArticleSource,
+  useListCmsAuditLogs,
   getGetCmsHeldBackArticleSourceQueryKey,
   getListCmsHeldBackArticlesQueryKey,
+  getListCmsAuditLogsQueryKey,
   type HeldBackArticle,
   type HeldBackValidationIssue,
   type ReparseHeldBackArticleResponse,
   type ListCmsHeldBackArticlesIssue,
+  type AuditLogEntry,
 } from "@workspace/api-client-react";
 import { ContentRenderer } from "@workspace/blog-renderer";
 import {
@@ -282,6 +285,105 @@ function ReparsePanel({ article }: { article: HeldBackArticle }) {
   );
 }
 
+// Human-readable labels for the page-scoped audit actions that show up in a
+// held-back article's decision trail.
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  "article.publish": "Published",
+  "article.dismiss": "Dismissed",
+  "article.approve": "Approved",
+  "article.reextract": "Re-extracted",
+  "article.reparse": "Re-parsed",
+  "article.edit": "Edited body",
+};
+
+function auditActionLabel(action: string): string {
+  return AUDIT_ACTION_LABELS[action] ?? action;
+}
+
+function formatAuditTimestamp(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function auditActor(entry: AuditLogEntry): string {
+  const who = entry.actorEmail ?? entry.actorId ?? "Unknown user";
+  return entry.actorRole ? `${who} (${entry.actorRole})` : who;
+}
+
+// Read-only trail of approve/dismiss/publish/reparse/edit decisions already
+// recorded for this page, newest first. Reuses the shared audit-log read path
+// filtered by entityType=page + entityId. Only rendered for users who can view
+// the audit log (the endpoint is gated on audit.view), so reviewers without
+// that permission never trigger a 403.
+function DecisionHistory({ articleId }: { articleId: string }) {
+  const params = {
+    entityType: "page",
+    entityId: articleId,
+    limit: 20,
+  } as const;
+
+  const { data, isLoading, isError } = useListCmsAuditLogs(params, {
+    query: {
+      enabled: Boolean(articleId),
+      queryKey: getListCmsAuditLogsQueryKey(params),
+    },
+  });
+
+  const entries = data?.items ?? [];
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <h3 className="font-medium">Decision history</h3>
+        <p className="text-sm text-muted-foreground">
+          Who approved, dismissed, published, or re-checked this article, newest
+          first.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      ) : isError ? (
+        <p className="text-sm text-muted-foreground">
+          Could not load the decision history.
+        </p>
+      ) : entries.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No decisions recorded for this article yet.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {entries.map((entry) => (
+            <li
+              key={entry.id}
+              className="rounded-md border border-border/60 p-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">
+                  {auditActionLabel(entry.action)}
+                </span>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {formatAuditTimestamp(entry.createdAt)}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {auditActor(entry)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ArticleDrawer({
   article,
   open,
@@ -295,6 +397,7 @@ function ArticleDrawer({
   const { can } = useCmsAuth();
   const queryClient = useQueryClient();
   const canResolve = can("review.approve");
+  const canViewHistory = can("audit.view");
 
   const resolve = useResolveCmsHeldBackArticle({
     mutation: {
@@ -456,6 +559,13 @@ function ArticleDrawer({
                   </span>
                 </span>
               </div>
+
+              {canViewHistory ? (
+                <>
+                  <Separator />
+                  <DecisionHistory articleId={article.id} />
+                </>
+              ) : null}
 
               <Separator />
 
