@@ -91,9 +91,17 @@ export function extractPublishBlock(err: unknown): PublishBlock | null {
 
 export function PublishPanel({
   detail,
+  blocking = [],
   onOpenSeoPanel,
 }: {
   detail: CmsPostDetail;
+  /**
+   * Live blocking SEO issues from the current editor state (failed
+   * `error`-severity checks). When non-empty, the publish/schedule actions are
+   * flagged so an editor sees the article can't go live before they try — the
+   * server gate stays the source of truth, so clicking through still works.
+   */
+  blocking?: SeoCheck[];
   onOpenSeoPanel?: () => void;
 }) {
   const { can } = useCmsAuth();
@@ -102,6 +110,9 @@ export function PublishPanel({
 
   const canPublish = can("content.publish");
   const canManageUrl = can("url.manage");
+  // Only publish/schedule transitions run the gate, so the warning only matters
+  // for users who can publish and only when there are blocking issues.
+  const showBlockingHint = canPublish && blocking.length > 0;
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [block, setBlock] = useState<PublishBlock | null>(null);
@@ -154,11 +165,23 @@ export function PublishPanel({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline" disabled={transition.isPending}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={transition.isPending}
+            title={
+              showBlockingHint
+                ? `${blocking.length} SEO issue(s) will block publishing`
+                : undefined
+            }
+          >
+            {showBlockingHint && (
+              <AlertTriangle className="mr-1 h-3.5 w-3.5 text-destructive" />
+            )}
             Status <ChevronDown className="ml-1 h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel>Move article to…</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {detail.status !== "draft" && (
@@ -174,12 +197,27 @@ export function PublishPanel({
           {canPublish && detail.status !== "published" && (
             <DropdownMenuItem onClick={() => move("published")}>
               <Globe className="mr-2 h-4 w-4" /> Publish now
+              {showBlockingHint && <BlockingBadge count={blocking.length} />}
             </DropdownMenuItem>
           )}
           {canPublish && (
             <DropdownMenuItem onClick={() => setScheduleOpen(true)}>
               <CalendarClock className="mr-2 h-4 w-4" /> Schedule…
+              {showBlockingHint && <BlockingBadge count={blocking.length} />}
             </DropdownMenuItem>
+          )}
+          {showBlockingHint && (
+            <button
+              type="button"
+              onClick={onOpenSeoPanel}
+              className="mt-1 flex w-full items-start gap-1.5 px-2 py-1.5 text-left text-xs text-destructive hover:underline"
+            >
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                {blocking.length} critical SEO issue(s) must be fixed before this
+                article can go live. Review in the SEO panel.
+              </span>
+            </button>
           )}
           {detail.status !== "archived" && (
             <>
@@ -212,6 +250,16 @@ export function PublishPanel({
               onChange={(e) => setScheduleAt(e.target.value)}
             />
           </div>
+          {showBlockingHint && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p className="flex-1">
+                This article has {blocking.length} critical SEO issue(s) that will
+                block publishing — the scheduled publish will fail until they're
+                fixed.
+              </p>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setScheduleOpen(false)}>
               Cancel
@@ -277,6 +325,18 @@ export function PublishPanel({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** Small destructive count badge appended to a publish/schedule menu item. */
+function BlockingBadge({ count }: { count: number }) {
+  return (
+    <Badge
+      variant="destructive"
+      className="ml-auto h-5 px-1.5 text-[10px] font-medium"
+    >
+      {count} blocking
+    </Badge>
   );
 }
 

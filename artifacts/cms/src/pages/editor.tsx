@@ -44,11 +44,14 @@ import { EditorCanvas } from "@/editor/canvas";
 import { EditorPreview } from "@/editor/preview";
 import { LinkPickerProvider } from "@/editor/link-assistant";
 import { ImageUploadButton, LibraryButton } from "@/editor/block-editors";
+import { validateSeo } from "@workspace/seo-validation";
 import {
   blocksFromDetail,
+  buildEditorValidationInput,
   detailToInput,
   initialSeoState,
   type EditorBlock,
+  type EditorSeoState,
   type SeoMetaInput,
 } from "@/editor/model";
 import { PublishPanel } from "@/editor/publish-panel";
@@ -93,6 +96,27 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   useEffect(() => {
     if (bannerUrl.trim()) setBannerWarningDismissed(false);
   }, [bannerUrl]);
+
+  // The live SEO state shared by the SEO panel and the publish-gate indicator.
+  const seoState = useMemo<EditorSeoState>(
+    () => ({
+      title,
+      excerpt: excerpt || null,
+      featuredImageUrl: bannerUrl || null,
+      canonicalUrl: canonicalUrl || null,
+      seo,
+    }),
+    [title, excerpt, bannerUrl, canonicalUrl, seo],
+  );
+
+  // Run the same pure engine the server publish gate uses, on the LIVE editor
+  // state, to flag blocking SEO issues before the editor attempts to publish.
+  // Duplicate checks (the only DB-derived signal) are all `warn`, so they never
+  // block — the blocking set is fully derivable client-side without the server.
+  const blockingSeoIssues = useMemo(
+    () => validateSeo(buildEditorValidationInput(detail, editor.blocks, seoState)).blocking,
+    [detail, editor.blocks, seoState],
+  );
 
   const analytics = useGetCmsPostAnalytics(detail.slug, {
     query: { queryKey: getGetCmsPostAnalyticsQueryKey(detail.slug) },
@@ -223,7 +247,11 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
           </Button>
         </div>
         <div className="ml-1 border-l border-border/60 pl-2">
-          <PublishPanel detail={detail} onOpenSeoPanel={() => setSeoOpen(true)} />
+          <PublishPanel
+            detail={detail}
+            blocking={blockingSeoIssues}
+            onOpenSeoPanel={() => setSeoOpen(true)}
+          />
         </div>
       </header>
 
@@ -290,13 +318,7 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
         onOpenChange={setSeoOpen}
         detail={detail}
         blocks={editor.blocks}
-        state={{
-          title,
-          excerpt: excerpt || null,
-          featuredImageUrl: bannerUrl || null,
-          canonicalUrl: canonicalUrl || null,
-          seo,
-        }}
+        state={seoState}
         onSeoChange={(patch) => setSeo((prev) => ({ ...prev, ...patch }))}
         onCanonicalChange={(value) => setCanonicalUrl(value ?? "")}
         disabled={!canEdit}
