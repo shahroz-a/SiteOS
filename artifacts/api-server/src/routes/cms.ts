@@ -159,18 +159,23 @@ router.get(
   requireAuth,
   requirePermission("audit.view"),
   async (req: Request, res: Response) => {
-    const { page, limit } = ListCmsAuditLogsQueryParams.parse(req.query);
+    const { page, limit, action } = ListCmsAuditLogsQueryParams.parse(
+      req.query,
+    );
     const offset = (page - 1) * limit;
+    const where = action ? eq(auditLogsTable.action, action) : undefined;
 
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(auditLogsTable);
+      .from(auditLogsTable)
+      .where(where);
     const total = count ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
     const rows = await db
       .select()
       .from(auditLogsTable)
+      .where(where)
       .orderBy(desc(auditLogsTable.createdAt))
       .limit(limit)
       .offset(offset);

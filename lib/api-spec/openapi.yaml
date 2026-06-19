@@ -437,6 +437,14 @@ paths:
       operationId: listCmsAuditLogs
       summary: List the audit trail of privileged CMS actions (requires audit.view)
       parameters:
+        - name: action
+          in: query
+          required: false
+          description: >-
+            Filter to a single action, e.g. "media.metadata.update" to show only
+            image-description edits.
+          schema:
+            type: string
         - $ref: "#/components/parameters/PageParam"
         - $ref: "#/components/parameters/LimitParam"
         - $ref: "#/components/parameters/AuthorizationSessionHeader"

@@ -270,6 +270,90 @@ describe("PATCH /api/cms/users/:userId/role", () => {
   });
 });
 
+describe("GET /api/cms/audit-logs", () => {
+  const PERMITTED: Role[] = ["admin", "editor"];
+
+  function seedAuditEntries(): Tables {
+    const base = seedAuthTables();
+    base.audit_logs = [
+      {
+        id: "a-role",
+        action: "user.role.update",
+        entityType: "user",
+        entityId: "u-target",
+        before: { role: "viewer" },
+        after: { role: "editor" },
+        metadata: null,
+        actorId: "u-admin",
+        actorEmail: "admin@example.com",
+        actorRole: "admin",
+        ipAddress: null,
+        createdAt: new Date("2025-03-01T00:00:00Z"),
+      },
+      {
+        id: "a-media",
+        action: "media.metadata.update",
+        entityType: "media",
+        entityId: "https://cdn.example.com/img.jpg",
+        before: { alt: "", altStatus: "missing" },
+        after: { alt: "A sunny beach", altStatus: "ok" },
+        metadata: null,
+        actorId: "u-editor",
+        actorEmail: "editor@example.com",
+        actorRole: "editor",
+        ipAddress: null,
+        createdAt: new Date("2025-03-02T00:00:00Z"),
+      },
+    ];
+    return base;
+  }
+
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app).get("/api/cms/audit-logs");
+    expect(res.status).toBe(401);
+  });
+
+  for (const role of ROLES.filter((r) => !PERMITTED.includes(r))) {
+    it(`returns 403 for ${role} (lacks audit.view)`, async () => {
+      const res = await request(app)
+        .get("/api/cms/audit-logs")
+        .set("Authorization", bearer(role));
+      expect(res.status).toBe(403);
+    });
+  }
+
+  describe("with seeded audit entries", () => {
+    beforeEach(() => {
+      const fresh = seedAuditEntries();
+      for (const k of Object.keys(tables)) delete tables[k];
+      for (const [k, v] of Object.entries(fresh)) tables[k] = v;
+    });
+
+    it("returns all entries, newest first, without a filter", async () => {
+      const res = await request(app)
+        .get("/api/cms/audit-logs")
+        .set("Authorization", bearer("admin"));
+      expect(res.status).toBe(200);
+      expect(res.body.pagination.total).toBe(2);
+      expect(res.body.items.map((e: { id: string }) => e.id)).toEqual([
+        "a-media",
+        "a-role",
+      ]);
+    });
+
+    it("filters to a single action and counts only matches", async () => {
+      const res = await request(app)
+        .get("/api/cms/audit-logs?action=media.metadata.update")
+        .set("Authorization", bearer("admin"));
+      expect(res.status).toBe(200);
+      expect(res.body.pagination.total).toBe(1);
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].action).toBe("media.metadata.update");
+      expect(res.body.items[0].after.alt).toBe("A sunny beach");
+    });
+  });
+});
+
 describe("GET /api/cms/held-back-articles", () => {
   const PERMITTED: Role[] = ["admin", "editor", "reviewer"];
 

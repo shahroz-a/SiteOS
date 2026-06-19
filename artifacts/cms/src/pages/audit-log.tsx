@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
+import { ImageOff } from "lucide-react";
 import { useListCmsAuditLogs, type AuditLogEntry } from "@workspace/api-client-react";
 import { isRole, ROLE_META } from "@workspace/cms-auth";
 import { Avatar, AvatarFallback } from "@workspace/ui/avatar";
@@ -17,8 +18,25 @@ import { Skeleton } from "@workspace/ui/skeleton";
 
 const PAGE_SIZE = 20;
 
+const MEDIA_UPDATE_ACTION = "media.metadata.update";
+
 const ACTION_LABELS: Record<string, string> = {
   "user.role.update": "Changed user role",
+  [MEDIA_UPDATE_ACTION]: "Edited image description",
+};
+
+const ALT_STATUS_LABELS: Record<string, string> = {
+  ok: "Alt text OK",
+  missing: "Missing alt text",
+  poor: "Poor alt text",
+};
+
+/** Human label for the changed metadata fields of a media edit. */
+const MEDIA_FIELD_LABELS: Record<string, string> = {
+  alt: "Alt text",
+  title: "Title",
+  caption: "Caption",
+  altStatus: "Status",
 };
 
 function actionLabel(action: string): string {
@@ -111,12 +129,118 @@ function DiffView({
   );
 }
 
+function isMediaUpdate(entry: AuditLogEntry): boolean {
+  return entry.action === MEDIA_UPDATE_ACTION;
+}
+
+/** Best-effort CDN URL of the edited image: the entityId is the stable
+ * identifier, with metadata/before/after fallbacks. */
+function mediaImageUrl(entry: AuditLogEntry): string | null {
+  const candidates: unknown[] = [
+    entry.entityId,
+    entry.metadata?.url,
+    entry.after?.url,
+    entry.before?.url,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && /^https?:\/\//.test(c)) return c;
+  }
+  return null;
+}
+
+/** Friendly value for a media metadata field (alt status gets a label). */
+function mediaFieldValue(key: string, value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (key === "altStatus" && typeof value === "string") {
+    return ALT_STATUS_LABELS[value] ?? value;
+  }
+  if (typeof value === "string") return value.trim() ? value : "—";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function MediaThumb({ url }: { url: string | null }) {
+  const [failed, setFailed] = useState(false);
+  if (!url || failed) {
+    return (
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted text-muted-foreground">
+        <ImageOff className="h-5 w-5" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      className="h-14 w-14 shrink-0 rounded-md border border-border/60 object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+/** Rich rendering of a media.metadata.update entry: thumbnail + readable
+ * before → after of each changed metadata field (alt text first). */
+function MediaChange({ entry }: { entry: AuditLogEntry }) {
+  const before = entry.before ?? {};
+  const after = entry.after ?? {};
+  const url = mediaImageUrl(entry);
+  const ordered = ["alt", "title", "caption", "altStatus"];
+  const keys = Array.from(
+    new Set([...ordered, ...Object.keys(before), ...Object.keys(after)]),
+  ).filter((k) => k !== "url" && (k in before || k in after));
+
+  const changed = keys.filter(
+    (k) => mediaFieldValue(k, before[k]) !== mediaFieldValue(k, after[k]),
+  );
+  const rows = changed.length > 0 ? changed : keys;
+
+  return (
+    <div className="flex gap-3">
+      <MediaThumb url={url} />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        {rows.length === 0 ? (
+          <span className="text-sm text-muted-foreground">No details</span>
+        ) : (
+          rows.map((key) => {
+            const prev = mediaFieldValue(key, before[key]);
+            const next = mediaFieldValue(key, after[key]);
+            return (
+              <div
+                key={key}
+                className="flex flex-wrap items-baseline gap-2 text-sm"
+              >
+                <span className="font-medium text-muted-foreground">
+                  {MEDIA_FIELD_LABELS[key] ?? key}
+                </span>
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs line-through decoration-muted-foreground/60">
+                  {prev}
+                </code>
+                <span className="text-muted-foreground">→</span>
+                <code className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                  {next}
+                </code>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AuditLogPage() {
   const [page, setPage] = useState(1);
+  const [mediaOnly, setMediaOnly] = useState(false);
   const { data, isLoading, isError, isFetching } = useListCmsAuditLogs({
     page,
     limit: PAGE_SIZE,
+    ...(mediaOnly ? { action: MEDIA_UPDATE_ACTION } : {}),
   });
+
+  function setFilter(next: boolean) {
+    setMediaOnly(next);
+    setPage(1);
+  }
 
   const entries = data?.items ?? [];
   const pagination = data?.pagination;
@@ -124,11 +248,29 @@ export default function AuditLogPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="space-y-2">
-        <h1 className="font-serif text-4xl tracking-tight">Audit log</h1>
-        <p className="text-muted-foreground">
-          A record of privileged actions — who changed what, and when.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="font-serif text-4xl tracking-tight">Audit log</h1>
+          <p className="text-muted-foreground">
+            A record of privileged actions — who changed what, and when.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={mediaOnly ? "outline" : "default"}
+            size="sm"
+            onClick={() => setFilter(false)}
+          >
+            All actions
+          </Button>
+          <Button
+            variant={mediaOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilter(true)}
+          >
+            Image edits
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-border/60">
@@ -203,7 +345,11 @@ export default function AuditLogPage() {
                       ) : null}
                     </TableCell>
                     <TableCell>
-                      <DiffView before={entry.before} after={entry.after} />
+                      {isMediaUpdate(entry) ? (
+                        <MediaChange entry={entry} />
+                      ) : (
+                        <DiffView before={entry.before} after={entry.after} />
+                      )}
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
                       {format(new Date(entry.createdAt), "MMM d, yyyy")}

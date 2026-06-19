@@ -17,4 +17,6 @@
 - [zod root vs zod/v4 type identity](zod-root-vs-v4-type-identity.md) — `z.infer` over orval/api-zod schemas returns `unknown` unless `z` is imported from `zod` (root), not `zod/v4`; mismatch cascades into TS18046/TS2769.
 - [lib/ui composite buildable](lib-ui-composite-buildable.md) — chart.tsx/input-otp.tsx need type-only prop fixes (drop ComponentProps<typeof Tooltip>/typed context) to emit under @types/react 19.2; CMS now consumes @workspace/ui (no local dup copies).
 - [Orval on-demand query options need queryKey](orval-query-options-querykey.md) — passing `{query:{enabled:false}}` to a generated useX hook errors TS2741; also pass `getXQueryKey(params)`.
-- [drizzle ANY(array) raw-sql binding](drizzle-any-array-binding.md) — interpolating a JS array in raw `sql` breaks `= ANY(${arr})` (42809); use `IN (${sql.join(arr.map(v=>sql\`${v}\`), sql\`, \`)})`. Passes in psql, fails via drizzle.
+- [CMS vendored shadcn typecheck baseline](cms-shadcn-typecheck-baseline.md) — chart.tsx/input-otp.tsx already fail `tsc` in artifacts/cms; pre-existing, not your change. Isolate via baseline run before chasing.
+- [drizzle ANY(array) raw-sql binding](drizzle-any-array-binding.md) — interpolating a JS array in raw `sql` breaks `= ANY(${arr})` (42809); use `IN (${sql.join(arr.map(v=>sql`${v}`), sql`, `)})`. Passes in psql, fails via drizzle.
+- [Media audit-log display contract](media-audit-display-contract.md) — audit log renders media.metadata.update via entityId=CDN-url + before/after{alt,title,caption,altStatus}; producer PATCH route must emit that shape.

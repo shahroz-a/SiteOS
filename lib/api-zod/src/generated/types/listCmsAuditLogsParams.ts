@@ -10,6 +10,10 @@ import type { PageParamParameter } from './pageParamParameter';
 
 export type ListCmsAuditLogsParams = {
 /**
+ * Filter to a single action, e.g. "media.metadata.update" to show only image-description edits.
+ */
+action?: string;
+/**
  * 1-based page number
  * @minimum 1
  */

@@ -465,6 +465,7 @@ export const listCmsAuditLogsQueryLimitMax = 100;
 
 
 export const ListCmsAuditLogsQueryParams = zod.object({
+  "action": zod.string().optional().describe('Filter to a single action, e.g. \"media.metadata.update\" to show only image-description edits.'),
   "page": zod.coerce.number().min(1).default(listCmsAuditLogsQueryPageDefault).describe('1-based page number'),
   "limit": zod.coerce.number().min(1).max(listCmsAuditLogsQueryLimitMax).default(listCmsAuditLogsQueryLimitDefault).describe('Number of items per page')
 })
