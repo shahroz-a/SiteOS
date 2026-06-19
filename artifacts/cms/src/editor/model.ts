@@ -13,6 +13,7 @@
 import type { CTNode } from "@workspace/blog-renderer";
 import { asComponentTree } from "@workspace/blog-renderer";
 import type { CmsPostDetail, CmsPostInput } from "@workspace/api-client-react";
+import type { SeoValidationInput, HeadingNode } from "@workspace/seo-validation";
 
 export type BlockType =
   | "hero"
@@ -404,6 +405,9 @@ export function blocksFromDetail(detail: CmsPostDetail): EditorBlock[] {
 /* detail -> input (preserve nested collections on save)              */
 /* ------------------------------------------------------------------ */
 
+/** The SEO metadata block of a save payload. */
+export type SeoMetaInput = NonNullable<CmsPostInput["seo"]>;
+
 /** Editable post metadata surfaced by the editor's header fields. */
 export interface PostMetaPatch {
   title: string;
@@ -415,6 +419,16 @@ export interface PostMetaPatch {
    */
   featuredImageUrl?: string | null;
   featuredImageAlt?: string | null;
+  /**
+   * Page-level canonical URL override. Omitted → preserve the loaded detail's
+   * value; explicit `null` clears it.
+   */
+  canonicalUrl?: string | null;
+  /**
+   * Full SEO meta block edited in the SEO panel. Omitted → round-trip the
+   * loaded detail's `seo` unchanged; provided → replaces it wholesale.
+   */
+  seo?: SeoMetaInput | null;
 }
 
 /**
@@ -438,7 +452,8 @@ export function detailToInput(
     excerpt: meta.excerpt ?? null,
     status: detail.status,
     language: detail.language,
-    canonicalUrl: detail.canonicalUrl ?? null,
+    canonicalUrl:
+      meta.canonicalUrl !== undefined ? meta.canonicalUrl : detail.canonicalUrl ?? null,
     pathname: detail.pathname ?? null,
     parentPath: detail.parentPath ?? null,
     authorId: detail.author?.id ?? null,
@@ -455,25 +470,28 @@ export function detailToInput(
     readingTimeMinutes: detail.readingTimeMinutes ?? null,
     wordCount: detail.wordCount ?? null,
     publishedAt: detail.publishedAt ?? null,
-    seo: detail.seo
-      ? {
-          metaTitle: detail.seo.metaTitle ?? null,
-          metaDescription: detail.seo.metaDescription ?? null,
-          canonicalUrl: detail.seo.canonicalUrl ?? null,
-          robots: detail.seo.robots ?? null,
-          focusKeyword: detail.seo.focusKeyword ?? null,
-          keywords: detail.seo.keywords ?? null,
-          ogTitle: detail.seo.ogTitle ?? null,
-          ogDescription: detail.seo.ogDescription ?? null,
-          ogImage: detail.seo.ogImage ?? null,
-          ogType: detail.seo.ogType ?? null,
-          twitterCard: detail.seo.twitterCard ?? null,
-          twitterTitle: detail.seo.twitterTitle ?? null,
-          twitterDescription: detail.seo.twitterDescription ?? null,
-          twitterImage: detail.seo.twitterImage ?? null,
-          needsReview: detail.seo.needsReview ?? false,
-        }
-      : null,
+    seo:
+      meta.seo !== undefined
+        ? meta.seo
+        : detail.seo
+          ? {
+              metaTitle: detail.seo.metaTitle ?? null,
+              metaDescription: detail.seo.metaDescription ?? null,
+              canonicalUrl: detail.seo.canonicalUrl ?? null,
+              robots: detail.seo.robots ?? null,
+              focusKeyword: detail.seo.focusKeyword ?? null,
+              keywords: detail.seo.keywords ?? null,
+              ogTitle: detail.seo.ogTitle ?? null,
+              ogDescription: detail.seo.ogDescription ?? null,
+              ogImage: detail.seo.ogImage ?? null,
+              ogType: detail.seo.ogType ?? null,
+              twitterCard: detail.seo.twitterCard ?? null,
+              twitterTitle: detail.seo.twitterTitle ?? null,
+              twitterDescription: detail.seo.twitterDescription ?? null,
+              twitterImage: detail.seo.twitterImage ?? null,
+              needsReview: detail.seo.needsReview ?? false,
+            }
+          : null,
     faq: detail.faq.map((f) => ({
       question: f.question,
       answer: f.answer,
@@ -526,5 +544,114 @@ export function detailToInput(
       domain: l.domain ?? null,
       position: l.position,
     })),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* live SEO validation input (client side)                            */
+/* ------------------------------------------------------------------ */
+
+function collectBlockHeadings(blocks: EditorBlock[], out: HeadingNode[]): void {
+  for (const b of blocks) {
+    if (b.type === "heading") {
+      out.push({ level: b.data.level ?? 2, text: b.text ?? "" });
+    }
+    if (b.children) collectBlockHeadings(b.children, out);
+  }
+}
+
+function countBlocks(blocks: EditorBlock[]): number {
+  let n = 0;
+  for (const b of blocks) {
+    n += 1;
+    if (b.children) n += countBlocks(b.children);
+  }
+  return n;
+}
+
+/** The live editor state the SEO panel validates against. */
+export interface EditorSeoState {
+  title: string;
+  excerpt: string | null;
+  featuredImageUrl: string | null;
+  canonicalUrl: string | null;
+  seo: SeoMetaInput | null;
+}
+
+/**
+ * Build the pure engine's `SeoValidationInput` from the editor's LIVE state, so
+ * the SEO panel can show instant field-level feedback as the editor types —
+ * without a server round-trip. The non-edited collections (images, links,
+ * jsonld, breadcrumbs) come from the loaded detail; the title/excerpt/banner/SEO
+ * fields and the heading/block structure come from the live editor. This mirrors
+ * the server's `buildValidationInput`, so client and server agree on the input
+ * shape; the server folds in DB-derived duplicate refs the client can't compute.
+ */
+export function buildEditorValidationInput(
+  detail: CmsPostDetail,
+  blocks: EditorBlock[],
+  state: EditorSeoState,
+): SeoValidationInput {
+  const headings: HeadingNode[] = [];
+  collectBlockHeadings(blocks, headings);
+  const componentCount = countBlocks(blocks);
+  const images = [
+    ...detail.images.map((i) => ({ alt: i.alt ?? null })),
+    ...detail.galleries.flatMap((g) => g.images.map((i) => ({ alt: i.alt ?? null }))),
+  ];
+  return {
+    pageType: detail.pageType,
+    title: state.title,
+    slug: detail.slug,
+    pathname: detail.pathname ?? null,
+    canonicalUrl: state.canonicalUrl,
+    excerpt: state.excerpt,
+    featuredImageUrl: state.featuredImageUrl,
+    seo: state.seo
+      ? {
+          metaTitle: state.seo.metaTitle ?? null,
+          metaDescription: state.seo.metaDescription ?? null,
+          canonicalUrl: state.seo.canonicalUrl ?? null,
+          robots: state.seo.robots ?? null,
+          ogTitle: state.seo.ogTitle ?? null,
+          ogDescription: state.seo.ogDescription ?? null,
+          ogImage: state.seo.ogImage ?? null,
+          ogType: state.seo.ogType ?? null,
+          twitterCard: state.seo.twitterCard ?? null,
+          twitterTitle: state.seo.twitterTitle ?? null,
+          twitterDescription: state.seo.twitterDescription ?? null,
+          twitterImage: state.seo.twitterImage ?? null,
+        }
+      : null,
+    jsonldCount: detail.jsonld.length,
+    breadcrumbCount: detail.breadcrumbs.length,
+    headings,
+    images,
+    internalLinkCount: detail.internalLinks.length,
+    externalLinks: detail.externalLinks.map((l) => ({ rel: l.rel ?? null })),
+    componentCount,
+    hasBody: componentCount > 0,
+  };
+}
+
+/** A blank SEO meta block initialized from a loaded detail. */
+export function initialSeoState(detail: CmsPostDetail): SeoMetaInput {
+  const s = detail.seo;
+  return {
+    metaTitle: s?.metaTitle ?? null,
+    metaDescription: s?.metaDescription ?? null,
+    canonicalUrl: s?.canonicalUrl ?? null,
+    robots: s?.robots ?? null,
+    focusKeyword: s?.focusKeyword ?? null,
+    keywords: s?.keywords ?? null,
+    ogTitle: s?.ogTitle ?? null,
+    ogDescription: s?.ogDescription ?? null,
+    ogImage: s?.ogImage ?? null,
+    ogType: s?.ogType ?? null,
+    twitterCard: s?.twitterCard ?? null,
+    twitterTitle: s?.twitterTitle ?? null,
+    twitterDescription: s?.twitterDescription ?? null,
+    twitterImage: s?.twitterImage ?? null,
+    needsReview: s?.needsReview ?? false,
   };
 }

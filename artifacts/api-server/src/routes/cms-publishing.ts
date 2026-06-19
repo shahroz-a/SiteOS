@@ -18,6 +18,7 @@ import {
   requiredPermissionForTransition,
 } from "../lib/cms-publishing";
 import { serializeCmsPostDetail } from "../lib/cms-content";
+import { runPublishGate } from "../lib/seo-validation";
 import { hasPermission, DEFAULT_ROLE } from "@workspace/cms-auth";
 
 const router: IRouter = Router();
@@ -50,6 +51,22 @@ router.post(
     if (!hasPermission(req.cmsRole ?? DEFAULT_ROLE, perm)) {
       res.status(403).json({ error: `This transition requires ${perm}` });
       return;
+    }
+
+    // Publish gate: making content public (publish now or schedule) runs the
+    // SEO/content validation engine and blocks on any critical failure. The
+    // gate always records a validation_reports row, so every publish attempt is
+    // audited regardless of outcome.
+    if (to === "published" || to === "scheduled") {
+      const gate = await runPublishGate(id);
+      if (!gate) {
+        res.status(404).json({ error: "Post not found" });
+        return;
+      }
+      if (!gate.ok) {
+        res.status(422).json({ error: gate.summary, blocking: gate.result.blocking });
+        return;
+      }
     }
 
     const scheduledFor = parsed.data.scheduledFor ?? null;

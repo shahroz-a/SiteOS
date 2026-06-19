@@ -1466,6 +1466,8 @@ paths:
           $ref: "#/components/responses/CmsForbidden"
         "404":
           $ref: "#/components/responses/CmsNotFound"
+        "422":
+          $ref: "#/components/responses/CmsPublishBlocked"
     delete:
       tags: [cms]
       operationId: deleteCmsPost
@@ -1714,6 +1716,37 @@ paths:
                 $ref: "#/components/schemas/CmsPostDetail"
         "400":
           $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+        "422":
+          $ref: "#/components/responses/CmsPublishBlocked"
+
+  /cms/posts/{id}/validation:
+    get:
+      tags: [cms]
+      operationId: getCmsPostValidation
+      summary: SEO + publish validation report for an article (requires content.view)
+      description: >-
+        Runs the SEO + publish validation engine over the article's current
+        persisted state and returns per-check results, an overall score and the
+        subset of blocking (critical) failures that would prevent publishing.
+        Includes DB-derived duplicate detection (title / meta title / meta
+        description). Read-only — does not persist a report.
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The validation report.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoValidationResult"
         "401":
           $ref: "#/components/responses/CmsUnauthorized"
         "403":
@@ -2679,8 +2712,116 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
+    CmsPublishBlocked:
+      description: >-
+        Publishing was blocked by the validation publish gate — one or more
+        critical SEO/content checks failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CmsPublishBlockedError"
 
   schemas:
+    SeoCheck:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        category:
+          type: string
+          enum: [url, metadata, social, structured, content, media, links]
+        severity:
+          type: string
+          enum: [error, warn, info]
+        passed:
+          type: boolean
+        message:
+          type: string
+      required:
+        - id
+        - label
+        - category
+        - severity
+        - passed
+        - message
+
+    SeoDuplicateRef:
+      type: object
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+      required:
+        - id
+        - slug
+        - title
+
+    SeoDuplicates:
+      type: object
+      description: DB-derived duplicate refs, or null when the field is unique/empty.
+      properties:
+        title:
+          oneOf:
+            - $ref: "#/components/schemas/SeoDuplicateRef"
+            - type: "null"
+        metaTitle:
+          oneOf:
+            - $ref: "#/components/schemas/SeoDuplicateRef"
+            - type: "null"
+        metaDescription:
+          oneOf:
+            - $ref: "#/components/schemas/SeoDuplicateRef"
+            - type: "null"
+
+    SeoValidationResult:
+      type: object
+      properties:
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeoCheck"
+        score:
+          type: integer
+        status:
+          type: string
+          enum: [pass, warn, fail]
+        blocking:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeoCheck"
+        passedCount:
+          type: integer
+        totalCount:
+          type: integer
+        duplicates:
+          $ref: "#/components/schemas/SeoDuplicates"
+      required:
+        - checks
+        - score
+        - status
+        - blocking
+        - passedCount
+        - totalCount
+        - duplicates
+
+    CmsPublishBlockedError:
+      type: object
+      properties:
+        error:
+          type: string
+        blocking:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeoCheck"
+      required:
+        - error
+        - blocking
+
     CmsSeoMeta:
       type: object
       properties:

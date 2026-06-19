@@ -29,6 +29,7 @@ import {
   loadPostSource,
   listCmsPosts,
 } from "../lib/cms-content";
+import { runPublishGate } from "../lib/seo-validation";
 
 const router: IRouter = Router();
 
@@ -203,10 +204,30 @@ router.put(
       return;
     }
 
+    // Publish gate: transitioning this article to public (published/scheduled)
+    // via the wholesale update runs the SEO/content validation engine and blocks
+    // on any critical failure. The validator reads persisted state, so we apply
+    // the edits first, then gate; on a blocking failure we revert the status to
+    // draft (keeping the content edits) so a failing article never goes public.
+    const targetStatus = parsed.data.status ?? before.status;
+    const goingPublic =
+      statusChanged && (targetStatus === "published" || targetStatus === "scheduled");
+
     const detail = await updatePost(id, parsed.data);
     if (!detail) {
       res.status(404).json({ error: "Post not found" });
       return;
+    }
+
+    if (goingPublic) {
+      const gate = await runPublishGate(id);
+      if (gate && !gate.ok) {
+        await updatePost(id, { ...parsed.data, status: "draft" });
+        res
+          .status(422)
+          .json({ error: gate.summary, blocking: gate.result.blocking });
+        return;
+      }
     }
 
     await recordAudit(req, {

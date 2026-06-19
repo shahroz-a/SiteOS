@@ -34,6 +34,12 @@
     },
     {
       "path": "../../lib/content-diff"
+    },
+    {
+      "path": "../../lib/blog-seo"
+    },
+    {
+      "path": "../../lib/seo-validation"
     }
   ]
 }

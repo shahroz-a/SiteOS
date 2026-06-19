@@ -2355,6 +2355,59 @@ export const TransitionCmsPostResponse = zod.object({
 
 
 /**
+ * Runs the SEO + publish validation engine over the article's current persisted state and returns per-check results, an overall score and the subset of blocking (critical) failures that would prevent publishing. Includes DB-derived duplicate detection (title / meta title / meta description). Read-only — does not persist a report.
+ * @summary SEO + publish validation report for an article (requires content.view)
+ */
+export const GetCmsPostValidationParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const GetCmsPostValidationHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsPostValidationResponse = zod.object({
+  "checks": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "category": zod.enum(['url', 'metadata', 'social', 'structured', 'content', 'media', 'links']),
+  "severity": zod.enum(['error', 'warn', 'info']),
+  "passed": zod.boolean(),
+  "message": zod.string()
+})),
+  "score": zod.number(),
+  "status": zod.enum(['pass', 'warn', 'fail']),
+  "blocking": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "category": zod.enum(['url', 'metadata', 'social', 'structured', 'content', 'media', 'links']),
+  "severity": zod.enum(['error', 'warn', 'info']),
+  "passed": zod.boolean(),
+  "message": zod.string()
+})),
+  "passedCount": zod.number(),
+  "totalCount": zod.number(),
+  "duplicates": zod.object({
+  "title": zod.union([zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "title": zod.string()
+}),zod.null()]).optional(),
+  "metaTitle": zod.union([zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "title": zod.string()
+}),zod.null()]).optional(),
+  "metaDescription": zod.union([zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "title": zod.string()
+}),zod.null()]).optional()
+}).describe('DB-derived duplicate refs, or null when the field is unique\/empty.')
+})
+
+
+/**
  * @summary Mint an expiring shareable preview link for a draft (requires content.view)
  */
 export const CreateCmsPreviewLinkParams = zod.object({

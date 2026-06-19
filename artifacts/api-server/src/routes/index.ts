@@ -18,6 +18,7 @@ import storageRouter from "./storage";
 import analyticsRouter from "./analytics";
 import cmsRedirectsRouter from "./cms-redirects";
 import cmsPublishingRouter from "./cms-publishing";
+import cmsValidationRouter from "./cms-validation";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(storageRouter);
 router.use(analyticsRouter);
 router.use(cmsRedirectsRouter);
 router.use(cmsPublishingRouter);
+router.use(cmsValidationRouter);
 
 export default router;

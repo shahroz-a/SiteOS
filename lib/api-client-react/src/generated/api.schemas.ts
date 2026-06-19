@@ -5,6 +5,76 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type SeoCheckCategory = typeof SeoCheckCategory[keyof typeof SeoCheckCategory];
+
+
+export const SeoCheckCategory = {
+  url: 'url',
+  metadata: 'metadata',
+  social: 'social',
+  structured: 'structured',
+  content: 'content',
+  media: 'media',
+  links: 'links',
+} as const;
+
+export type SeoCheckSeverity = typeof SeoCheckSeverity[keyof typeof SeoCheckSeverity];
+
+
+export const SeoCheckSeverity = {
+  error: 'error',
+  warn: 'warn',
+  info: 'info',
+} as const;
+
+export interface SeoCheck {
+  id: string;
+  label: string;
+  category: SeoCheckCategory;
+  severity: SeoCheckSeverity;
+  passed: boolean;
+  message: string;
+}
+
+export interface SeoDuplicateRef {
+  id: string;
+  slug: string;
+  title: string;
+}
+
+/**
+ * DB-derived duplicate refs, or null when the field is unique/empty.
+ */
+export interface SeoDuplicates {
+  title?: SeoDuplicateRef | null;
+  metaTitle?: SeoDuplicateRef | null;
+  metaDescription?: SeoDuplicateRef | null;
+}
+
+export type SeoValidationResultStatus = typeof SeoValidationResultStatus[keyof typeof SeoValidationResultStatus];
+
+
+export const SeoValidationResultStatus = {
+  pass: 'pass',
+  warn: 'warn',
+  fail: 'fail',
+} as const;
+
+export interface SeoValidationResult {
+  checks: SeoCheck[];
+  score: number;
+  status: SeoValidationResultStatus;
+  blocking: SeoCheck[];
+  passedCount: number;
+  totalCount: number;
+  duplicates: SeoDuplicates;
+}
+
+export interface CmsPublishBlockedError {
+  error: string;
+  blocking: SeoCheck[];
+}
+
 export interface CmsSeoMeta {
   /** @nullable */
   metaTitle?: string | null;
@@ -1930,6 +2000,11 @@ export type CmsForbiddenResponse = ErrorEnvelope;
  * Resource not found.
  */
 export type CmsNotFoundResponse = ErrorEnvelope;
+
+/**
+ * Publishing was blocked by the validation publish gate — one or more critical SEO/content checks failed.
+ */
+export type CmsPublishBlockedResponse = CmsPublishBlockedError;
 
 /**
  * 1-based page number

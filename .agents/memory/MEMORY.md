@@ -31,3 +31,4 @@
 - [Workspace link + CMS UI imports](workspace-link-and-cms-ui-imports.md) — `@workspace/*` TS2307 (+ phantom `URL` errors) = unlinked pkg → run `pnpm install` first; CMS UI imports from `@workspace/ui/*` not `@/components/ui/*`; api-server typecheck only finishes via a console workflow (beats 120s cap).
 - [Importer fidelity diff shared lib](content-diff-shared-lib.md) — diff math lives in @workspace/content-diff (pure, DOM-free); web + mobile both consume it so they can't drift. Never reimplement.
 - [Publish/schedule schema drift](publish-schedule-schema-drift.md) — scheduling needs page_status enum review/scheduled + pages.scheduled_for; no migrations dir → drizzle-kit push silently fails on Helium, so dev/prod can lack them; re-sync via idempotent ALTER.
+- [Running lib unit tests](running-lib-vitest.md) — run from repo ROOT via `pnpm exec vitest run lib/<pkg>/src/__tests__/<f>.test.ts`; per-package `run test`/`exec vitest` silently no-op or find nothing.

@@ -45,6 +45,7 @@ import type {
   CmsPostListResponse,
   CmsPreviewLink,
   CmsPreviewLinkInput,
+  CmsPublishBlockedResponse,
   CmsScaffoldInput,
   CmsSearchResponse,
   CmsTag,
@@ -97,6 +98,7 @@ import type {
   SearchCmsContentParams,
   SearchPostsParams,
   SearchReadiness,
+  SeoValidationResult,
   SuggestMediaAltBatchInput,
   SuggestMediaAltBatchResponse,
   SuggestMediaAltInput,
@@ -3534,7 +3536,7 @@ export const updateCmsPost = async (id: string,
 
 
 
-export const getUpdateCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+export const getUpdateCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse | CmsPublishBlockedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsPost>>, TError,{id: string;data: BodyType<CmsPostInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateCmsPost>>, TError,{id: string;data: BodyType<CmsPostInput>}, TContext> => {
 
@@ -3563,12 +3565,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateCmsPostMutationResult = NonNullable<Awaited<ReturnType<typeof updateCmsPost>>>
     export type UpdateCmsPostMutationBody = BodyType<CmsPostInput>
-    export type UpdateCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+    export type UpdateCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse | CmsPublishBlockedResponse>
 
     /**
  * @summary Replace an article and all its nested content (requires content.edit)
  */
-export const useUpdateCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+export const useUpdateCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse | CmsPublishBlockedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsPost>>, TError,{id: string;data: BodyType<CmsPostInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateCmsPost>>,
@@ -4147,7 +4149,7 @@ export const transitionCmsPost = async (id: string,
 
 
 
-export const getTransitionCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+export const getTransitionCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse | CmsPublishBlockedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionCmsPost>>, TError,{id: string;data: BodyType<CmsTransitionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof transitionCmsPost>>, TError,{id: string;data: BodyType<CmsTransitionInput>}, TContext> => {
 
@@ -4176,12 +4178,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type TransitionCmsPostMutationResult = NonNullable<Awaited<ReturnType<typeof transitionCmsPost>>>
     export type TransitionCmsPostMutationBody = BodyType<CmsTransitionInput>
-    export type TransitionCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+    export type TransitionCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse | CmsPublishBlockedResponse>
 
     /**
  * @summary Move an article through its publish lifecycle (requires content.publish for published/scheduled, review.approve for review)
  */
-export const useTransitionCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+export const useTransitionCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse | CmsPublishBlockedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionCmsPost>>, TError,{id: string;data: BodyType<CmsTransitionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof transitionCmsPost>>,
@@ -4191,6 +4193,84 @@ export const useTransitionCmsPost = <TError = ErrorType<CmsBadRequestResponse | 
       > => {
       return useMutation(getTransitionCmsPostMutationOptions(options));
     }
+
+export const getGetCmsPostValidationUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/validation`
+}
+
+/**
+ * Runs the SEO + publish validation engine over the article's current persisted state and returns per-check results, an overall score and the subset of blocking (critical) failures that would prevent publishing. Includes DB-derived duplicate detection (title / meta title / meta description). Read-only — does not persist a report.
+ * @summary SEO + publish validation report for an article (requires content.view)
+ */
+export const getCmsPostValidation = async (id: string, options?: RequestInit): Promise<SeoValidationResult> => {
+
+  return customFetch<SeoValidationResult>(getGetCmsPostValidationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsPostValidationQueryKey = (id: string,) => {
+    return [
+    `/api/cms/posts/${id}/validation`
+    ] as const;
+    }
+
+
+export const getGetCmsPostValidationQueryOptions = <TData = Awaited<ReturnType<typeof getCmsPostValidation>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPostValidation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsPostValidationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsPostValidation>>> = ({ signal }) => getCmsPostValidation(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsPostValidation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsPostValidationQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsPostValidation>>>
+export type GetCmsPostValidationQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+
+/**
+ * @summary SEO + publish validation report for an article (requires content.view)
+ */
+
+export function useGetCmsPostValidation<TData = Awaited<ReturnType<typeof getCmsPostValidation>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPostValidation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsPostValidationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getCreateCmsPreviewLinkUrl = (id: string,) => {
 

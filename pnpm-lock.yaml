@@ -200,6 +200,9 @@ importers:
       '@workspace/integrations-openai-ai-server':
         specifier: workspace:*
         version: link:../../lib/integrations-openai-ai-server
+      '@workspace/seo-validation':
+        specifier: workspace:*
+        version: link:../../lib/seo-validation
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -585,6 +588,9 @@ importers:
       '@workspace/blog-renderer':
         specifier: workspace:*
         version: link:../../lib/blog-renderer
+      '@workspace/blog-seo':
+        specifier: workspace:*
+        version: link:../../lib/blog-seo
       '@workspace/cms-auth':
         specifier: workspace:*
         version: link:../../lib/cms-auth
@@ -600,6 +606,9 @@ importers:
       '@workspace/replit-auth-web':
         specifier: workspace:*
         version: link:../../lib/replit-auth-web
+      '@workspace/seo-validation':
+        specifier: workspace:*
+        version: link:../../lib/seo-validation
       '@workspace/ui':
         specifier: workspace:*
         version: link:../../lib/ui
@@ -1137,6 +1146,8 @@ importers:
       '@types/react':
         specifier: ^19.2.0
         version: 19.2.14
+
+  lib/seo-validation: {}
 
   lib/ui:
     dependencies:

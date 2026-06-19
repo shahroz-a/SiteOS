@@ -22,6 +22,9 @@
       "path": "../../lib/content-validation"
     },
     {
+      "path": "../../lib/seo-validation"
+    },
+    {
       "path": "../../lib/integrations-openai-ai-server"
     }
   ]

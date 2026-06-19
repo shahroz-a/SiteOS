@@ -20,6 +20,7 @@ import {
   GitCompareArrows,
   Loader2,
   Redo2,
+  Search,
   Trash2,
   Undo2,
   X,
@@ -46,9 +47,12 @@ import { ImageUploadButton, LibraryButton } from "@/editor/block-editors";
 import {
   blocksFromDetail,
   detailToInput,
+  initialSeoState,
   type EditorBlock,
+  type SeoMetaInput,
 } from "@/editor/model";
 import { PublishPanel } from "@/editor/publish-panel";
+import { SeoPanel } from "@/editor/seo-panel";
 
 const AUTOSAVE_DELAY = 1500;
 
@@ -75,6 +79,9 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [bannerWarningDismissed, setBannerWarningDismissed] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
+  const [seoOpen, setSeoOpen] = useState(false);
+  const [seo, setSeo] = useState<SeoMetaInput>(() => initialSeoState(detail));
+  const [canonicalUrl, setCanonicalUrl] = useState(detail.canonicalUrl ?? "");
 
   // Non-blocking nudge: a published article with no banner image looks bare on
   // the public blog and weak in social/SEO previews. Drafts/archived are exempt.
@@ -106,12 +113,12 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   });
 
   // Latest values captured for the debounced save without re-arming the timer.
-  const latest = useRef({ blocks: editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt });
-  latest.current = { blocks: editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt };
+  const latest = useRef({ blocks: editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt, seo, canonicalUrl });
+  latest.current = { blocks: editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt, seo, canonicalUrl };
 
   const updateMutate = update.mutate;
   const save = useCallback(() => {
-    const { blocks, title: t, subtitle: s, excerpt: e, bannerUrl: bu, bannerAlt: ba } = latest.current;
+    const { blocks, title: t, subtitle: s, excerpt: e, bannerUrl: bu, bannerAlt: ba, seo: seoMeta, canonicalUrl: cu } = latest.current;
     setSaveState("saving");
     updateMutate({
       id: detail.id,
@@ -122,6 +129,8 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
         // Empty banner URL clears the hero (no banner) rather than promoting an inline image.
         featuredImageUrl: bu || null,
         featuredImageAlt: bu ? ba || null : null,
+        canonicalUrl: cu || null,
+        seo: seoMeta,
       }),
     });
   }, [detail, updateMutate]);
@@ -141,7 +150,7 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt, canEdit, save]);
+  }, [editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt, seo, canonicalUrl, canEdit, save]);
 
   // Keyboard shortcuts: undo / redo / save.
   useEffect(() => {
@@ -194,6 +203,14 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
             onClick={() => setDiffOpen(true)}
           >
             <GitCompareArrows className="mr-1 h-4 w-4" /> Import diff
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            title="SEO & metadata"
+            onClick={() => setSeoOpen(true)}
+          >
+            <Search className="mr-1 h-4 w-4" /> SEO
           </Button>
           <Button variant="ghost" size="icon" title="Undo" disabled={!editor.canUndo} onClick={editor.undo}>
             <Undo2 className="h-4 w-4" />
@@ -266,6 +283,23 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
         articleId={detail.id}
         open={diffOpen}
         onOpenChange={setDiffOpen}
+      />
+
+      <SeoPanel
+        open={seoOpen}
+        onOpenChange={setSeoOpen}
+        detail={detail}
+        blocks={editor.blocks}
+        state={{
+          title,
+          excerpt: excerpt || null,
+          featuredImageUrl: bannerUrl || null,
+          canonicalUrl: canonicalUrl || null,
+          seo,
+        }}
+        onSeoChange={(patch) => setSeo((prev) => ({ ...prev, ...patch }))}
+        onCanonicalChange={(value) => setCanonicalUrl(value ?? "")}
+        disabled={!canEdit}
       />
     </div>
   );
