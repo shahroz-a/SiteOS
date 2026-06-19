@@ -39,7 +39,7 @@ The raw `page_views` event log grows one row per article view, unbounded by traf
 - **Build command:** `pnpm install && pnpm --filter @workspace/scripts run build:jobs`
 - **Run command:** `pnpm --filter @workspace/scripts run views:rollup:prod`. Use `-- --dry-run` for a no-write preview, or `-- --retention-days=N` to keep the most recent N completed days as raw event rows.
 - **Env:** `DATABASE_URL` must point at the **production** Postgres so the rollup persists where the analytics endpoint reads it.
-- **Observability:** the run summary (rows folded, days, buckets, cutoff) prints to stdout, visible in the deployment logs (`fetchDeploymentLogs`). The rollup is non-destructive of view *counts* — totals are preserved exactly in `page_view_daily`.
+- **Observability:** every run that actually folds rows writes a null-actor `audit_logs` row (action `analytics.rollup.auto`, entityType `analytics`, the rows/days/buckets/cutoff summary in `after`) so editors see the automated maintenance run in the CMS audit log (`artifacts/cms/src/pages/audit-log.tsx` renders it via `RollupRun` and registers the action/entity in `ACTION_OPTIONS`/`ACTION_LABELS`/`ENTITY_OPTIONS`), plus a durable `crawl_logs` info line (survives the ephemeral scheduled container). No-op runs (nothing eligible) stay quiet. Both DB writes are best-effort and never fail the job. The run summary (rows folded, days, buckets, cutoff) also prints to stdout, visible in the deployment logs (`fetchDeploymentLogs`). The rollup is non-destructive of view *counts* — totals are preserved exactly in `page_view_daily`.
 
 ### Scheduled auto-publish of scheduled posts (Scheduled Deployment)
 

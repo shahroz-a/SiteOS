@@ -29,16 +29,17 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
-import { db, pool } from "@workspace/db";
+import { db, pool, auditLogsTable, crawlLogsTable } from "@workspace/db";
 
 /**
  * Anything that can run the rollup's SQL: the shared `db` singleton in
  * production, or a caller-supplied transaction in tests (so an integration
  * test can drive a real rollup inside a transaction it later rolls back,
- * leaving the live DB untouched). Both expose `execute` (dry-run preview) and
- * `transaction` (the apply path opens its own unit-of-work).
+ * leaving the live DB untouched). It exposes `execute` (dry-run preview),
+ * `transaction` (the apply path opens its own unit-of-work), and `insert` (the
+ * best-effort audit/crawl observability rows written after a real rollup).
  */
-type RollupExecutor = Pick<typeof db, "execute" | "transaction">;
+type RollupExecutor = Pick<typeof db, "execute" | "transaction" | "insert">;
 
 interface Options {
   dryRun: boolean;
@@ -120,7 +121,7 @@ export async function run(
     };
   }
 
-  return executor.transaction(async (tx) => {
+  const result = await executor.transaction(async (tx) => {
     // 1) Fold eligible raw rows into the rollup. Summing into existing buckets
     //    keeps the job safe to re-run and tolerant of a future where a day is
     //    partially present.
@@ -196,6 +197,47 @@ export async function run(
       dryRun: false,
     };
   });
+
+  // Observability: record the run so editors can confirm the scheduled
+  // storage-cleanup is actually firing (and how much it folded). Only when real
+  // work happened — a no-op run (nothing eligible) would just spam the feed.
+  if (result.rolledRows > 0) {
+    // CMS audit-trail row — no human actor (null actorId/email/role), so the
+    // automated maintenance run appears in the same activity feed as manual
+    // edits, clearly labelled. Best-effort; never fail the job.
+    await executor
+      .insert(auditLogsTable)
+      .values({
+        action: "analytics.rollup.auto",
+        entityType: "analytics",
+        after: {
+          rolledRows: result.rolledRows,
+          days: result.days,
+          buckets: result.buckets,
+          referrerBuckets: result.referrerBuckets,
+          cutoff: result.cutoff,
+        },
+        metadata: { source: "page-views-rollup-job" },
+      })
+      .catch(() => {});
+
+    // Durable crawl-log line; survives in the prod DB after the ephemeral
+    // scheduled-deployment container is gone. Best-effort.
+    await executor
+      .insert(crawlLogsTable)
+      .values({
+        url: "page-views-rollup",
+        level: "info",
+        message:
+          `Rolled up ${result.rolledRows} raw page_views across ${result.days} ` +
+          `day(s) into ${result.buckets} daily + ${result.referrerBuckets} ` +
+          `referrer bucket(s); cutoff < ${result.cutoff}`,
+        details: { ...result, action: "page-views-rollup" },
+      })
+      .catch(() => {});
+  }
+
+  return result;
 }
 
 export async function main(): Promise<void> {

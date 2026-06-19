@@ -40,6 +40,7 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: "article.approve", label: "Approved a held-back article" },
   { value: "redirect.deactivate.auto", label: "Auto-deactivated redirect" },
   { value: "redirect.reactivate", label: "Re-activated a redirect" },
+  { value: "analytics.rollup.auto", label: "Storage cleanup (scheduled)" },
   { value: MEDIA_UPDATE_ACTION, label: "Edited image description" },
 ];
 
@@ -47,6 +48,7 @@ const ENTITY_OPTIONS: { value: string; label: string }[] = [
   { value: "page", label: "Page" },
   { value: "user", label: "User" },
   { value: "redirect", label: "Redirect" },
+  { value: "analytics", label: "Analytics" },
 ];
 
 /** Convert a yyyy-mm-dd date input into an ISO timestamp at the day boundary. */
@@ -63,6 +65,9 @@ const ACTION_LABELS: Record<string, string> = {
   "post.publish": "Published a post",
   "article.publish.scheduled": "Auto-published (scheduled)",
   "article.approve": "Approved a held-back article",
+  "redirect.deactivate.auto": "Auto-deactivated redirect",
+  "redirect.reactivate": "Re-activated a redirect",
+  "analytics.rollup.auto": "Storage cleanup (scheduled)",
   [MEDIA_UPDATE_ACTION]: "Edited image description",
 };
 
@@ -177,6 +182,50 @@ function isMediaUpdate(entry: AuditLogEntry): boolean {
 
 function isRedirectChange(entry: AuditLogEntry): boolean {
   return entry.entityType === "redirect";
+}
+
+const ROLLUP_ACTION = "analytics.rollup.auto";
+
+function isRollupRun(entry: AuditLogEntry): boolean {
+  return entry.action === ROLLUP_ACTION;
+}
+
+/** Read a numeric field from the entry `after` snapshot, if present. */
+function afterNumber(entry: AuditLogEntry, key: string): number | null {
+  const value = entry.after?.[key];
+  return typeof value === "number" ? value : null;
+}
+
+/** Rich rendering of an automated storage-cleanup (page-views rollup) run:
+ * a plain-language summary of how much raw data the scheduled job folded and
+ * deleted, so editors can confirm the maintenance job is firing — not a raw
+ * before → after diff of machine keys. */
+function RollupRun({ entry }: { entry: AuditLogEntry }) {
+  const rolledRows = afterNumber(entry, "rolledRows");
+  const days = afterNumber(entry, "days");
+  const buckets = afterNumber(entry, "buckets");
+  const referrerBuckets = afterNumber(entry, "referrerBuckets");
+  const cutoff = formatValue(entry.after?.cutoff);
+
+  return (
+    <div className="space-y-1 text-sm">
+      <div>
+        Folded{" "}
+        <span className="font-medium">
+          {rolledRows?.toLocaleString() ?? "—"}
+        </span>{" "}
+        raw view{rolledRows === 1 ? "" : "s"} across{" "}
+        <span className="font-medium">{days ?? "—"}</span>{" "}
+        day{days === 1 ? "" : "s"} into{" "}
+        <span className="font-medium">{buckets ?? "—"}</span> daily +{" "}
+        <span className="font-medium">{referrerBuckets ?? "—"}</span> referrer
+        bucket{referrerBuckets === 1 ? "" : "s"}.
+      </div>
+      <div className="text-xs text-muted-foreground">
+        Raw rows older than {cutoff} were rolled up and removed.
+      </div>
+    </div>
+  );
 }
 
 /** Read a string field from the entry metadata, if present. */
@@ -502,6 +551,8 @@ export default function AuditLogPage() {
                         <MediaChange entry={entry} />
                       ) : isRedirectChange(entry) ? (
                         <RedirectChange entry={entry} />
+                      ) : isRollupRun(entry) ? (
+                        <RollupRun entry={entry} />
                       ) : (
                         <DiffView before={entry.before} after={entry.after} />
                       )}
