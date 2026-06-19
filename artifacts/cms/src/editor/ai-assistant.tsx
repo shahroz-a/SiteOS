@@ -13,6 +13,7 @@
  */
 import { useState } from "react";
 import {
+  useRecordCmsAiDecision,
   useSuggestCmsAi,
   type AiSuggestion,
   type AiSuggestRequestKind,
@@ -61,6 +62,28 @@ export function AiSuggestionList({
   const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
 
+  const recordDecisionMut = useRecordCmsAiDecision();
+
+  /**
+   * Log the editor's accept/reject decision for one suggestion so the team can
+   * report on which suggestion kinds are useful. Fire-and-forget — a logging
+   * failure must never disrupt the editor's accept/reject flow.
+   */
+  const recordDecision = (s: AiSuggestion, decision: "accepted" | "rejected") => {
+    if (!activeKind) return;
+    recordDecisionMut.mutate({
+      id: postId,
+      data: {
+        kind: activeKind,
+        decision,
+        apply: s.apply,
+        target: s.target,
+        suggestionId: s.id,
+        label: s.label,
+      },
+    });
+  };
+
   const suggest = useSuggestCmsAi({
     mutation: {
       onSuccess: (data) => {
@@ -91,8 +114,9 @@ export function AiSuggestionList({
     suggest.mutate({ id: postId, data: { kind } });
   };
 
-  const dismiss = (id: string) => {
-    setSuggestions((prev) => prev.filter((s) => s.id !== id));
+  const dismiss = (s: AiSuggestion) => {
+    recordDecision(s, "rejected");
+    setSuggestions((prev) => prev.filter((x) => x.id !== s.id));
   };
 
   const markAccepted = (id: string) => {
@@ -110,10 +134,12 @@ export function AiSuggestionList({
         });
         return;
       }
+      recordDecision(s, "accepted");
       markAccepted(s.id);
       toast({ title: "Applied", description: s.label });
     } else if (s.apply === "faq" && s.question && s.answer) {
       onApplyFaq(s.question, s.answer);
+      recordDecision(s, "accepted");
       markAccepted(s.id);
       toast({ title: "FAQ added", description: s.question });
     }
@@ -123,6 +149,9 @@ export function AiSuggestionList({
     const text = s.value ?? s.label;
     try {
       await navigator.clipboard.writeText(text);
+      // Copying is the only way to "use" an advisory (info) suggestion, so it
+      // counts as accepting it for usefulness tracking.
+      recordDecision(s, "accepted");
       toast({ title: "Copied", description: "Copied to clipboard." });
     } catch {
       toast({
@@ -186,7 +215,7 @@ export function AiSuggestionList({
               accepted={accepted.has(s.id)}
               disabled={disabled}
               onAccept={() => accept(s)}
-              onReject={() => dismiss(s.id)}
+              onReject={() => dismiss(s)}
               onCopy={() => copy(s)}
             />
           ))}

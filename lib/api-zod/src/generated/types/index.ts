@@ -6,6 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './aiDecisionKindStat';
+export * from './aiDecisionReport';
+export * from './aiDecisionRequest';
+export * from './aiDecisionRequestApply';
+export * from './aiDecisionRequestDecision';
+export * from './aiDecisionRequestKind';
 export * from './aiSuggestion';
 export * from './aiSuggestionApply';
 export * from './aiSuggestRequest';

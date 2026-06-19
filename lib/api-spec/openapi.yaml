@@ -1793,6 +1793,63 @@ paths:
         "404":
           $ref: "#/components/responses/CmsNotFound"
 
+  /cms/posts/{id}/ai/decision:
+    post:
+      tags: [cms]
+      operationId: recordCmsAiDecision
+      summary: Record an editor's accept/reject decision on an AI suggestion (requires content.edit)
+      description: >-
+        Logs what an editor did with a single AI suggestion (accepted vs
+        rejected), along with the suggestion kind and — for field suggestions —
+        the target field. Stored in the append-only audit trail so the team can
+        see which kinds of suggestions are useful and audit AI-assisted edits.
+        Best-effort: a logging failure never blocks the editor.
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiDecisionRequest"
+      responses:
+        "204":
+          description: The decision was recorded.
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/ai/decisions/report:
+    get:
+      tags: [cms]
+      operationId: getCmsAiDecisionReport
+      summary: Usefulness report of AI suggestion accept/reject decisions per kind (requires content.view)
+      description: >-
+        Aggregates the recorded accept/reject decisions per suggestion kind so
+        the team can see which kinds of AI suggestions editors actually find
+        useful (acceptance rate), and improve prompts over time.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The per-kind usefulness report.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiDecisionReport"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
   /cms/posts/{id}/preview-link:
     post:
       tags: [cms]
@@ -3421,6 +3478,84 @@ components:
         - model
         - summary
         - suggestions
+
+    AiDecisionRequest:
+      type: object
+      description: >-
+        An editor's accept/reject decision on a single AI suggestion.
+      properties:
+        kind:
+          type: string
+          description: The suggestion kind the decision applies to.
+          enum:
+            - seo
+            - metadata
+            - summary
+            - social
+            - faq
+            - related
+            - readability
+            - duplicate
+            - internal-links
+        decision:
+          type: string
+          description: Whether the editor accepted (applied) or rejected (dismissed) it.
+          enum: [accepted, rejected]
+        apply:
+          type: string
+          description: How the suggestion would be applied (mirrors AiSuggestion.apply).
+          enum: [field, faq, info]
+        target:
+          type: ["string", "null"]
+          description: The editor field a `field` suggestion targets, when applicable.
+        suggestionId:
+          type: ["string", "null"]
+          description: The id of the suggestion the editor acted on.
+        label:
+          type: ["string", "null"]
+          description: A short human label of the suggestion, for the audit trail.
+      required:
+        - kind
+        - decision
+        - apply
+
+    AiDecisionKindStat:
+      type: object
+      description: Accept/reject tallies for a single suggestion kind.
+      properties:
+        kind:
+          type: string
+        accepted:
+          type: integer
+        rejected:
+          type: integer
+        total:
+          type: integer
+        acceptanceRate:
+          type: number
+          description: accepted / total, in [0, 1]; 0 when there are no decisions.
+      required:
+        - kind
+        - accepted
+        - rejected
+        - total
+        - acceptanceRate
+
+    AiDecisionReport:
+      type: object
+      description: >-
+        Usefulness report of recorded AI-suggestion decisions, per kind plus an
+        overall total.
+      properties:
+        kinds:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiDecisionKindStat"
+        totals:
+          $ref: "#/components/schemas/AiDecisionKindStat"
+      required:
+        - kinds
+        - totals
 
     CmsAuthorInput:
       type: object

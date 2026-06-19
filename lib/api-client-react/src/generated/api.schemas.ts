@@ -516,6 +516,94 @@ export interface AiSuggestResponse {
 }
 
 /**
+ * The suggestion kind the decision applies to.
+ */
+export type AiDecisionRequestKind = typeof AiDecisionRequestKind[keyof typeof AiDecisionRequestKind];
+
+
+export const AiDecisionRequestKind = {
+  seo: 'seo',
+  metadata: 'metadata',
+  summary: 'summary',
+  social: 'social',
+  faq: 'faq',
+  related: 'related',
+  readability: 'readability',
+  duplicate: 'duplicate',
+  'internal-links': 'internal-links',
+} as const;
+
+/**
+ * Whether the editor accepted (applied) or rejected (dismissed) it.
+ */
+export type AiDecisionRequestDecision = typeof AiDecisionRequestDecision[keyof typeof AiDecisionRequestDecision];
+
+
+export const AiDecisionRequestDecision = {
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+/**
+ * How the suggestion would be applied (mirrors AiSuggestion.apply).
+ */
+export type AiDecisionRequestApply = typeof AiDecisionRequestApply[keyof typeof AiDecisionRequestApply];
+
+
+export const AiDecisionRequestApply = {
+  field: 'field',
+  faq: 'faq',
+  info: 'info',
+} as const;
+
+/**
+ * An editor's accept/reject decision on a single AI suggestion.
+ */
+export interface AiDecisionRequest {
+  /** The suggestion kind the decision applies to. */
+  kind: AiDecisionRequestKind;
+  /** Whether the editor accepted (applied) or rejected (dismissed) it. */
+  decision: AiDecisionRequestDecision;
+  /** How the suggestion would be applied (mirrors AiSuggestion.apply). */
+  apply: AiDecisionRequestApply;
+  /**
+     * The editor field a `field` suggestion targets, when applicable.
+     * @nullable
+     */
+  target?: string | null;
+  /**
+     * The id of the suggestion the editor acted on.
+     * @nullable
+     */
+  suggestionId?: string | null;
+  /**
+     * A short human label of the suggestion, for the audit trail.
+     * @nullable
+     */
+  label?: string | null;
+}
+
+/**
+ * Accept/reject tallies for a single suggestion kind.
+ */
+export interface AiDecisionKindStat {
+  kind: string;
+  accepted: number;
+  rejected: number;
+  total: number;
+  /** accepted / total, in [0, 1]; 0 when there are no decisions. */
+  acceptanceRate: number;
+}
+
+/**
+ * Usefulness report of recorded AI-suggestion decisions, per kind plus an overall total.
+ */
+export interface AiDecisionReport {
+  kinds: AiDecisionKindStat[];
+  totals: AiDecisionKindStat;
+}
+
+/**
  * @nullable
  */
 export type CmsAuthorInputSocial = {[key: string]: string} | null;

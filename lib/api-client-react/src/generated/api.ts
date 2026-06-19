@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AiDecisionReport,
+  AiDecisionRequest,
   AiSuggestRequest,
   AiSuggestResponse,
   ApproveHeldBackArticleResponse,
@@ -4346,6 +4348,157 @@ export const useSuggestCmsAi = <TError = ErrorType<CmsBadRequestResponse | CmsUn
       > => {
       return useMutation(getSuggestCmsAiMutationOptions(options));
     }
+
+export const getRecordCmsAiDecisionUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/ai/decision`
+}
+
+/**
+ * Logs what an editor did with a single AI suggestion (accepted vs rejected), along with the suggestion kind and — for field suggestions — the target field. Stored in the append-only audit trail so the team can see which kinds of suggestions are useful and audit AI-assisted edits. Best-effort: a logging failure never blocks the editor.
+ * @summary Record an editor's accept/reject decision on an AI suggestion (requires content.edit)
+ */
+export const recordCmsAiDecision = async (id: string,
+    aiDecisionRequest: AiDecisionRequest, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getRecordCmsAiDecisionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      aiDecisionRequest,)
+  }
+);}
+
+
+
+
+export const getRecordCmsAiDecisionMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordCmsAiDecision>>, TError,{id: string;data: BodyType<AiDecisionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordCmsAiDecision>>, TError,{id: string;data: BodyType<AiDecisionRequest>}, TContext> => {
+
+const mutationKey = ['recordCmsAiDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordCmsAiDecision>>, {id: string;data: BodyType<AiDecisionRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordCmsAiDecision(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordCmsAiDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof recordCmsAiDecision>>>
+    export type RecordCmsAiDecisionMutationBody = BodyType<AiDecisionRequest>
+    export type RecordCmsAiDecisionMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Record an editor's accept/reject decision on an AI suggestion (requires content.edit)
+ */
+export const useRecordCmsAiDecision = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordCmsAiDecision>>, TError,{id: string;data: BodyType<AiDecisionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordCmsAiDecision>>,
+        TError,
+        {id: string;data: BodyType<AiDecisionRequest>},
+        TContext
+      > => {
+      return useMutation(getRecordCmsAiDecisionMutationOptions(options));
+    }
+
+export const getGetCmsAiDecisionReportUrl = () => {
+
+
+
+
+  return `/api/cms/ai/decisions/report`
+}
+
+/**
+ * Aggregates the recorded accept/reject decisions per suggestion kind so the team can see which kinds of AI suggestions editors actually find useful (acceptance rate), and improve prompts over time.
+ * @summary Usefulness report of AI suggestion accept/reject decisions per kind (requires content.view)
+ */
+export const getCmsAiDecisionReport = async ( options?: RequestInit): Promise<AiDecisionReport> => {
+
+  return customFetch<AiDecisionReport>(getGetCmsAiDecisionReportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsAiDecisionReportQueryKey = () => {
+    return [
+    `/api/cms/ai/decisions/report`
+    ] as const;
+    }
+
+
+export const getGetCmsAiDecisionReportQueryOptions = <TData = Awaited<ReturnType<typeof getCmsAiDecisionReport>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsAiDecisionReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsAiDecisionReportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsAiDecisionReport>>> = ({ signal }) => getCmsAiDecisionReport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsAiDecisionReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsAiDecisionReportQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsAiDecisionReport>>>
+export type GetCmsAiDecisionReportQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary Usefulness report of AI suggestion accept/reject decisions per kind (requires content.view)
+ */
+
+export function useGetCmsAiDecisionReport<TData = Awaited<ReturnType<typeof getCmsAiDecisionReport>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsAiDecisionReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsAiDecisionReportQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getCreateCmsPreviewLinkUrl = (id: string,) => {
 

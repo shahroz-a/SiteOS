@@ -2441,6 +2441,54 @@ export const SuggestCmsAiResponse = zod.object({
 
 
 /**
+ * Logs what an editor did with a single AI suggestion (accepted vs rejected), along with the suggestion kind and — for field suggestions — the target field. Stored in the append-only audit trail so the team can see which kinds of suggestions are useful and audit AI-assisted edits. Best-effort: a logging failure never blocks the editor.
+ * @summary Record an editor's accept/reject decision on an AI suggestion (requires content.edit)
+ */
+export const RecordCmsAiDecisionParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const RecordCmsAiDecisionHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const RecordCmsAiDecisionBody = zod.object({
+  "kind": zod.enum(['seo', 'metadata', 'summary', 'social', 'faq', 'related', 'readability', 'duplicate', 'internal-links']).describe('The suggestion kind the decision applies to.'),
+  "decision": zod.enum(['accepted', 'rejected']).describe('Whether the editor accepted (applied) or rejected (dismissed) it.'),
+  "apply": zod.enum(['field', 'faq', 'info']).describe('How the suggestion would be applied (mirrors AiSuggestion.apply).'),
+  "target": zod.string().nullish().describe('The editor field a `field` suggestion targets, when applicable.'),
+  "suggestionId": zod.string().nullish().describe('The id of the suggestion the editor acted on.'),
+  "label": zod.string().nullish().describe('A short human label of the suggestion, for the audit trail.')
+}).describe('An editor\'s accept\/reject decision on a single AI suggestion.')
+
+
+/**
+ * Aggregates the recorded accept/reject decisions per suggestion kind so the team can see which kinds of AI suggestions editors actually find useful (acceptance rate), and improve prompts over time.
+ * @summary Usefulness report of AI suggestion accept/reject decisions per kind (requires content.view)
+ */
+export const GetCmsAiDecisionReportHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsAiDecisionReportResponse = zod.object({
+  "kinds": zod.array(zod.object({
+  "kind": zod.string(),
+  "accepted": zod.number(),
+  "rejected": zod.number(),
+  "total": zod.number(),
+  "acceptanceRate": zod.number().describe('accepted \/ total, in [0, 1]; 0 when there are no decisions.')
+}).describe('Accept\/reject tallies for a single suggestion kind.')),
+  "totals": zod.object({
+  "kind": zod.string(),
+  "accepted": zod.number(),
+  "rejected": zod.number(),
+  "total": zod.number(),
+  "acceptanceRate": zod.number().describe('accepted \/ total, in [0, 1]; 0 when there are no decisions.')
+}).describe('Accept\/reject tallies for a single suggestion kind.')
+}).describe('Usefulness report of recorded AI-suggestion decisions, per kind plus an overall total.')
+
+
+/**
  * @summary Mint an expiring shareable preview link for a draft (requires content.view)
  */
 export const CreateCmsPreviewLinkParams = zod.object({

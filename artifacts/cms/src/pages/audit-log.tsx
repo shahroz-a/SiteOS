@@ -41,6 +41,8 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: "redirect.deactivate.auto", label: "Auto-deactivated redirect" },
   { value: "redirect.reactivate", label: "Re-activated a redirect" },
   { value: "analytics.rollup.auto", label: "Storage cleanup (scheduled)" },
+  { value: "ai.suggestion.accept", label: "Accepted an AI suggestion" },
+  { value: "ai.suggestion.reject", label: "Rejected an AI suggestion" },
   { value: MEDIA_UPDATE_ACTION, label: "Edited image description" },
 ];
 
@@ -49,6 +51,7 @@ const ENTITY_OPTIONS: { value: string; label: string }[] = [
   { value: "user", label: "User" },
   { value: "redirect", label: "Redirect" },
   { value: "analytics", label: "Analytics" },
+  { value: "ai_suggestion", label: "AI suggestion" },
 ];
 
 /** Convert a yyyy-mm-dd date input into an ISO timestamp at the day boundary. */
