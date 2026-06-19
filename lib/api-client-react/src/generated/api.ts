@@ -25,20 +25,25 @@ import type {
   Author,
   BeginBrowserLoginParams,
   Category,
+  CmsArchiveInput,
+  CmsAuthor,
   CmsAuthorInput,
   CmsBadRequestResponse,
+  CmsCategory,
   CmsCategoryInput,
   CmsDashboard,
   CmsDeleteResult,
   CmsDuplicateInput,
   CmsForbiddenResponse,
   CmsMe,
+  CmsMergeInput,
   CmsNotFoundResponse,
   CmsPostDetail,
   CmsPostInput,
   CmsPostListResponse,
   CmsScaffoldInput,
   CmsSearchResponse,
+  CmsTag,
   CmsTagInput,
   CmsUnauthorizedResponse,
   CmsUser,
@@ -2331,6 +2336,83 @@ export const useDuplicateCmsPost = <TError = ErrorType<CmsBadRequestResponse | C
       return useMutation(getDuplicateCmsPostMutationOptions(options));
     }
 
+export const getListCmsAuthorsUrl = () => {
+
+
+
+
+  return `/api/cms/authors`
+}
+
+/**
+ * @summary List all authors for management (requires taxonomy.manage)
+ */
+export const listCmsAuthors = async ( options?: RequestInit): Promise<CmsAuthor[]> => {
+
+  return customFetch<CmsAuthor[]>(getListCmsAuthorsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsAuthorsQueryKey = () => {
+    return [
+    `/api/cms/authors`
+    ] as const;
+    }
+
+
+export const getListCmsAuthorsQueryOptions = <TData = Awaited<ReturnType<typeof listCmsAuthors>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsAuthors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsAuthorsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsAuthors>>> = ({ signal }) => listCmsAuthors({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsAuthors>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsAuthorsQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsAuthors>>>
+export type ListCmsAuthorsQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary List all authors for management (requires taxonomy.manage)
+ */
+
+export function useListCmsAuthors<TData = Awaited<ReturnType<typeof listCmsAuthors>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsAuthors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsAuthorsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getCreateCmsAuthorUrl = () => {
 
 
@@ -2544,6 +2626,83 @@ export const useDeleteCmsAuthor = <TError = ErrorType<CmsUnauthorizedResponse | 
       return useMutation(getDeleteCmsAuthorMutationOptions(options));
     }
 
+export const getListCmsCategoriesUrl = () => {
+
+
+
+
+  return `/api/cms/categories`
+}
+
+/**
+ * @summary List all categories for management (requires taxonomy.manage)
+ */
+export const listCmsCategories = async ( options?: RequestInit): Promise<CmsCategory[]> => {
+
+  return customFetch<CmsCategory[]>(getListCmsCategoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsCategoriesQueryKey = () => {
+    return [
+    `/api/cms/categories`
+    ] as const;
+    }
+
+
+export const getListCmsCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof listCmsCategories>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsCategoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsCategories>>> = ({ signal }) => listCmsCategories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsCategories>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsCategories>>>
+export type ListCmsCategoriesQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary List all categories for management (requires taxonomy.manage)
+ */
+
+export function useListCmsCategories<TData = Awaited<ReturnType<typeof listCmsCategories>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getCreateCmsCategoryUrl = () => {
 
 
@@ -2756,6 +2915,83 @@ export const useDeleteCmsCategory = <TError = ErrorType<CmsUnauthorizedResponse 
       > => {
       return useMutation(getDeleteCmsCategoryMutationOptions(options));
     }
+
+export const getListCmsTagsUrl = () => {
+
+
+
+
+  return `/api/cms/tags`
+}
+
+/**
+ * @summary List all tags for management (requires taxonomy.manage)
+ */
+export const listCmsTags = async ( options?: RequestInit): Promise<CmsTag[]> => {
+
+  return customFetch<CmsTag[]>(getListCmsTagsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsTagsQueryKey = () => {
+    return [
+    `/api/cms/tags`
+    ] as const;
+    }
+
+
+export const getListCmsTagsQueryOptions = <TData = Awaited<ReturnType<typeof listCmsTags>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsTags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsTagsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsTags>>> = ({ signal }) => listCmsTags({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsTags>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsTagsQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsTags>>>
+export type ListCmsTagsQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary List all tags for management (requires taxonomy.manage)
+ */
+
+export function useListCmsTags<TData = Awaited<ReturnType<typeof listCmsTags>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsTags>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsTagsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getCreateCmsTagUrl = () => {
 
@@ -3800,5 +4036,365 @@ export const useDeleteSavedView = <TError = ErrorType<CmsUnauthorizedResponse | 
         TContext
       > => {
       return useMutation(getDeleteSavedViewMutationOptions(options));
+    }
+
+export const getArchiveCmsAuthorUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/authors/${id}/archive`
+}
+
+/**
+ * @summary Archive or restore an author (requires taxonomy.manage)
+ */
+export const archiveCmsAuthor = async (id: string,
+    cmsArchiveInput: CmsArchiveInput, options?: RequestInit): Promise<CmsAuthor> => {
+
+  return customFetch<CmsAuthor>(getArchiveCmsAuthorUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsArchiveInput,)
+  }
+);}
+
+
+
+
+export const getArchiveCmsAuthorMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveCmsAuthor>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveCmsAuthor>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext> => {
+
+const mutationKey = ['archiveCmsAuthor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveCmsAuthor>>, {id: string;data: BodyType<CmsArchiveInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  archiveCmsAuthor(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveCmsAuthorMutationResult = NonNullable<Awaited<ReturnType<typeof archiveCmsAuthor>>>
+    export type ArchiveCmsAuthorMutationBody = BodyType<CmsArchiveInput>
+    export type ArchiveCmsAuthorMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Archive or restore an author (requires taxonomy.manage)
+ */
+export const useArchiveCmsAuthor = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveCmsAuthor>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof archiveCmsAuthor>>,
+        TError,
+        {id: string;data: BodyType<CmsArchiveInput>},
+        TContext
+      > => {
+      return useMutation(getArchiveCmsAuthorMutationOptions(options));
+    }
+
+export const getArchiveCmsCategoryUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/categories/${id}/archive`
+}
+
+/**
+ * @summary Archive or restore a category (requires taxonomy.manage)
+ */
+export const archiveCmsCategory = async (id: string,
+    cmsArchiveInput: CmsArchiveInput, options?: RequestInit): Promise<CmsCategory> => {
+
+  return customFetch<CmsCategory>(getArchiveCmsCategoryUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsArchiveInput,)
+  }
+);}
+
+
+
+
+export const getArchiveCmsCategoryMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveCmsCategory>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveCmsCategory>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext> => {
+
+const mutationKey = ['archiveCmsCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveCmsCategory>>, {id: string;data: BodyType<CmsArchiveInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  archiveCmsCategory(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveCmsCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof archiveCmsCategory>>>
+    export type ArchiveCmsCategoryMutationBody = BodyType<CmsArchiveInput>
+    export type ArchiveCmsCategoryMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Archive or restore a category (requires taxonomy.manage)
+ */
+export const useArchiveCmsCategory = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveCmsCategory>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof archiveCmsCategory>>,
+        TError,
+        {id: string;data: BodyType<CmsArchiveInput>},
+        TContext
+      > => {
+      return useMutation(getArchiveCmsCategoryMutationOptions(options));
+    }
+
+export const getMergeCmsCategoryUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/categories/${id}/merge`
+}
+
+/**
+ * @summary Merge a category into another (requires taxonomy.manage)
+ */
+export const mergeCmsCategory = async (id: string,
+    cmsMergeInput: CmsMergeInput, options?: RequestInit): Promise<CmsCategory> => {
+
+  return customFetch<CmsCategory>(getMergeCmsCategoryUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsMergeInput,)
+  }
+);}
+
+
+
+
+export const getMergeCmsCategoryMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeCmsCategory>>, TError,{id: string;data: BodyType<CmsMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeCmsCategory>>, TError,{id: string;data: BodyType<CmsMergeInput>}, TContext> => {
+
+const mutationKey = ['mergeCmsCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeCmsCategory>>, {id: string;data: BodyType<CmsMergeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  mergeCmsCategory(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeCmsCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof mergeCmsCategory>>>
+    export type MergeCmsCategoryMutationBody = BodyType<CmsMergeInput>
+    export type MergeCmsCategoryMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Merge a category into another (requires taxonomy.manage)
+ */
+export const useMergeCmsCategory = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeCmsCategory>>, TError,{id: string;data: BodyType<CmsMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mergeCmsCategory>>,
+        TError,
+        {id: string;data: BodyType<CmsMergeInput>},
+        TContext
+      > => {
+      return useMutation(getMergeCmsCategoryMutationOptions(options));
+    }
+
+export const getArchiveCmsTagUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/tags/${id}/archive`
+}
+
+/**
+ * @summary Archive or restore a tag (requires taxonomy.manage)
+ */
+export const archiveCmsTag = async (id: string,
+    cmsArchiveInput: CmsArchiveInput, options?: RequestInit): Promise<CmsTag> => {
+
+  return customFetch<CmsTag>(getArchiveCmsTagUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsArchiveInput,)
+  }
+);}
+
+
+
+
+export const getArchiveCmsTagMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveCmsTag>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof archiveCmsTag>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext> => {
+
+const mutationKey = ['archiveCmsTag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof archiveCmsTag>>, {id: string;data: BodyType<CmsArchiveInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  archiveCmsTag(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArchiveCmsTagMutationResult = NonNullable<Awaited<ReturnType<typeof archiveCmsTag>>>
+    export type ArchiveCmsTagMutationBody = BodyType<CmsArchiveInput>
+    export type ArchiveCmsTagMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Archive or restore a tag (requires taxonomy.manage)
+ */
+export const useArchiveCmsTag = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof archiveCmsTag>>, TError,{id: string;data: BodyType<CmsArchiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof archiveCmsTag>>,
+        TError,
+        {id: string;data: BodyType<CmsArchiveInput>},
+        TContext
+      > => {
+      return useMutation(getArchiveCmsTagMutationOptions(options));
+    }
+
+export const getMergeCmsTagUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/tags/${id}/merge`
+}
+
+/**
+ * @summary Merge a tag into another (requires taxonomy.manage)
+ */
+export const mergeCmsTag = async (id: string,
+    cmsMergeInput: CmsMergeInput, options?: RequestInit): Promise<CmsTag> => {
+
+  return customFetch<CmsTag>(getMergeCmsTagUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsMergeInput,)
+  }
+);}
+
+
+
+
+export const getMergeCmsTagMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeCmsTag>>, TError,{id: string;data: BodyType<CmsMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeCmsTag>>, TError,{id: string;data: BodyType<CmsMergeInput>}, TContext> => {
+
+const mutationKey = ['mergeCmsTag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeCmsTag>>, {id: string;data: BodyType<CmsMergeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  mergeCmsTag(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeCmsTagMutationResult = NonNullable<Awaited<ReturnType<typeof mergeCmsTag>>>
+    export type MergeCmsTagMutationBody = BodyType<CmsMergeInput>
+    export type MergeCmsTagMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Merge a tag into another (requires taxonomy.manage)
+ */
+export const useMergeCmsTag = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeCmsTag>>, TError,{id: string;data: BodyType<CmsMergeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mergeCmsTag>>,
+        TError,
+        {id: string;data: BodyType<CmsMergeInput>},
+        TContext
+      > => {
+      return useMutation(getMergeCmsTagMutationOptions(options));
     }
 

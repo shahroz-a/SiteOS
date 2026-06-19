@@ -22,6 +22,7 @@ export const authorsTable = pgTable(
     email: text("email"),
     originalUrl: text("original_url"),
     social: jsonb("social").$type<Record<string, string>>(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -45,6 +46,7 @@ export const categoriesTable = pgTable(
     ),
     path: text("path"),
     originalUrl: text("original_url"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -67,6 +69,7 @@ export const tagsTable = pgTable(
     slug: text("slug").notNull().unique(),
     description: text("description"),
     originalUrl: text("original_url"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -10,6 +10,9 @@ import SearchPage from "@/pages/search";
 import UsersPage from "@/pages/users";
 import ContentPage from "@/pages/content";
 import EditorPage from "@/pages/editor";
+import AuthorsPage from "@/pages/authors";
+import CategoriesPage from "@/pages/categories";
+import TagsPage from "@/pages/tags";
 import AuditLogPage from "@/pages/audit-log";
 import ImportExportPage from "@/pages/import-export";
 import MediaPage from "@/pages/media";
@@ -70,6 +73,21 @@ function AuthenticatedApp() {
         <Route path="/review-queue">
           <RequirePermission permission="review.approve">
             <HeldBackPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/authors">
+          <RequirePermission permission="taxonomy.manage">
+            <AuthorsPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/categories">
+          <RequirePermission permission="taxonomy.manage">
+            <CategoriesPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/tags">
+          <RequirePermission permission="taxonomy.manage">
+            <TagsPage />
           </RequirePermission>
         </Route>
         <Route path="/search">

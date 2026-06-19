@@ -4,10 +4,13 @@ import {
   ArrowLeftRight,
   FileText,
   FileWarning,
+  FolderTree,
   Home,
   Image,
   ScrollText,
   Search,
+  Tag,
+  UserPen,
   Users,
 } from "lucide-react";
 import {
@@ -57,6 +60,19 @@ const NAV_ITEMS: NavItem[] = [
     icon: FileWarning,
     permission: "review.approve",
   },
+  {
+    label: "Authors",
+    href: "/authors",
+    icon: UserPen,
+    permission: "taxonomy.manage",
+  },
+  {
+    label: "Categories",
+    href: "/categories",
+    icon: FolderTree,
+    permission: "taxonomy.manage",
+  },
+  { label: "Tags", href: "/tags", icon: Tag, permission: "taxonomy.manage" },
   {
     label: "Search",
     href: "/search",

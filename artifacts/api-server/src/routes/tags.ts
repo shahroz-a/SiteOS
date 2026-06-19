@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { tagsTable, pageTagsTable, pagesTable } from "@workspace/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { ListTagsResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -15,6 +15,7 @@ router.get("/tags", async (_req, res) => {
       postCount: sql<number>`count(${pagesTable.id})::int`,
     })
     .from(tagsTable)
+    .where(isNull(tagsTable.archivedAt))
     .leftJoin(pageTagsTable, eq(pageTagsTable.tagId, tagsTable.id))
     .leftJoin(
       pagesTable,

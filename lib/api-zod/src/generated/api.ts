@@ -1268,6 +1268,29 @@ export const DuplicateCmsPostBody = zod.object({
 
 
 /**
+ * @summary List all authors for management (requires taxonomy.manage)
+ */
+export const ListCmsAuthorsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsAuthorsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "bio": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "role": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "originalUrl": zod.string().nullable(),
+  "social": zod.record(zod.string(), zod.string()).nullable(),
+  "archived": zod.boolean(),
+  "postCount": zod.number()
+})
+export const ListCmsAuthorsResponse = zod.array(ListCmsAuthorsResponseItem)
+
+
+/**
  * @summary Create an author (requires taxonomy.manage)
  */
 export const CreateCmsAuthorHeader = zod.object({
@@ -1345,6 +1368,26 @@ export const DeleteCmsAuthorResponse = zod.object({
 
 
 /**
+ * @summary List all categories for management (requires taxonomy.manage)
+ */
+export const ListCmsCategoriesHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsCategoriesResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "parentId": zod.string().uuid().nullable(),
+  "path": zod.string().nullable(),
+  "archived": zod.boolean(),
+  "postCount": zod.number()
+})
+export const ListCmsCategoriesResponse = zod.array(ListCmsCategoriesResponseItem)
+
+
+/**
  * @summary Create a category (requires taxonomy.manage)
  */
 export const CreateCmsCategoryHeader = zod.object({
@@ -1412,6 +1455,24 @@ export const DeleteCmsCategoryResponse = zod.object({
   "success": zod.boolean(),
   "id": zod.string().uuid()
 })
+
+
+/**
+ * @summary List all tags for management (requires taxonomy.manage)
+ */
+export const ListCmsTagsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsTagsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "archived": zod.boolean(),
+  "postCount": zod.number()
+})
+export const ListCmsTagsResponse = zod.array(ListCmsTagsResponseItem)
 
 
 /**
@@ -1792,6 +1853,140 @@ export const DeleteSavedViewHeader = zod.object({
 export const DeleteSavedViewResponse = zod.object({
   "success": zod.boolean(),
   "id": zod.string().uuid()
+})
+
+
+/**
+ * @summary Archive or restore an author (requires taxonomy.manage)
+ */
+export const ArchiveCmsAuthorParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const ArchiveCmsAuthorHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ArchiveCmsAuthorBody = zod.object({
+  "archived": zod.boolean()
+})
+
+export const ArchiveCmsAuthorResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "bio": zod.string().nullable(),
+  "avatarUrl": zod.string().nullable(),
+  "role": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "originalUrl": zod.string().nullable(),
+  "social": zod.record(zod.string(), zod.string()).nullable(),
+  "archived": zod.boolean(),
+  "postCount": zod.number()
+})
+
+
+/**
+ * @summary Archive or restore a category (requires taxonomy.manage)
+ */
+export const ArchiveCmsCategoryParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const ArchiveCmsCategoryHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ArchiveCmsCategoryBody = zod.object({
+  "archived": zod.boolean()
+})
+
+export const ArchiveCmsCategoryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "parentId": zod.string().uuid().nullable(),
+  "path": zod.string().nullable(),
+  "archived": zod.boolean(),
+  "postCount": zod.number()
+})
+
+
+/**
+ * @summary Merge a category into another (requires taxonomy.manage)
+ */
+export const MergeCmsCategoryParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const MergeCmsCategoryHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const MergeCmsCategoryBody = zod.object({
+  "targetId": zod.string().uuid()
+})
+
+export const MergeCmsCategoryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "parentId": zod.string().uuid().nullable(),
+  "path": zod.string().nullable(),
+  "archived": zod.boolean(),
+  "postCount": zod.number()
+})
+
+
+/**
+ * @summary Archive or restore a tag (requires taxonomy.manage)
+ */
+export const ArchiveCmsTagParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const ArchiveCmsTagHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ArchiveCmsTagBody = zod.object({
+  "archived": zod.boolean()
+})
+
+export const ArchiveCmsTagResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "archived": zod.boolean(),
+  "postCount": zod.number()
+})
+
+
+/**
+ * @summary Merge a tag into another (requires taxonomy.manage)
+ */
+export const MergeCmsTagParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const MergeCmsTagHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const MergeCmsTagBody = zod.object({
+  "targetId": zod.string().uuid()
+})
+
+export const MergeCmsTagResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "archived": zod.boolean(),
+  "postCount": zod.number()
 })
 
 

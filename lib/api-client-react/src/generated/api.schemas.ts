@@ -415,6 +415,63 @@ export interface CmsDeleteResult {
   id: string;
 }
 
+export interface CmsArchiveInput {
+  archived: boolean;
+}
+
+export interface CmsMergeInput {
+  targetId: string;
+}
+
+/**
+ * @nullable
+ */
+export type CmsAuthorSocial = {[key: string]: string} | null;
+
+export interface CmsAuthor {
+  id: string;
+  name: string;
+  slug: string;
+  /** @nullable */
+  bio: string | null;
+  /** @nullable */
+  avatarUrl: string | null;
+  /** @nullable */
+  role: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  originalUrl: string | null;
+  /** @nullable */
+  social: CmsAuthorSocial;
+  archived: boolean;
+  postCount: number;
+}
+
+export interface CmsCategory {
+  id: string;
+  name: string;
+  slug: string;
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  parentId: string | null;
+  /** @nullable */
+  path: string | null;
+  archived: boolean;
+  postCount: number;
+}
+
+export interface CmsTag {
+  id: string;
+  name: string;
+  slug: string;
+  /** @nullable */
+  description: string | null;
+  archived: boolean;
+  postCount: number;
+}
+
 export interface HealthStatus {
   status: string;
 }

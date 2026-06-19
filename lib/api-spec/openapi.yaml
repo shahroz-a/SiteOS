@@ -765,6 +765,26 @@ paths:
           $ref: "#/components/responses/CmsNotFound"
 
   /cms/authors:
+    get:
+      tags: [cms]
+      operationId: listCmsAuthors
+      summary: List all authors for management (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: All authors with archived flag and post counts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CmsAuthor"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
     post:
       tags: [cms]
       operationId: createCmsAuthor
@@ -845,6 +865,26 @@ paths:
           $ref: "#/components/responses/CmsNotFound"
 
   /cms/categories:
+    get:
+      tags: [cms]
+      operationId: listCmsCategories
+      summary: List all categories for management (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: All categories with hierarchy, archived flag and post counts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CmsCategory"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
     post:
       tags: [cms]
       operationId: createCmsCategory
@@ -925,6 +965,26 @@ paths:
           $ref: "#/components/responses/CmsNotFound"
 
   /cms/tags:
+    get:
+      tags: [cms]
+      operationId: listCmsTags
+      summary: List all tags for management (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: All tags with archived flag and post counts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CmsTag"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
     post:
       tags: [cms]
       operationId: createCmsTag
@@ -1317,6 +1377,161 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CmsDeleteResult"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/authors/{id}/archive:
+    post:
+      tags: [cms]
+      operationId: archiveCmsAuthor
+      summary: Archive or restore an author (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsArchiveInput"
+      responses:
+        "200":
+          description: The updated author.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsAuthor"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/categories/{id}/archive:
+    post:
+      tags: [cms]
+      operationId: archiveCmsCategory
+      summary: Archive or restore a category (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsArchiveInput"
+      responses:
+        "200":
+          description: The updated category.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsCategory"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/categories/{id}/merge:
+    post:
+      tags: [cms]
+      operationId: mergeCmsCategory
+      summary: Merge a category into another (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsMergeInput"
+      responses:
+        "200":
+          description: The target category after the merge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsCategory"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/tags/{id}/archive:
+    post:
+      tags: [cms]
+      operationId: archiveCmsTag
+      summary: Archive or restore a tag (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsArchiveInput"
+      responses:
+        "200":
+          description: The updated tag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsTag"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/tags/{id}/merge:
+    post:
+      tags: [cms]
+      operationId: mergeCmsTag
+      summary: Merge a tag into another (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsMergeInput"
+      responses:
+        "200":
+          description: The target tag after the merge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsTag"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
         "401":
           $ref: "#/components/responses/CmsUnauthorized"
         "403":
@@ -1945,6 +2160,119 @@ components:
       required:
         - success
         - id
+
+    CmsArchiveInput:
+      type: object
+      properties:
+        archived:
+          type: boolean
+      required:
+        - archived
+
+    CmsMergeInput:
+      type: object
+      properties:
+        targetId:
+          type: string
+          format: uuid
+      required:
+        - targetId
+
+    CmsAuthor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        bio:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        role:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        originalUrl:
+          type: ["string", "null"]
+        social:
+          type: ["object", "null"]
+          additionalProperties:
+            type: string
+        archived:
+          type: boolean
+        postCount:
+          type: integer
+      required:
+        - id
+        - name
+        - slug
+        - bio
+        - avatarUrl
+        - role
+        - email
+        - originalUrl
+        - social
+        - archived
+        - postCount
+
+    CmsCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        parentId:
+          type: ["string", "null"]
+          format: uuid
+        path:
+          type: ["string", "null"]
+        archived:
+          type: boolean
+        postCount:
+          type: integer
+      required:
+        - id
+        - name
+        - slug
+        - description
+        - parentId
+        - path
+        - archived
+        - postCount
+
+    CmsTag:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        archived:
+          type: boolean
+        postCount:
+          type: integer
+      required:
+        - id
+        - name
+        - slug
+        - description
+        - archived
+        - postCount
 
     HealthStatus:
       type: object

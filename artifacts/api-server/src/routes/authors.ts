@@ -22,10 +22,14 @@ router.get("/authors", async (_req, res) => {
       email: authorsTable.email,
       originalUrl: authorsTable.originalUrl,
       social: authorsTable.social,
+      archivedAt: authorsTable.archivedAt,
     })
     .from(authorsTable);
 
-  res.json(ListAuthorsResponse.parse(rows));
+  // Archived authors are hidden from the public site (filtered in JS so the
+  // read path stays within what the test harness models).
+  const visible = rows.filter((r) => r.archivedAt == null);
+  res.json(ListAuthorsResponse.parse(visible));
 });
 
 router.get("/authors/:slug", async (req, res) => {

@@ -29,6 +29,7 @@ router.get("/categories", async (_req, res) => {
       description: categoriesTable.description,
       parentId: categoriesTable.parentId,
       path: categoriesTable.path,
+      archivedAt: categoriesTable.archivedAt,
     })
     .from(categoriesTable);
 
@@ -54,7 +55,12 @@ router.get("/categories", async (_req, res) => {
   }
 
   const navigable = categories
-    .filter((c) => c.parentId == null && (postsByCategory.get(c.id)?.size ?? 0) > 0)
+    .filter(
+      (c) =>
+        c.archivedAt == null &&
+        c.parentId == null &&
+        (postsByCategory.get(c.id)?.size ?? 0) > 0,
+    )
     .map((c) => ({ category: c, count: postsByCategory.get(c.id)!.size }))
     .sort((a, b) => b.count - a.count || a.category.name.localeCompare(b.category.name))
     .map((entry) => entry.category);

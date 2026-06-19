@@ -6,18 +6,36 @@ import {
   UpdateCmsAuthorResponse,
   DeleteCmsAuthorParams,
   DeleteCmsAuthorResponse,
+  ListCmsAuthorsResponse,
+  ArchiveCmsAuthorParams,
+  ArchiveCmsAuthorBody,
+  ArchiveCmsAuthorResponse,
   CreateCmsCategoryBody,
   UpdateCmsCategoryBody,
   UpdateCmsCategoryParams,
   UpdateCmsCategoryResponse,
   DeleteCmsCategoryParams,
   DeleteCmsCategoryResponse,
+  ListCmsCategoriesResponse,
+  ArchiveCmsCategoryParams,
+  ArchiveCmsCategoryBody,
+  ArchiveCmsCategoryResponse,
+  MergeCmsCategoryParams,
+  MergeCmsCategoryBody,
+  MergeCmsCategoryResponse,
   CreateCmsTagBody,
   UpdateCmsTagBody,
   UpdateCmsTagParams,
   UpdateCmsTagResponse,
   DeleteCmsTagParams,
   DeleteCmsTagResponse,
+  ListCmsTagsResponse,
+  ArchiveCmsTagParams,
+  ArchiveCmsTagBody,
+  ArchiveCmsTagResponse,
+  MergeCmsTagParams,
+  MergeCmsTagBody,
+  MergeCmsTagResponse,
 } from "@workspace/api-zod";
 import { requireAuth, requirePermission } from "../middlewares/rbac";
 import { recordAudit } from "../lib/audit";
@@ -31,6 +49,14 @@ import {
   createTag,
   updateTag,
   deleteTag,
+  listAuthorsForCms,
+  listCategoriesForCms,
+  listTagsForCms,
+  archiveAuthor,
+  archiveCategory,
+  archiveTag,
+  mergeCategories,
+  mergeTags,
 } from "../lib/cms-taxonomy";
 
 const router: IRouter = Router();
@@ -88,6 +114,16 @@ router.put(
   },
 );
 
+router.get(
+  "/cms/authors",
+  requireAuth,
+  requirePermission("taxonomy.manage"),
+  async (_req: Request, res: Response) => {
+    const rows = await listAuthorsForCms();
+    res.json(ListCmsAuthorsResponse.parse(rows));
+  },
+);
+
 router.delete(
   "/cms/authors/:id",
   requireAuth,
@@ -106,6 +142,33 @@ router.delete(
       actorRole: req.cmsRole ?? null,
     });
     res.json(DeleteCmsAuthorResponse.parse({ success: true, id }));
+  },
+);
+
+router.post(
+  "/cms/authors/:id/archive",
+  requireAuth,
+  requirePermission("taxonomy.manage"),
+  async (req: Request, res: Response) => {
+    const { id } = ArchiveCmsAuthorParams.parse(req.params);
+    const parsed = ArchiveCmsAuthorBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return;
+    }
+    const row = await archiveAuthor(id, parsed.data.archived);
+    if (!row) {
+      res.status(404).json({ error: "Author not found" });
+      return;
+    }
+    await recordAudit(req, {
+      action: parsed.data.archived ? "author.archive" : "author.restore",
+      entityType: "author",
+      entityId: id,
+      actorRole: req.cmsRole ?? null,
+      after: { archived: row.archived },
+    });
+    res.json(ArchiveCmsAuthorResponse.parse(row));
   },
 );
 
@@ -162,6 +225,16 @@ router.put(
   },
 );
 
+router.get(
+  "/cms/categories",
+  requireAuth,
+  requirePermission("taxonomy.manage"),
+  async (_req: Request, res: Response) => {
+    const rows = await listCategoriesForCms();
+    res.json(ListCmsCategoriesResponse.parse(rows));
+  },
+);
+
 router.delete(
   "/cms/categories/:id",
   requireAuth,
@@ -180,6 +253,69 @@ router.delete(
       actorRole: req.cmsRole ?? null,
     });
     res.json(DeleteCmsCategoryResponse.parse({ success: true, id }));
+  },
+);
+
+router.post(
+  "/cms/categories/:id/archive",
+  requireAuth,
+  requirePermission("taxonomy.manage"),
+  async (req: Request, res: Response) => {
+    const { id } = ArchiveCmsCategoryParams.parse(req.params);
+    const parsed = ArchiveCmsCategoryBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return;
+    }
+    const row = await archiveCategory(id, parsed.data.archived);
+    if (!row) {
+      res.status(404).json({ error: "Category not found" });
+      return;
+    }
+    await recordAudit(req, {
+      action: parsed.data.archived ? "category.archive" : "category.restore",
+      entityType: "category",
+      entityId: id,
+      actorRole: req.cmsRole ?? null,
+      after: { archived: row.archived },
+    });
+    res.json(ArchiveCmsCategoryResponse.parse(row));
+  },
+);
+
+router.post(
+  "/cms/categories/:id/merge",
+  requireAuth,
+  requirePermission("taxonomy.manage"),
+  async (req: Request, res: Response) => {
+    const { id } = MergeCmsCategoryParams.parse(req.params);
+    const parsed = MergeCmsCategoryBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return;
+    }
+    const result = await mergeCategories(id, parsed.data.targetId);
+    if (!result.ok) {
+      if (result.reason === "same") {
+        res.status(400).json({ error: "Cannot merge a category into itself" });
+        return;
+      }
+      res.status(404).json({
+        error:
+          result.reason === "source"
+            ? "Source category not found"
+            : "Target category not found",
+      });
+      return;
+    }
+    await recordAudit(req, {
+      action: "category.merge",
+      entityType: "category",
+      entityId: id,
+      actorRole: req.cmsRole ?? null,
+      after: { mergedInto: parsed.data.targetId },
+    });
+    res.json(MergeCmsCategoryResponse.parse(result.target));
   },
 );
 
@@ -236,6 +372,16 @@ router.put(
   },
 );
 
+router.get(
+  "/cms/tags",
+  requireAuth,
+  requirePermission("taxonomy.manage"),
+  async (_req: Request, res: Response) => {
+    const rows = await listTagsForCms();
+    res.json(ListCmsTagsResponse.parse(rows));
+  },
+);
+
 router.delete(
   "/cms/tags/:id",
   requireAuth,
@@ -254,6 +400,69 @@ router.delete(
       actorRole: req.cmsRole ?? null,
     });
     res.json(DeleteCmsTagResponse.parse({ success: true, id }));
+  },
+);
+
+router.post(
+  "/cms/tags/:id/archive",
+  requireAuth,
+  requirePermission("taxonomy.manage"),
+  async (req: Request, res: Response) => {
+    const { id } = ArchiveCmsTagParams.parse(req.params);
+    const parsed = ArchiveCmsTagBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return;
+    }
+    const row = await archiveTag(id, parsed.data.archived);
+    if (!row) {
+      res.status(404).json({ error: "Tag not found" });
+      return;
+    }
+    await recordAudit(req, {
+      action: parsed.data.archived ? "tag.archive" : "tag.restore",
+      entityType: "tag",
+      entityId: id,
+      actorRole: req.cmsRole ?? null,
+      after: { archived: row.archived },
+    });
+    res.json(ArchiveCmsTagResponse.parse(row));
+  },
+);
+
+router.post(
+  "/cms/tags/:id/merge",
+  requireAuth,
+  requirePermission("taxonomy.manage"),
+  async (req: Request, res: Response) => {
+    const { id } = MergeCmsTagParams.parse(req.params);
+    const parsed = MergeCmsTagBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return;
+    }
+    const result = await mergeTags(id, parsed.data.targetId);
+    if (!result.ok) {
+      if (result.reason === "same") {
+        res.status(400).json({ error: "Cannot merge a tag into itself" });
+        return;
+      }
+      res.status(404).json({
+        error:
+          result.reason === "source"
+            ? "Source tag not found"
+            : "Target tag not found",
+      });
+      return;
+    }
+    await recordAudit(req, {
+      action: "tag.merge",
+      entityType: "tag",
+      entityId: id,
+      actorRole: req.cmsRole ?? null,
+      after: { mergedInto: parsed.data.targetId },
+    });
+    res.json(MergeCmsTagResponse.parse(result.target));
   },
 );
 

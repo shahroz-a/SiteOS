@@ -375,6 +375,13 @@ export class FakeDb {
   delete(table: { __table: string }) {
     return new DeleteBuilder(this.tables, table.__table);
   }
+  // The real Drizzle pool runs `fn` against a transaction handle; the in-memory
+  // harness has no isolation, so it simply threads itself as the executor. This
+  // is enough to exercise transactional helpers (merge/archive/delete) whose
+  // logic is independent of real atomicity.
+  async transaction<T>(fn: (tx: FakeDb) => Promise<T>): Promise<T> {
+    return fn(this);
+  }
 }
 
 function tableProxy(name: string) {
