@@ -3,8 +3,8 @@
  * `onChange` that merges into `block.data` (or top-level fields like `text`).
  * `BlockEditor` dispatches to the right editor by `block.type`.
  */
-import { useState } from "react";
-import { ImageIcon, Plus, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { Input } from "@workspace/ui/input";
 import { Textarea } from "@workspace/ui/textarea";
 import { Label } from "@workspace/ui/label";
@@ -19,6 +19,7 @@ import {
 } from "@workspace/ui/select";
 import { RichTextEditor } from "./rich-text-editor";
 import { MediaPicker } from "@/components/media-picker";
+import { useImageUpload } from "../lib/use-image-upload";
 import type { BlockData, BlockEntry, EditorBlock, GalleryImage } from "./model";
 
 export interface BlockEditorProps {
@@ -62,6 +63,69 @@ function LibraryButton({
         onSelect={(item) => onPick({ url: item.url, alt: item.alt ?? "" })}
       />
     </>
+  );
+}
+
+/**
+ * Upload-an-image control. Opens the native file picker, uploads to object
+ * storage and hands the resulting serving URL back via `onUploaded`. Falls back
+ * gracefully (inline error) on failure; the adjacent URL field still works.
+ */
+function ImageUploadButton({
+  onUploaded,
+  label = "Upload image",
+  size = "sm",
+}: {
+  onUploaded: (url: string) => void;
+  label?: string;
+  size?: "sm" | "icon";
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { upload, isUploading, error } = useImageUpload();
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setLocalError(null);
+    try {
+      const url = await upload(file);
+      onUploaded(url);
+    } catch {
+      // `error` from the hook holds the message; keep the picker usable.
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void handleFiles(e.target.files)}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size={size === "icon" ? "icon" : "sm"}
+        disabled={isUploading}
+        onClick={() => inputRef.current?.click()}
+        title={label}
+      >
+        {isUploading ? (
+          <Loader2 className={size === "icon" ? "h-4 w-4 animate-spin" : "mr-1 h-4 w-4 animate-spin"} />
+        ) : (
+          <Upload className={size === "icon" ? "h-4 w-4" : "mr-1 h-4 w-4"} />
+        )}
+        {size === "icon" ? null : isUploading ? "Uploading…" : label}
+      </Button>
+      {error || localError ? (
+        <span className="text-xs text-destructive">{error ?? localError}</span>
+      ) : null}
+    </div>
   );
 }
 
@@ -142,16 +206,21 @@ function ImageEditor({ block, onChange }: BlockEditorProps) {
   const d = block.data;
   return (
     <div className="space-y-3">
-      <div className="flex items-end gap-2">
-        <Field label="Image URL">
-          <Input value={d.src ?? ""} onChange={(e) => patchData(block, onChange, { src: e.target.value })} placeholder="https://…" />
-        </Field>
-        <LibraryButton
-          onPick={({ url, alt }) =>
-            patchData(block, onChange, { src: url, alt: d.alt || alt })
-          }
-        />
-      </div>
+      <Field label="Image">
+        <div className="flex items-center gap-2">
+          <Input
+            value={d.src ?? ""}
+            onChange={(e) => patchData(block, onChange, { src: e.target.value })}
+            placeholder="Paste a URL or upload a file"
+          />
+          <ImageUploadButton onUploaded={(url) => patchData(block, onChange, { src: url })} label="Upload" />
+          <LibraryButton
+            onPick={({ url, alt }) =>
+              patchData(block, onChange, { src: url, alt: d.alt || alt })
+            }
+          />
+        </div>
+      </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Alt text">
           <Input value={d.alt ?? ""} onChange={(e) => patchData(block, onChange, { alt: e.target.value })} />
@@ -187,6 +256,11 @@ function GalleryEditor({ block, onChange }: BlockEditorProps) {
               onChange={(e) => setImages(images.map((x, j) => (j === i ? { ...x, alt: e.target.value } : x)))}
             />
           </div>
+          <ImageUploadButton
+            size="icon"
+            label="Upload image"
+            onUploaded={(url) => setImages(images.map((x, j) => (j === i ? { ...x, src: url } : x)))}
+          />
           <Button variant="ghost" size="icon" onClick={() => setImages(images.filter((_, j) => j !== i))}>
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -196,6 +270,10 @@ function GalleryEditor({ block, onChange }: BlockEditorProps) {
         <Button variant="outline" size="sm" onClick={() => setImages([...images, { src: "", alt: "" }])}>
           <Plus className="mr-1 h-4 w-4" /> Add image
         </Button>
+        <ImageUploadButton
+          label="Upload & add"
+          onUploaded={(url) => setImages([...images, { src: url, alt: "" }])}
+        />
         <LibraryButton
           label="Add from library"
           onPick={({ url, alt }) => setImages([...images, { src: url, alt }])}

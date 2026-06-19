@@ -22,7 +22,84 @@ tags:
     description: Browser and mobile authentication endpoints.
   - name: cms
     description: Internal CMS (Blog Studio) endpoints — authenticated, role-gated.
+  - name: Storage
+    description: Object storage upload and serving endpoints.
 paths:
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for an image upload (requires content.create or content.edit)
+      description: >-
+        Returns a presigned GCS URL for a direct browser upload. The client
+        sends JSON metadata here, then PUTs the file bytes directly to the
+        returned URL. Gated on the CMS session: the acting user must hold
+        content.create or content.edit.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "500":
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an uploaded image from object storage
+      description: >-
+        Streams an object uploaded via the presigned-URL flow. Uploaded blog
+        images are public content, so this endpoint is unauthenticated. The
+        generated client is not used for it — reference the URL directly from
+        an `<img src>`.
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Object path within the private object dir (e.g. `uploads/some-uuid`).
+      responses:
+        "200":
+          description: Object content streamed with the correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /healthz:
     get:
       operationId: healthCheck
@@ -3015,6 +3092,36 @@ components:
       properties:
         error:
           type: string
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Original file name.
+        size:
+          type: integer
+          minimum: 1
+          description: File size in bytes.
+        contentType:
+          type: string
+          minLength: 1
+          description: MIME type of the file (e.g. `image/jpeg`).
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+          description: Presigned GCS URL for the PUT upload.
+        objectPath:
+          type: string
+          description: Normalized object path (e.g. `/objects/uploads/uuid`).
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
 
     Role:
       type: string

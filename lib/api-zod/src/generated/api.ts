@@ -9,6 +9,50 @@ import * as zod from 'zod';
 
 
 /**
+ * Returns a presigned GCS URL for a direct browser upload. The client sends JSON metadata here, then PUTs the file bytes directly to the returned URL. Gated on the CMS session: the acting user must hold content.create or content.edit.
+ * @summary Request a presigned URL for an image upload (requires content.create or content.edit)
+ */
+export const RequestUploadUrlHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+
+
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string().min(1).describe('Original file name.'),
+  "size": zod.number().min(1).describe('File size in bytes.'),
+  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
+})
+
+
+
+
+
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.string().url().describe('Presigned GCS URL for the PUT upload.'),
+  "objectPath": zod.string().describe('Normalized object path (e.g. `\/objects\/uploads\/uuid`).'),
+  "metadata": zod.object({
+  "name": zod.string().min(1).describe('Original file name.'),
+  "size": zod.number().min(1).describe('File size in bytes.'),
+  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
+}).optional()
+})
+
+
+/**
+ * Streams an object uploaded via the presigned-URL flow. Uploaded blog images are public content, so this endpoint is unauthenticated. The generated client is not used for it — reference the URL directly from an `<img src>`.
+ * @summary Serve an uploaded image from object storage
+ */
+export const GetStorageObjectParams = zod.object({
+  "objectPath": zod.string().describe('Object path within the private object dir (e.g. `uploads\/some-uuid`).')
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

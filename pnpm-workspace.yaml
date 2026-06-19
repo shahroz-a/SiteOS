@@ -88,6 +88,24 @@ packageExtensions:
         optional: true
       '@types/react-dom':
         optional: true
+  vaul:
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+  cmdk:
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
 
 overrides:
   '@workspace/thanksgiving-mobile>@types/react': ~19.1.10

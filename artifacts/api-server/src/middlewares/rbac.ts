@@ -65,3 +65,23 @@ export function requirePermission(permission: Permission) {
     next();
   };
 }
+
+/**
+ * Guards a route on holding ANY of the given permissions. Must run after
+ * `requireAuth` so `req.cmsRole` is populated. Responds 403 when the role holds
+ * none of them.
+ */
+export function requireAnyPermission(permissions: Permission[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const role = req.cmsRole;
+    if (!role) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+    if (!permissions.some((p) => hasPermission(role, p))) {
+      res.status(403).json({ error: "Insufficient permissions" });
+      return;
+    }
+    next();
+  };
+}

@@ -145,3 +145,5 @@ export * from './seoMeta';
 export * from './tag';
 export * from './tagSummary';
 export * from './updateUserRoleRequest';
+export * from './uploadUrlRequest';
+export * from './uploadUrlResponse';

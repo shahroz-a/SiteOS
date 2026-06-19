@@ -13,6 +13,7 @@ import cmsTaxonomyRouter from "./cms-taxonomy";
 import cmsIoRouter from "./cms-io";
 import cmsMediaRouter from "./cms-media";
 import cmsViewsRouter from "./cms-views";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(cmsTaxonomyRouter);
 router.use(cmsIoRouter);
 router.use(cmsMediaRouter);
 router.use(cmsViewsRouter);
+router.use(storageRouter);
 
 export default router;
