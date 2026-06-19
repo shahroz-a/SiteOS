@@ -24,6 +24,10 @@ args = "test"
 task = "workflow.run"
 args = "Blog Crawl"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "verify-cms-io"
+
 [[workflows.workflow]]
 name = "test"
 author = "agent"
@@ -45,6 +49,17 @@ args = "pnpm --filter @workspace/scripts run crawl -- --crawl --no-browser --con
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "verify-cms-io"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run verify:cms-io"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [agent]
 stack = "PNPM_WORKSPACE"

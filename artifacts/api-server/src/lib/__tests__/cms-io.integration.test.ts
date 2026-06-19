@@ -27,7 +27,7 @@
  *     artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts`)
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { asc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import {
   db,
   pool,
@@ -52,6 +52,22 @@ const RUN = process.env.VERIFY_CMS_IO === "1";
 // exercises both extremes while keeping the rolled-back imports fast.
 const SAMPLE_TOP = 1;
 const SAMPLE_BOTTOM = 2;
+
+/**
+ * Bounded mode (`CMS_IO_VERIFY_LIMIT=N`, N a positive integer): load ONLY a
+ * sample of N pages (1 with the most images + the rest with the fewest) directly
+ * from the DB instead of materializing + serializing all ~3.7k pages. This is
+ * what lets the round-trip run automatically as a registered validation step /
+ * scheduled job in a few seconds; left unset, the full corpus is exercised
+ * (the manual `verify:cms-io` run). The sample still spans the many-image and
+ * empty-shape extremes, so it covers the same import/restore regressions.
+ */
+const VERIFY_LIMIT = (() => {
+  const raw = process.env.CMS_IO_VERIFY_LIMIT;
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
+})();
 
 type Executor = typeof db;
 
@@ -179,6 +195,39 @@ async function pageIdByCanonical(
   return row?.id;
 }
 
+/**
+ * Cheap, bounded sample selection for BOUNDED mode: the `topN` pages with the
+ * MOST images plus the `bottomN` with the FEWEST, via two small LIMITed
+ * aggregate queries (no full-corpus scan). De-duplicated, preserving the
+ * extremes a small corpus might share.
+ */
+async function pickSamplePageIds(
+  topN: number,
+  bottomN: number,
+): Promise<string[]> {
+  const imageCount = sql<number>`count(${imagesTable.id})`;
+  const base = () =>
+    db
+      .select({ id: pagesTable.id })
+      .from(pagesTable)
+      .leftJoin(imagesTable, eq(imagesTable.pageId, pagesTable.id))
+      .groupBy(pagesTable.id);
+  const ids: string[] = [];
+  if (topN > 0) {
+    const top = await base()
+      .orderBy(desc(imageCount), asc(pagesTable.slug))
+      .limit(topN);
+    ids.push(...top.map((r) => r.id));
+  }
+  if (bottomN > 0) {
+    const bottom = await base()
+      .orderBy(asc(imageCount), asc(pagesTable.slug))
+      .limit(bottomN);
+    ids.push(...bottom.map((r) => r.id));
+  }
+  return [...new Set(ids)];
+}
+
 describe.runIf(RUN)("CMS import/export/restore round-trip on real data", () => {
   let bundle: ContentBundle;
   let sampleBundle: ContentBundle;
@@ -186,27 +235,44 @@ describe.runIf(RUN)("CMS import/export/restore round-trip on real data", () => {
   const baseline = new Map<string, ChildRows>();
 
   beforeAll(async () => {
-    // 1) EXPORT leg: read the whole corpus (read-only).
-    bundle = await loadContentBundle();
-    expect(bundle.posts.length).toBeGreaterThan(0);
+    let sampled: ContentBundle["posts"];
 
-    // Pick an interesting sample: most images + fewest images.
-    const ranked = bundle.posts
-      .map((p) => ({ post: p, n: p.images.length }))
-      .sort((a, b) => b.n - a.n)
-      .map((r) => r.post);
-    const sampled = [
-      ...new Map(
-        [...ranked.slice(0, SAMPLE_TOP), ...ranked.slice(-SAMPLE_BOTTOM)].map(
-          (p) => [p.canonicalUrl, p],
-        ),
-      ).values(),
-    ];
-    expect(sampled.length).toBeGreaterThan(0);
+    if (VERIFY_LIMIT !== null) {
+      // BOUNDED mode: never materialize the whole corpus. Pick the sample page
+      // ids straight from the DB (1 with the most images + the rest with the
+      // fewest), then load ONLY those pages. `bundle` and `sampleBundle` are the
+      // same small, self-contained bundle (taxonomy pruned to referenced docs).
+      const topN = Math.min(SAMPLE_TOP, VERIFY_LIMIT);
+      const bottomN = VERIFY_LIMIT - topN;
+      const ids = await pickSamplePageIds(topN, bottomN);
+      expect(ids.length, "bounded sample resolved page ids").toBeGreaterThan(0);
+      bundle = await loadContentBundle(db, { pageIds: ids });
+      expect(bundle.posts.length).toBeGreaterThan(0);
+      sampled = bundle.posts;
+      sampleBundle = bundle;
+    } else {
+      // FULL mode: read the whole corpus (read-only), then sample in memory.
+      bundle = await loadContentBundle();
+      expect(bundle.posts.length).toBeGreaterThan(0);
 
-    // A sub-bundle with only the sampled posts (taxonomy kept whole — upserts
-    // are idempotent and cheap) so the rolled-back imports stay small.
-    sampleBundle = { ...bundle, posts: sampled };
+      // Pick an interesting sample: most images + fewest images.
+      const ranked = bundle.posts
+        .map((p) => ({ post: p, n: p.images.length }))
+        .sort((a, b) => b.n - a.n)
+        .map((r) => r.post);
+      sampled = [
+        ...new Map(
+          [...ranked.slice(0, SAMPLE_TOP), ...ranked.slice(-SAMPLE_BOTTOM)].map(
+            (p) => [p.canonicalUrl, p],
+          ),
+        ).values(),
+      ];
+      expect(sampled.length).toBeGreaterThan(0);
+
+      // A sub-bundle with only the sampled posts (taxonomy kept whole — upserts
+      // are idempotent and cheap) so the rolled-back imports stay small.
+      sampleBundle = { ...bundle, posts: sampled };
+    }
 
     // Capture the live DB child rows for each sampled page (no-loss baseline).
     for (const post of sampled) {

@@ -1,5 +1,5 @@
 import { randomUUID, createHash } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import {
   db,
   pagesTable,
@@ -89,18 +89,40 @@ function groupBy<T, K>(rows: T[], key: (row: T) => K): Map<K, T[]> {
 }
 
 /**
- * Load the entire content corpus into a `ContentBundle`. Runs one query per
- * table (no N+1) and stitches children onto pages in memory by page id; the
- * emitted bundle is keyed entirely by natural keys (slugs / canonical URLs).
+ * Load the content corpus into a `ContentBundle`. Runs one query per table (no
+ * N+1) and stitches children onto pages in memory by page id; the emitted bundle
+ * is keyed entirely by natural keys (slugs / canonical URLs).
+ *
+ * By default the WHOLE corpus is loaded. Pass `opts.pageIds` to load only those
+ * pages (and only their child rows), then prune the taxonomy down to the docs
+ * those pages actually reference. This keeps the export — and any subsequent
+ * round-trip import — small and fast, which the opt-in CMS round-trip
+ * verification relies on so it can run automatically on a bounded sample instead
+ * of materializing+serializing all ~3.7k pages. The full-export callers
+ * (`GET /cms/export`, `GET /cms/backup`) pass no opts, so their behaviour is
+ * unchanged.
  */
 export async function loadContentBundle(
   exec: Executor = db,
+  opts: { pageIds?: string[] } = {},
 ): Promise<ContentBundle> {
+  const pageIds = opts.pageIds;
+  // An empty pageIds array means "no pages" — short-circuit so `inArray(col, [])`
+  // (which Postgres rejects) is never built.
+  const pageScope =
+    pageIds !== undefined ? inArray(pagesTable.id, pageIds) : undefined;
+  const childScope = (col: typeof pagesTable.id) =>
+    pageIds !== undefined ? inArray(col, pageIds) : undefined;
+
   const [authors, categories, tags, pages] = await Promise.all([
     exec.select().from(authorsTable).orderBy(asc(authorsTable.slug)),
     exec.select().from(categoriesTable).orderBy(asc(categoriesTable.slug)),
     exec.select().from(tagsTable).orderBy(asc(tagsTable.slug)),
-    exec.select(pageExportColumns).from(pagesTable).orderBy(asc(pagesTable.slug)),
+    exec
+      .select(pageExportColumns)
+      .from(pagesTable)
+      .where(pageScope)
+      .orderBy(asc(pagesTable.slug)),
   ]);
 
   const authorSlugById = new Map(authors.map((a) => [a.id, a.slug]));
@@ -127,24 +149,44 @@ export async function loadContentBundle(
       .innerJoin(
         categoriesTable,
         eq(pageCategoriesTable.categoryId, categoriesTable.id),
-      ),
+      )
+      .where(childScope(pageCategoriesTable.pageId)),
     exec
       .select({ pageId: pageTagsTable.pageId, slug: tagsTable.slug })
       .from(pageTagsTable)
-      .innerJoin(tagsTable, eq(pageTagsTable.tagId, tagsTable.id)),
-    exec.select().from(seoTable),
-    exec.select().from(metadataTable),
-    exec.select().from(breadcrumbsTable).orderBy(asc(breadcrumbsTable.position)),
-    exec.select().from(faqTable).orderBy(asc(faqTable.position)),
-    exec.select().from(jsonldTable).orderBy(asc(jsonldTable.position)),
-    exec.select().from(imagesTable).orderBy(asc(imagesTable.position)),
+      .innerJoin(tagsTable, eq(pageTagsTable.tagId, tagsTable.id))
+      .where(childScope(pageTagsTable.pageId)),
+    exec.select().from(seoTable).where(childScope(seoTable.pageId)),
+    exec.select().from(metadataTable).where(childScope(metadataTable.pageId)),
+    exec
+      .select()
+      .from(breadcrumbsTable)
+      .where(childScope(breadcrumbsTable.pageId))
+      .orderBy(asc(breadcrumbsTable.position)),
+    exec
+      .select()
+      .from(faqTable)
+      .where(childScope(faqTable.pageId))
+      .orderBy(asc(faqTable.position)),
+    exec
+      .select()
+      .from(jsonldTable)
+      .where(childScope(jsonldTable.pageId))
+      .orderBy(asc(jsonldTable.position)),
+    exec
+      .select()
+      .from(imagesTable)
+      .where(childScope(imagesTable.pageId))
+      .orderBy(asc(imagesTable.position)),
     exec
       .select()
       .from(internalLinksTable)
+      .where(childScope(internalLinksTable.pageId))
       .orderBy(asc(internalLinksTable.position)),
     exec
       .select()
       .from(externalLinksTable)
+      .where(childScope(externalLinksTable.pageId))
       .orderBy(asc(externalLinksTable.position)),
   ]);
 
@@ -263,11 +305,33 @@ export async function loadContentBundle(
     };
   });
 
+  // In bounded mode prune the taxonomy down to only the docs the loaded posts
+  // reference, so a round-trip import upserts a handful of rows instead of the
+  // whole ~2.2k-category taxonomy. (Full mode keeps every taxonomy row.) Missing
+  // category parents are tolerated by the importer's parent-resolution pass.
+  let authorsOut = authors;
+  let categoriesOut = categories;
+  let tagsOut = tags;
+  if (pageIds !== undefined) {
+    const refAuthors = new Set(
+      posts.map((p) => p.authorSlug).filter((s): s is string => Boolean(s)),
+    );
+    const refCategories = new Set(
+      posts
+        .flatMap((p) => [p.primaryCategorySlug, ...p.categorySlugs])
+        .filter((s): s is string => Boolean(s)),
+    );
+    const refTags = new Set(posts.flatMap((p) => p.tagSlugs));
+    authorsOut = authors.filter((a) => refAuthors.has(a.slug));
+    categoriesOut = categories.filter((c) => refCategories.has(c.slug));
+    tagsOut = tags.filter((t) => refTags.has(t.slug));
+  }
+
   return withCounts({
     bundleVersion: BUNDLE_VERSION,
     exportedAt: new Date().toISOString(),
     source: "headout-blog",
-    authors: authors.map((a) => ({
+    authors: authorsOut.map((a) => ({
       name: a.name,
       slug: a.slug,
       bio: a.bio,
