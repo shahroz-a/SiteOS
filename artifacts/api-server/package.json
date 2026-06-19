@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "verify:media": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/lib/__tests__/media-real-data.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify:cms-io": "cd ../.. && VERIFY_CMS_IO=1 vitest run artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.21.0",

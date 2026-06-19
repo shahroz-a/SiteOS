@@ -163,20 +163,45 @@ export function flattenBlocks(
   return rows;
 }
 
+/** Normalize a single stored component-tree node into a `BlockNode`. */
+function normalizeBlockNode(node: unknown): BlockNode {
+  const n = (node ?? {}) as Record<string, unknown>;
+  const children = Array.isArray(n.children)
+    ? n.children.map(normalizeBlockNode)
+    : undefined;
+  // The importer keys the discriminator `blockType`; the crawler keys it `type`.
+  const blockType =
+    typeof n.blockType === "string"
+      ? n.blockType
+      : typeof n.type === "string"
+        ? n.type
+        : "";
+  return {
+    blockType,
+    ...(typeof n.text === "string" ? { text: n.text } : {}),
+    ...(n.data != null ? { data: n.data } : {}),
+    ...(typeof n.anchorId === "string" ? { anchorId: n.anchorId } : {}),
+    ...(children && children.length ? { children } : {}),
+  };
+}
+
 /**
- * Read the top-level block list out of a stored `componentTree`, which has two
- * shapes in this corpus: the importer stores a single root **object**
- * (`{ type:"root", children:[...] }`), while the crawler stores a bare
- * top-level **array** of blocks. Returns `[]` for null/unknown shapes.
+ * Read the top-level block list out of a stored `componentTree`, normalized to
+ * `BlockNode[]`. The corpus holds two shapes: the importer stores a single root
+ * **object** (`{ type:"root", children:[...] }`) whose blocks key the
+ * discriminator as `blockType`, while the crawler stores a bare top-level
+ * **array** of blocks that key it as `type`. Nodes are normalized recursively so
+ * the crawler's `type` is mapped onto `blockType` — otherwise re-flattening a
+ * crawler page (e.g. on a CMS export -> import round-trip) emits `blocks` rows
+ * with a null `blockType`. Returns `[]` for null/unknown shapes.
  */
 export function componentTreeChildren(tree: unknown): BlockNode[] {
-  if (Array.isArray(tree)) return tree as BlockNode[];
-  if (
-    tree &&
-    typeof tree === "object" &&
-    Array.isArray((tree as { children?: unknown }).children)
-  ) {
-    return (tree as { children: BlockNode[] }).children;
-  }
-  return [];
+  const raw = Array.isArray(tree)
+    ? tree
+    : tree &&
+        typeof tree === "object" &&
+        Array.isArray((tree as { children?: unknown }).children)
+      ? (tree as { children: unknown[] }).children
+      : [];
+  return raw.map(normalizeBlockNode);
 }

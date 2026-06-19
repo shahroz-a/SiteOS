@@ -665,12 +665,10 @@ class DryRunRollback extends Error {
  */
 export async function importContentBundle(
   raw: ContentBundle,
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; exec?: Executor } = {},
 ): Promise<ImportResult> {
   const bundle = normalizeBundle(raw);
-  try {
-    return await db.transaction(async (txRaw) => {
-      const tx = txRaw as unknown as Executor;
+  const run = async (tx: Executor): Promise<ImportResult> => {
       await upsertAuthors(tx, bundle);
       const categoryIdBySlug = await upsertCategories(tx, bundle);
       const tagIdBySlug = await upsertTags(tx, bundle);
@@ -780,7 +778,16 @@ export async function importContentBundle(
         throw new DryRunRollback(result);
       }
       return result;
-    });
+  };
+  // When an executor is injected (e.g. a test's rolled-back transaction), run
+  // inside it directly; otherwise open and own a fresh transaction. Mirrors the
+  // injectable-executor pattern used by importExport (see the self-deadlock
+  // gotcha in replit.md — every nested write already threads this executor).
+  // A dry-run throws DryRunRollback so its transaction rolls back; we unwrap the
+  // carried result outside the transaction.
+  try {
+    if (options.exec) return await run(options.exec);
+    return await db.transaction(async (txRaw) => run(txRaw as unknown as Executor));
   } catch (err) {
     if (err instanceof DryRunRollback) return err.result;
     throw err;

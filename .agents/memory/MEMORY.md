@@ -23,3 +23,4 @@
 - [Media audit-log display contract](media-audit-display-contract.md) — audit log renders media.metadata.update via entityId=CDN-url + before/after{alt,title,caption,altStatus}; producer PATCH route must emit that shape.
 - [Interrupted pnpm install corrupts @types/react hoist](pnpm-interrupted-install-hoist.md) — killed install hoists 19.1.17 → button-group/calendar TS2322; frozen install won't fix it, `pnpm install --force` restores 19.2.14.
 - [Search DB setup not migration-tracked](search-db-setup-not-migration-tracked.md) — pg_trgm + trigram GIN indexes are raw-executeSql DDL, not in any migration; a dev rollback wipes them; re-verify presence, prod gets them only via re-publish.
+- [componentTree type vs blockType](componenttree-type-vs-blocktype.md) — crawler nodes key the discriminator `type`, importer/shared lib use `blockType`; re-flatten crashes (NULL block_type) unless `componentTreeChildren` normalizes.
