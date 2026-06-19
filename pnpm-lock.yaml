@@ -1264,6 +1264,9 @@ importers:
       fast-xml-parser:
         specifier: ^5.9.2
         version: 5.9.2
+      nodemailer:
+        specifier: ^9.0.1
+        version: 9.0.1
       playwright:
         specifier: ^1.61.0
         version: 1.61.0
@@ -6065,6 +6068,10 @@ packages:
 
   node-releases@2.0.38:
     resolution: {integrity: sha512-3qT/88Y3FbH/Kx4szpQQ4HzUbVrHPKTLVpVocKiLfoYvw9XSGOX2FmD2d6DrXbVYyAQTF2HeF6My8jmzx7/CRw==}
+
+  nodemailer@9.0.1:
+    resolution: {integrity: sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==}
+    engines: {node: '>=6.0.0'}
 
   normalize-path@3.0.0:
     resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
@@ -14032,6 +14039,8 @@ snapshots:
   node-int64@0.4.0: {}
 
   node-releases@2.0.38: {}
+
+  nodemailer@9.0.1: {}
 
   normalize-path@3.0.0: {}
 

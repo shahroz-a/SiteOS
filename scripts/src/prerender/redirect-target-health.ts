@@ -1,29 +1,44 @@
 /**
- * Pure decision logic for auto-deactivating redirects whose targets are
- * confirmed dead.
+ * Redirect target health: two complementary, side-effect-free cores in one file.
  *
  * The migrated blog forwards old / renamed / retired URLs to a destination via
- * the static redirect stubs in `./redirects.ts`. If that destination is itself
- * gone, the redirect quietly sends readers and crawlers into a 404. This module
- * decides, from a single "reading" of a target plus the history persisted on the
- * redirect row, whether a redirect should be flipped to `isActive = false`.
+ * the static redirect stubs in `./redirects.ts`. A stub is only useful if the
+ * place it forwards to still exists; over time on-blog targets can be
+ * unpublished and off-blog targets (retired articles now pointing at a Headout
+ * product/category page) can 404, leaving readers and crawlers forwarded into a
+ * dead end. Two jobs act on that risk, and both keep their pure policy here so
+ * it can be unit-tested without a DB or the network:
  *
- * It is deliberately side-effect free (no DB, no network) so the policy — what
- * counts as dead, and how much corroboration is required before acting — can be
- * unit-tested in isolation. The runner (`scripts/src/redirect-health.ts`)
- * gathers the evidence (page-corpus lookups for on-blog targets, HTTP probes for
- * off-blog targets), feeds it here, and applies the verdict.
+ *  1. **Auto-deactivation** (`decideHealth` & friends, runner
+ *     `scripts/src/redirect-health.ts`): from a single "reading" of a target
+ *     plus the history persisted on the redirect row, decide whether to flip
+ *     `isActive = false`. Two confidence regimes by target kind:
+ *      - **on-blog** (`/blog/...`): deterministic. The target either resolves to
+ *        a page we serve or it doesn't; a single reading is conclusive, so a
+ *        missing target is deactivated immediately.
+ *      - **off-blog** (resolved against the live Headout origin): a fallible
+ *        network reading. A single 404/410 — or a timeout — must NOT retire a
+ *        working redirect, so confirmed-dead readings have to accumulate across
+ *        runs up to {@link OFF_BLOG_DEAD_THRESHOLD}; any healthy reading resets
+ *        the counter.
  *
- * Two confidence regimes, by target kind:
- *  - **on-blog** (`/blog/...`): deterministic. The target either resolves to a
- *    page we serve or it doesn't; a single reading is conclusive, so a missing
- *    target is deactivated immediately.
- *  - **off-blog** (everything else, resolved against the live Headout origin):
- *    a network reading and therefore fallible. A single 404/410 — or a timeout —
- *    must NOT retire a working redirect, so confirmed-dead readings have to
- *    accumulate across runs up to {@link OFF_BLOG_DEAD_THRESHOLD}; any healthy
- *    reading resets the counter.
+ *  2. **Verification digest** (`checkRedirectTargets` / `formatHealthDigest`,
+ *     CLI `scripts/src/check-redirect-targets.ts`): probe every active
+ *     redirect's target and format a human-readable digest (subject + body)
+ *     ready for delivery over a chat webhook OR email, without modifying the DB.
+ *      - **on-blog** (`/blog/...`): the static SPA's `/* -> /index.html` rewrite
+ *        makes an HTTP probe of any `/blog/...` path return 200 regardless of
+ *        whether real content exists — probing is meaningless. Instead verify
+ *        the target against the set of published content the prerender emits.
+ *      - **off-blog** (absolute URL): a real origin we can HTTP-probe; 2xx/3xx
+ *        is healthy, 4xx/5xx or a network error is broken.
  */
+
+import { redirectTargetUrl } from "./redirects";
+
+// ---------------------------------------------------------------------------
+// 1. Auto-deactivation policy (runner: scripts/src/redirect-health.ts)
+// ---------------------------------------------------------------------------
 
 /**
  * Consecutive confirmed-dead readings an OFF-BLOG target must accumulate (across
@@ -129,4 +144,233 @@ export function decideHealth(
     deactivate,
     reason: deactivate ? "off-blog-target-dead" : null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 2. Verification digest (CLI: scripts/src/check-redirect-targets.ts)
+// ---------------------------------------------------------------------------
+
+export type TargetScope = "on-blog" | "off-blog";
+
+/** A single active redirect to evaluate. */
+export interface RedirectInput {
+  fromPath: string;
+  toPath: string;
+}
+
+/** Outcome for one unique resolved target (shared across all old paths that
+ * forward to it). */
+export interface TargetResult {
+  /** The resolved destination URL (root-relative for on-blog, absolute
+   * otherwise) via {@link redirectTargetUrl}. */
+  target: string;
+  scope: TargetScope;
+  /** Whether the target is reachable / exists. */
+  ok: boolean;
+  /** HTTP status for off-blog probes; `null` for on-blog or network errors. */
+  status: number | null;
+  /** Human-readable explanation of the outcome. */
+  detail: string;
+  /** Every old path that forwards to this target. */
+  fromPaths: string[];
+}
+
+export interface HealthReport {
+  /** Number of active redirects evaluated. */
+  checkedRedirects: number;
+  /** Number of unique resolved targets evaluated. */
+  checkedTargets: number;
+  /** Per-target outcomes. */
+  results: TargetResult[];
+  /** The subset of {@link results} that are broken. */
+  broken: TargetResult[];
+}
+
+export interface CheckDeps {
+  /** Returns whether an on-blog (`/blog/...`) target resolves to published
+   * content. Pure/injected so the core stays DB-free. */
+  onBlogExists: (target: string) => boolean | Promise<boolean>;
+  /** HTTP-probes an absolute off-blog URL. `ok` should be true for 2xx/3xx. */
+  probe: (url: string) => Promise<{ ok: boolean; status: number | null }>;
+  /** Max concurrent target checks (default 8). */
+  concurrency?: number;
+}
+
+/** Classify a resolved target by where it points. On-blog targets stay
+ * root-relative (`/blog/...`); everything else has been made absolute. */
+export function targetScope(target: string): TargetScope {
+  return target.startsWith("/blog/") ? "on-blog" : "off-blog";
+}
+
+/** Total number of *redirects* (old paths) that forward to a broken target —
+ * the operator-facing count (a single dead destination can strand many old
+ * URLs). */
+export function totalBroken(report: HealthReport): number {
+  return report.broken.reduce((n, r) => n + r.fromPaths.length, 0);
+}
+
+/**
+ * Evaluate the health of every active redirect's target. Targets are
+ * de-duplicated (many old paths can forward to the same destination) so each
+ * unique target is checked once, with bounded concurrency.
+ */
+export async function checkRedirectTargets(
+  redirects: RedirectInput[],
+  deps: CheckDeps,
+): Promise<HealthReport> {
+  const concurrency = Math.max(1, deps.concurrency ?? 8);
+
+  // Group old paths by their resolved target so each destination is checked
+  // exactly once. Sorted for deterministic output.
+  const byTarget = new Map<string, string[]>();
+  for (const r of redirects) {
+    const target = redirectTargetUrl(r.toPath);
+    const list = byTarget.get(target) ?? [];
+    list.push(r.fromPath);
+    byTarget.set(target, list);
+  }
+  const targets = [...byTarget.keys()].sort();
+  const results: TargetResult[] = new Array(targets.length);
+
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const i = next++;
+      if (i >= targets.length) return;
+      const target = targets[i];
+      const fromPaths = (byTarget.get(target) ?? []).slice().sort();
+      const scope = targetScope(target);
+      let ok = false;
+      let status: number | null = null;
+      let detail = "";
+      try {
+        if (scope === "on-blog") {
+          ok = await deps.onBlogExists(target);
+          detail = ok
+            ? "on-blog page exists in published content"
+            : "on-blog page not found in published content";
+        } else {
+          const res = await deps.probe(target);
+          ok = res.ok;
+          status = res.status;
+          detail = ok
+            ? `reachable (HTTP ${status ?? "?"})`
+            : status === null
+              ? "unreachable (network error / no response)"
+              : `broken (HTTP ${status})`;
+        }
+      } catch (err) {
+        ok = false;
+        detail = `check failed: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      results[i] = { target, scope, ok, status, detail, fromPaths };
+    }
+  };
+
+  const lanes = Math.min(concurrency, targets.length) || 1;
+  await Promise.all(Array.from({ length: lanes }, worker));
+
+  const finalResults = results.filter(Boolean);
+  return {
+    checkedRedirects: redirects.length,
+    checkedTargets: targets.length,
+    results: finalResults,
+    broken: finalResults.filter((r) => !r.ok),
+  };
+}
+
+export interface HealthDigest {
+  /** One-line summary suitable for an email subject. */
+  subject: string;
+  /** Multi-line plain-text body suitable for an email body or chat webhook. */
+  text: string;
+}
+
+/**
+ * Format a {@link HealthReport} into a delivery-ready digest. The same digest
+ * feeds both the chat webhook (`{text}`) and the email body (`{subject,text}`),
+ * so the two channels can never drift.
+ */
+export function formatHealthDigest(report: HealthReport): HealthDigest {
+  const broken = totalBroken(report);
+  if (broken === 0) {
+    return {
+      subject: "Redirect health: all targets OK",
+      text:
+        `All clear: ${report.checkedRedirects} active redirect(s) forward to a ` +
+        `reachable target across ${report.checkedTargets} unique destination(s).`,
+    };
+  }
+
+  const lines: string[] = [];
+  lines.push(
+    `Redirect health: ${broken} redirect(s) forward to a broken target ` +
+      `(${report.broken.length} unique destination(s)).`,
+  );
+  lines.push("");
+  for (const r of report.broken) {
+    lines.push(`BROKEN [${r.scope}] ${r.target} - ${r.detail}`);
+    for (const from of r.fromPaths) {
+      lines.push(`    from: ${from}`);
+    }
+  }
+  lines.push("");
+  lines.push(
+    `Checked ${report.checkedRedirects} active redirect(s) / ` +
+      `${report.checkedTargets} unique target(s).`,
+  );
+  return {
+    subject: `Redirect health: ${broken} broken target(s)`,
+    text: lines.join("\n"),
+  };
+}
+
+/**
+ * Whether a digest should be delivered (to webhook and/or email). A clean run
+ * is quiet by default to avoid notification fatigue; pass `notifyOnClean` to
+ * deliver the all-clear digest too.
+ */
+export function shouldNotify(
+  report: HealthReport,
+  notifyOnClean: boolean,
+): boolean {
+  return totalBroken(report) > 0 || notifyOnClean;
+}
+
+/** Published content used to decide whether an on-blog target exists. */
+export interface OnBlogContent {
+  postSlugs: string[];
+  categorySlugs: string[];
+  authorSlugs: string[];
+}
+
+/**
+ * Build the set of normalised on-blog paths the prerender would emit real
+ * content for (no trailing slash). Mirrors the routes in `prerender-blog.ts`:
+ * the index, the search shell, every published post, and every category /
+ * author landing page.
+ */
+export function buildOnBlogPathSet(content: OnBlogContent): Set<string> {
+  const set = new Set<string>();
+  const add = (p: string): void => {
+    set.add(p.replace(/\/+$/, ""));
+  };
+  add("/blog");
+  add("/blog/search");
+  for (const s of content.postSlugs) add(`/blog/${s}`);
+  for (const s of content.categorySlugs) add(`/blog/category/${s}`);
+  for (const s of content.authorSlugs) add(`/blog/author/${s}`);
+  return set;
+}
+
+/**
+ * Whether `target` (an on-blog `/blog/...` path, possibly with a query/hash or
+ * trailing slash) is present in a path set from {@link buildOnBlogPathSet}.
+ */
+export function onBlogExistsIn(
+  set: ReadonlySet<string>,
+  target: string,
+): boolean {
+  const noQuery = target.split(/[?#]/)[0];
+  return set.has(noQuery.replace(/\/+$/, ""));
 }

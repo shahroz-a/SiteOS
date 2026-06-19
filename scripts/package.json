@@ -20,6 +20,7 @@
     "redirect:health:prod": "node ./dist/redirect-health.mjs",
     "categories:backfill": "tsx ./src/derive-categories.ts",
     "cleanup:redirects": "tsx ./src/cleanup-redirects.ts",
+    "verify:redirect-targets": "tsx ./src/check-redirect-targets.ts",
     "reclassify:non-blog": "tsx ./src/reclassify-non-blog-pages.ts",
     "test": "vitest run",
     "verify:roundtrip": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/payload/__tests__/roundtrip-real-data.test.ts",
@@ -36,6 +37,7 @@
     "domhandler": "^6.0.1",
     "drizzle-orm": "catalog:",
     "fast-xml-parser": "^5.9.2",
+    "nodemailer": "^9.0.1",
     "playwright": "^1.61.0"
   },
   "devDependencies": {
