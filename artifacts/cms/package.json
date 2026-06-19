@@ -54,6 +54,7 @@
     "@workspace/blog-renderer": "workspace:*",
     "@workspace/blog-seo": "workspace:*",
     "@workspace/cms-auth": "workspace:*",
+    "@workspace/cms-post-input": "workspace:*",
     "@workspace/content-diff": "workspace:*",
     "@workspace/content-io": "workspace:*",
     "@workspace/db": "workspace:*",

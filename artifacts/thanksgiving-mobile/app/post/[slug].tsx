@@ -14,12 +14,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ArticleContent } from "@/components/ArticleContent";
+import { BannerEditorModal } from "@/components/BannerEditorModal";
 import { CollectionsModal } from "@/components/CollectionsModal";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/lib/auth";
 import {
   useGetPostBySlug,
   type FaqItem,
@@ -73,9 +75,13 @@ export default function PostDetailScreen() {
   const { isFavorite, toggleFavorite, removeFavorite, restoreFavorite } =
     useFavorites();
   const { showUndoToast } = useToast();
+  const { isAuthenticated, hasPermission } = useAuth();
   const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [bannerOpen, setBannerOpen] = useState(false);
 
   const { data: post, isLoading, isError, refetch } = useGetPostBySlug(slug);
+
+  const canEditBanner = isAuthenticated && hasPermission("content.edit");
 
   const date = formatDate(post?.publishedAt);
   const saved = post ? isFavorite(post.id) : false;
@@ -136,6 +142,23 @@ export default function PostDetailScreen() {
             { top: insets.top + (isWeb ? 67 : 8) },
           ]}
         >
+          {canEditBanner ? (
+            <Pressable
+              testID="banner-edit-toggle"
+              accessibilityRole="button"
+              accessibilityLabel="Edit banner image"
+              onPress={() => setBannerOpen(true)}
+              style={[
+                styles.actionButton,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Feather name="image" size={20} color={colors.foreground} />
+            </Pressable>
+          ) : null}
           <Pressable
             testID="collections-toggle"
             accessibilityRole="button"
@@ -299,6 +322,15 @@ export default function PostDetailScreen() {
         visible={collectionsOpen}
         onClose={() => setCollectionsOpen(false)}
       />
+
+      {canEditBanner ? (
+        <BannerEditorModal
+          postId={post?.id ?? null}
+          visible={bannerOpen}
+          onClose={() => setBannerOpen(false)}
+          onSaved={refetch}
+        />
+      ) : null}
     </View>
   );
 }

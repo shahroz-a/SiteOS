@@ -19,6 +19,9 @@
       "path": "./lib/cms-auth"
     },
     {
+      "path": "./lib/cms-post-input"
+    },
+    {
       "path": "./lib/content"
     },
     {

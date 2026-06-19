@@ -1,0 +1,12 @@
+{
+  "name": "@workspace/cms-post-input",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@workspace/api-client-react": "workspace:*"
+  }
+}

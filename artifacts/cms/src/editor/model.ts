@@ -14,6 +14,7 @@ import type { CTNode } from "@workspace/blog-renderer";
 import { asComponentTree } from "@workspace/blog-renderer";
 import type { CmsPostDetail, CmsPostInput } from "@workspace/api-client-react";
 import type { SeoValidationInput, HeadingNode } from "@workspace/seo-validation";
+import { buildCmsPostInput } from "@workspace/cms-post-input";
 
 export type BlockType =
   | "hero"
@@ -445,106 +446,16 @@ export function detailToInput(
   blocks: EditorBlock[],
   meta: PostMetaPatch,
 ): CmsPostInput {
-  return {
-    title: meta.title,
-    slug: detail.slug,
-    subtitle: meta.subtitle ?? null,
-    excerpt: meta.excerpt ?? null,
-    status: detail.status,
-    language: detail.language,
-    canonicalUrl:
-      meta.canonicalUrl !== undefined ? meta.canonicalUrl : detail.canonicalUrl ?? null,
-    pathname: detail.pathname ?? null,
-    parentPath: detail.parentPath ?? null,
-    authorId: detail.author?.id ?? null,
-    primaryCategoryId: detail.primaryCategory?.id ?? null,
-    categoryIds: detail.categories.map((c) => c.id),
-    tagIds: detail.tags.map((t) => t.id),
-    featuredImageUrl:
-      meta.featuredImageUrl !== undefined ? meta.featuredImageUrl : detail.featuredImageUrl ?? null,
-    featuredImageAlt:
-      meta.featuredImageAlt !== undefined ? meta.featuredImageAlt : detail.featuredImageAlt ?? null,
+  // The block editor owns the body, so it rebuilds `componentTree` from its
+  // blocks and nulls the legacy `contentHtml`/`richText` so both the public blog
+  // and live preview render from `componentTree`. Everything else (nested
+  // collections + the banner contract) is round-tripped by the shared lib.
+  return buildCmsPostInput(detail, {
+    meta,
+    componentTree: blocksToComponentTree(blocks),
     contentHtml: null,
     richText: null,
-    componentTree: blocksToComponentTree(blocks),
-    readingTimeMinutes: detail.readingTimeMinutes ?? null,
-    wordCount: detail.wordCount ?? null,
-    publishedAt: detail.publishedAt ?? null,
-    seo:
-      meta.seo !== undefined
-        ? meta.seo
-        : detail.seo
-          ? {
-              metaTitle: detail.seo.metaTitle ?? null,
-              metaDescription: detail.seo.metaDescription ?? null,
-              canonicalUrl: detail.seo.canonicalUrl ?? null,
-              robots: detail.seo.robots ?? null,
-              focusKeyword: detail.seo.focusKeyword ?? null,
-              keywords: detail.seo.keywords ?? null,
-              ogTitle: detail.seo.ogTitle ?? null,
-              ogDescription: detail.seo.ogDescription ?? null,
-              ogImage: detail.seo.ogImage ?? null,
-              ogType: detail.seo.ogType ?? null,
-              twitterCard: detail.seo.twitterCard ?? null,
-              twitterTitle: detail.seo.twitterTitle ?? null,
-              twitterDescription: detail.seo.twitterDescription ?? null,
-              twitterImage: detail.seo.twitterImage ?? null,
-              needsReview: detail.seo.needsReview ?? false,
-            }
-          : null,
-    faq: detail.faq.map((f) => ({
-      question: f.question,
-      answer: f.answer,
-      position: f.position,
-    })),
-    breadcrumbs: detail.breadcrumbs.map((b) => ({
-      label: b.label,
-      url: b.url ?? null,
-      position: b.position,
-    })),
-    jsonld: detail.jsonld.map((j) => ({ type: j.type ?? null, data: j.data })),
-    images: detail.images.map((img) => ({
-      url: img.url,
-      originalUrl: img.originalUrl ?? null,
-      alt: img.alt ?? null,
-      caption: img.caption ?? null,
-      credit: img.credit ?? null,
-      width: img.width ?? null,
-      height: img.height ?? null,
-      role: img.role ?? null,
-      position: img.position,
-    })),
-    galleries: detail.galleries.map((g) => ({
-      title: g.title ?? null,
-      layout: g.layout ?? null,
-      position: g.position,
-      images: g.images.map((img) => ({
-        url: img.url,
-        originalUrl: img.originalUrl ?? null,
-        alt: img.alt ?? null,
-        caption: img.caption ?? null,
-        credit: img.credit ?? null,
-        width: img.width ?? null,
-        height: img.height ?? null,
-        role: img.role ?? null,
-        position: img.position,
-      })),
-    })),
-    internalLinks: detail.internalLinks.map((l) => ({
-      href: l.href,
-      anchorText: l.anchorText ?? null,
-      rel: l.rel ?? null,
-      domain: l.domain ?? null,
-      position: l.position,
-    })),
-    externalLinks: detail.externalLinks.map((l) => ({
-      href: l.href,
-      anchorText: l.anchorText ?? null,
-      rel: l.rel ?? null,
-      domain: l.domain ?? null,
-      position: l.position,
-    })),
-  };
+  });
 }
 
 /* ------------------------------------------------------------------ */

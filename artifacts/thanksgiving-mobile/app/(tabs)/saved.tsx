@@ -30,6 +30,7 @@ import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
 import { useFavorites, type Collection } from "@/hooks/useFavorites";
 import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/lib/auth";
 import type { PostSummary } from "@workspace/api-client-react";
 
 /**
@@ -157,6 +158,7 @@ export default function SavedScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { showUndoToast } = useToast();
+  const { isAuthenticated, me, isLoading: authLoading, login, logout } = useAuth();
 
   const {
     favorites,
@@ -299,6 +301,37 @@ export default function SavedScreen() {
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             {count} {count === 1 ? "article" : "articles"} bookmarked
           </Text>
+        ) : null}
+        {!authLoading ? (
+          <Pressable
+            testID="staff-auth-toggle"
+            accessibilityRole="button"
+            accessibilityLabel={isAuthenticated ? "Sign out" : "Staff sign in"}
+            onPress={isAuthenticated ? logout : login}
+            style={({ pressed }) => [
+              styles.authRow,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderRadius: colors.radius,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+          >
+            <Feather
+              name={isAuthenticated ? "log-out" : "log-in"}
+              size={16}
+              color={colors.foreground}
+            />
+            <Text
+              style={[styles.authText, { color: colors.foreground }]}
+              numberOfLines={1}
+            >
+              {isAuthenticated
+                ? `Signed in as ${me?.user.firstName ?? me?.user.email ?? "staff"} · Sign out`
+                : "Staff sign in"}
+            </Text>
+          </Pressable>
         ) : null}
       </View>
       {count > 0 ? (
@@ -457,5 +490,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sansMedium,
     fontSize: 14,
     marginTop: 2,
+  },
+  authRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+  },
+  authText: {
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 13,
+    flexShrink: 1,
   },
 });
