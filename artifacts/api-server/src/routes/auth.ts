@@ -59,7 +59,7 @@ function getSafeReturnTo(value: unknown): string {
   return value;
 }
 
-async function upsertUser(claims: Record<string, unknown>) {
+export async function upsertUser(claims: Record<string, unknown>) {
   const userData = {
     id: claims.sub as string,
     email: (claims.email as string) || null,

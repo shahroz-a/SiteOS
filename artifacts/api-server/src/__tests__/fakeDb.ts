@@ -202,10 +202,178 @@ class SelectBuilder {
   }
 }
 
+function projectRows(rows: Row[], proj?: Record<string, unknown>): Row[] {
+  if (!proj) return rows;
+  return rows.map((r) => {
+    const out: Row = {};
+    for (const [key, desc] of Object.entries(proj)) {
+      out[key] = isColRef(desc)
+        ? (r as Combined)[(desc as ColRef).__table]?.[(desc as ColRef).__col] ??
+          r[(desc as ColRef).__col]
+        : undefined;
+    }
+    return out;
+  });
+}
+
+class InsertBuilder {
+  private _values: Row[] = [];
+  private _conflict?: { target: ColRef | ColRef[]; set: Row };
+  private _returning = false;
+  private _proj?: Record<string, unknown>;
+  private _ran = false;
+
+  constructor(
+    private tables: Tables,
+    private table: string,
+  ) {}
+
+  values(vals: Row | Row[]) {
+    this._values = Array.isArray(vals) ? vals : [vals];
+    return this;
+  }
+  onConflictDoUpdate(cfg: { target: ColRef | ColRef[]; set: Row }) {
+    this._conflict = cfg;
+    return this;
+  }
+  returning(proj?: Record<string, unknown>) {
+    this._returning = true;
+    this._proj = proj;
+    return this;
+  }
+
+  private run(): Row[] {
+    if (this._ran) return [];
+    this._ran = true;
+    const dest = (this.tables[this.table] ??= []);
+    const targets = this._conflict
+      ? (Array.isArray(this._conflict.target)
+          ? this._conflict.target
+          : [this._conflict.target]
+        ).map((c) => c.__col)
+      : [];
+    const out: Row[] = [];
+    for (const v of this._values) {
+      const existing =
+        this._conflict &&
+        dest.find((r) => targets.every((col) => r[col] === v[col]));
+      if (existing) {
+        Object.assign(existing, this._conflict!.set);
+        out.push(existing);
+      } else {
+        dest.push(v);
+        out.push(v);
+      }
+    }
+    return projectRows(out, this._proj);
+  }
+
+  then(resolve: (rows: Row[]) => unknown, reject?: (e: unknown) => unknown) {
+    try {
+      return Promise.resolve(resolve(this.run()));
+    } catch (e) {
+      return reject ? Promise.resolve(reject(e)) : Promise.reject(e);
+    }
+  }
+}
+
+class UpdateBuilder {
+  private _set: Row = {};
+  private cond?: Cond;
+  private _proj?: Record<string, unknown>;
+  private _ran = false;
+
+  constructor(
+    private tables: Tables,
+    private table: string,
+  ) {}
+
+  set(vals: Row) {
+    this._set = vals;
+    return this;
+  }
+  where(cond: Cond) {
+    this.cond = cond;
+    return this;
+  }
+  returning(proj?: Record<string, unknown>) {
+    this._proj = proj;
+    return this;
+  }
+
+  private run(): Row[] {
+    if (this._ran) return [];
+    this._ran = true;
+    const dest = this.tables[this.table] ?? [];
+    const updated: Row[] = [];
+    for (const r of dest) {
+      const combined: Combined = { [this.table]: r };
+      if (!this.cond || evalCond(this.cond, combined)) {
+        Object.assign(r, this._set);
+        updated.push(r);
+      }
+    }
+    return projectRows(updated, this._proj);
+  }
+
+  then(resolve: (rows: Row[]) => unknown, reject?: (e: unknown) => unknown) {
+    try {
+      return Promise.resolve(resolve(this.run()));
+    } catch (e) {
+      return reject ? Promise.resolve(reject(e)) : Promise.reject(e);
+    }
+  }
+}
+
+class DeleteBuilder {
+  private cond?: Cond;
+  private _ran = false;
+
+  constructor(
+    private tables: Tables,
+    private table: string,
+  ) {}
+
+  where(cond: Cond) {
+    this.cond = cond;
+    return this;
+  }
+
+  private run(): Row[] {
+    if (this._ran) return [];
+    this._ran = true;
+    const dest = this.tables[this.table] ?? [];
+    const kept: Row[] = [];
+    for (const r of dest) {
+      const combined: Combined = { [this.table]: r };
+      if (this.cond && !evalCond(this.cond, combined)) kept.push(r);
+    }
+    this.tables[this.table] = kept;
+    return [];
+  }
+
+  then(resolve: (rows: Row[]) => unknown, reject?: (e: unknown) => unknown) {
+    try {
+      return Promise.resolve(resolve(this.run()));
+    } catch (e) {
+      return reject ? Promise.resolve(reject(e)) : Promise.reject(e);
+    }
+  }
+}
+
 export class FakeDb {
   constructor(public tables: Tables) {}
   select(projection?: Record<string, unknown>) {
     return new SelectBuilder(this.tables, projection);
+  }
+  insert(table: { __table: string }) {
+    return new InsertBuilder(this.tables, table.__table);
+  }
+  update(table: { __table: string }) {
+    return new UpdateBuilder(this.tables, table.__table);
+  }
+  delete(table: { __table: string }) {
+    return new DeleteBuilder(this.tables, table.__table);
   }
 }
 
@@ -238,6 +406,9 @@ export function makeDbMock(tables: Tables) {
     imagesTable: tableProxy("images"),
     jsonldTable: tableProxy("jsonld"),
     seoTable: tableProxy("seo"),
+    usersTable: tableProxy("users"),
+    sessionsTable: tableProxy("sessions"),
+    auditLogsTable: tableProxy("audit_logs"),
   };
 }
 
