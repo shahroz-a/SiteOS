@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ContentRenderer } from "@workspace/blog-renderer";
 import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
@@ -228,6 +228,36 @@ function DiffControls({
  * differences, and provides count chips + Prev/Next navigation. The `key`-able
  * `data` reference re-runs the diff whenever a new article loads.
  */
+/**
+ * A re-findable description of one annotated source element. Highlights are NOT
+ * stored as live element references — those go stale (and their out-of-band
+ * classes get wiped) whenever React re-commits the `dangerouslySetInnerHTML`
+ * source pane. Instead each marker records how to re-locate its element by
+ * stable document-order index, so the highlight can be re-applied after every
+ * render. See `.agents/memory/annotate-rendered-dom-react.md`.
+ */
+type Annotation =
+  | { kind: "removed" | "changed"; classes: string[]; blockIndex: number }
+  | { kind: "image" | "link"; classes: string[]; mediaIndex: number };
+
+/** Re-locate an annotation's live element from a freshly-queried DOM snapshot. */
+function resolveAnnotation(
+  ann: Annotation,
+  blocks: HTMLElement[],
+  imgs: HTMLImageElement[],
+  links: HTMLAnchorElement[],
+): HTMLElement | undefined {
+  switch (ann.kind) {
+    case "removed":
+    case "changed":
+      return blocks[ann.blockIndex];
+    case "image":
+      return imgs[ann.mediaIndex];
+    case "link":
+      return links[ann.mediaIndex];
+  }
+}
+
 export function SourceDiff({
   data,
   isLoading,
@@ -239,9 +269,45 @@ export function SourceDiff({
 }) {
   const sourceRef = useRef<HTMLDivElement>(null);
   const parsedRef = useRef<HTMLDivElement>(null);
-  const markerElsRef = useRef<HTMLElement[]>([]);
+  const planRef = useRef<Annotation[]>([]);
+  const scrollPendingRef = useRef(false);
   const [diff, setDiff] = useState<DiffViewState | null>(null);
   const [active, setActive] = useState(-1);
+
+  /**
+   * Apply (or re-apply) every highlight + the active ring to the live source
+   * DOM. Re-queries the DOM each call so it is resilient to React resetting the
+   * `dangerouslySetInnerHTML` subtree — running it from a layout effect means
+   * the classes are restored before the browser paints, so the user never sees
+   * a flicker even if a re-render momentarily wipes them.
+   */
+  function applyHighlights(activeIdx: number, scroll: boolean) {
+    const root = sourceRef.current;
+    if (!root) return;
+    const plan = planRef.current;
+    if (plan.length === 0) return;
+    const blocks = leafBlockEls(root);
+    const imgs = Array.from(
+      root.querySelectorAll<HTMLImageElement>("img[src]"),
+    );
+    const links = Array.from(
+      root.querySelectorAll<HTMLAnchorElement>("a[href]"),
+    );
+    plan.forEach((ann, i) => {
+      const el = resolveAnnotation(ann, blocks, imgs, links);
+      if (!el) return;
+      el.classList.add(...ann.classes);
+      el.style.scrollMarginTop = "1rem";
+      if (i === activeIdx) {
+        el.classList.add(...ACTIVE_CLS);
+        if (scroll) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } else {
+        el.classList.remove(...ACTIVE_CLS);
+      }
+    });
+  }
 
   const hasSource = Boolean(data?.sourceHtml && data.sourceHtml.trim().length);
   const hasParsed = Boolean(
@@ -252,9 +318,15 @@ export function SourceDiff({
         data.richText),
   );
 
-  useEffect(() => {
+  // Compute the diff and build the re-findable annotation plan whenever a new
+  // article loads. This runs in a layout effect (before paint) and only does
+  // DOM *reads* + state writes — the actual class application is delegated to
+  // `applyHighlights`, which the apply effect below re-runs after every render
+  // so the highlights survive React re-committing the source pane.
+  useLayoutEffect(() => {
     setActive(-1);
-    markerElsRef.current = [];
+    scrollPendingRef.current = false;
+    planRef.current = [];
 
     const sourceRoot = sourceRef.current;
     if (!data || !hasSource || !sourceRoot) {
@@ -287,74 +359,90 @@ export function SourceDiff({
       if (n) parsedLinkSet.add(n);
     });
 
-    const annotated: HTMLElement[] = [];
+    // Collect each annotated source element alongside a re-findable descriptor
+    // (its index within the relevant document-order node list) and a marker
+    // label. We keep the live element only to order markers top-to-bottom; the
+    // persisted plan references elements by index, not identity.
+    interface Pending {
+      el: HTMLElement;
+      ann: Annotation;
+      marker: MarkerInfo;
+    }
+    const pending: Pending[] = [];
 
     for (const block of blocks) {
       if (block.sourceIndex === null) continue;
       const el = sourceBlocks[block.sourceIndex];
       if (!el) continue;
       if (block.kind === "removed") {
-        el.classList.add(...REMOVED_CLS);
-        annotated.push(el);
+        pending.push({
+          el,
+          ann: {
+            kind: "removed",
+            classes: REMOVED_CLS,
+            blockIndex: block.sourceIndex,
+          },
+          marker: { type: "removed", label: truncate(el.textContent ?? "") },
+        });
       } else if (block.kind === "changed") {
-        el.classList.add(...CHANGED_CLS);
-        annotated.push(el);
+        pending.push({
+          el,
+          ann: {
+            kind: "changed",
+            classes: CHANGED_CLS,
+            blockIndex: block.sourceIndex,
+          },
+          marker: { type: "changed", label: truncate(el.textContent ?? "") },
+        });
       }
     }
 
     let missingImages = 0;
-    sourceRoot.querySelectorAll<HTMLImageElement>("img[src]").forEach((img) => {
+    Array.from(
+      sourceRoot.querySelectorAll<HTMLImageElement>("img[src]"),
+    ).forEach((img, mediaIndex) => {
       const n = normalizeUrl(img.getAttribute("src") ?? "");
       if (!n || parsedImgSet.has(n)) return;
       missingImages++;
-      img.classList.add(...IMG_CLS);
-      annotated.push(img);
-    });
-
-    let missingLinks = 0;
-    sourceRoot.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
-      const n = normalizeUrl(a.getAttribute("href") ?? "");
-      if (!n || parsedLinkSet.has(n)) return;
-      missingLinks++;
-      a.classList.add(...LINK_CLS);
-      annotated.push(a);
-    });
-
-    // Order every annotated element by its position in the source document so
-    // Prev/Next walks the article top-to-bottom.
-    annotated.sort((x, y) => {
-      const pos = x.compareDocumentPosition(y);
-      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-      return 0;
-    });
-    for (const el of annotated) {
-      el.style.scrollMarginTop = "1rem";
-    }
-    markerElsRef.current = annotated;
-
-    const markers: MarkerInfo[] = annotated.map((el) => {
-      if (el.tagName === "IMG") {
-        const img = el as HTMLImageElement;
-        return {
+      pending.push({
+        el: img,
+        ann: { kind: "image", classes: IMG_CLS, mediaIndex },
+        marker: {
           type: "image",
           label: truncate(
             img.getAttribute("alt") || img.getAttribute("src") || "",
           ),
-        };
-      }
-      if (el.tagName === "A") {
-        return {
-          type: "link",
-          label: truncate(el.textContent || el.getAttribute("href") || ""),
-        };
-      }
-      const isChanged = el.classList.contains("border-amber-500");
-      return {
-        type: isChanged ? "changed" : "removed",
-        label: truncate(el.textContent ?? ""),
-      };
+        },
+      });
     });
+
+    let missingLinks = 0;
+    Array.from(
+      sourceRoot.querySelectorAll<HTMLAnchorElement>("a[href]"),
+    ).forEach((a, mediaIndex) => {
+      const n = normalizeUrl(a.getAttribute("href") ?? "");
+      if (!n || parsedLinkSet.has(n)) return;
+      missingLinks++;
+      pending.push({
+        el: a,
+        ann: { kind: "link", classes: LINK_CLS, mediaIndex },
+        marker: {
+          type: "link",
+          label: truncate(a.textContent || a.getAttribute("href") || ""),
+        },
+      });
+    });
+
+    // Order every annotated element by its position in the source document so
+    // Prev/Next walks the article top-to-bottom.
+    pending.sort((x, y) => {
+      const pos = x.el.compareDocumentPosition(y.el);
+      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+      return 0;
+    });
+
+    planRef.current = pending.map((p) => p.ann);
 
     setDiff({
       dropped,
@@ -362,20 +450,35 @@ export function SourceDiff({
       added,
       missingImages,
       missingLinks,
-      markers,
+      markers: pending.map((p) => p.marker),
     });
+
+    // Paint the highlights immediately for this freshly-loaded article (active
+    // ring is reset above, so pass -1 / no scroll).
+    applyHighlights(-1, false);
     // `data` is a stable react-query reference per article, so re-run whenever
     // the loaded body changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, hasSource, hasParsed]);
 
+  // Re-apply highlights (and the active ring) after every commit that changes
+  // the diff or the selected difference. Because React can reset the
+  // `dangerouslySetInnerHTML` source subtree on re-render — wiping our
+  // out-of-band classes — restoring them here (in a layout effect, pre-paint)
+  // is what makes the highlighting actually persist on screen.
+  useLayoutEffect(() => {
+    applyHighlights(active, scrollPendingRef.current);
+    scrollPendingRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diff, active]);
+
   function jumpTo(index: number) {
-    const els = markerElsRef.current;
-    if (els.length === 0) return;
-    const i = ((index % els.length) + els.length) % els.length;
-    for (const el of els) el.classList.remove(...ACTIVE_CLS);
-    const el = els[i];
-    el.classList.add(...ACTIVE_CLS);
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const plan = planRef.current;
+    if (plan.length === 0) return;
+    const i = ((index % plan.length) + plan.length) % plan.length;
+    // Defer the class/ring/scroll work to the apply layout effect so it lands
+    // after the resulting re-render (and survives any innerHTML reset).
+    scrollPendingRef.current = true;
     setActive(i);
   }
 
