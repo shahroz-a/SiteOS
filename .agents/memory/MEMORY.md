@@ -1,3 +1,3 @@
 - [Drizzle bulk-write gotchas](drizzle-bulk-writes.md) — `sql`-template arrays expand to `ANY($1,$2,…)` (err 42809, use `inArray`); partial backfills must also clean the complement set + assert a postcondition.
 - [thanksgiving-mobile test runners](mobile-test-runners.md) — jest owns `__tests__/` (RTL), vitest owns `hooks/__tests__/` (node); each runner's config must exclude the other's dir or `pnpm run test` fails.
-- [mobile gesture testing](mobile-gesture-testing.md) — `fireEvent.press` can't drive RNGH Tap chips (mock CollectionChips); ReanimatedSwipeable renders right-actions into the jest tree (no pan needed).
+- [mobile gesture testing](mobile-gesture-testing.md) — RNGH `Gesture.Tap/Pan` ignore `fireEvent.press`; mock the gesture/reorderable component to a Pressable/FlatList double to test its side effect.
