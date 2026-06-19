@@ -4,6 +4,13 @@ import { probeSearchReadiness } from "./lib/search-readiness";
 import { probePublishingReadiness } from "./lib/publishing-readiness";
 import { probeAnalyticsReadiness } from "./lib/analytics-readiness";
 import { publishDueScheduledPosts } from "./lib/cms-publishing";
+import {
+  SCHEDULER_INTERVAL_MS,
+  markSchedulerStarted,
+  recordSchedulerSuccess,
+  recordSchedulerError,
+  probeSchedulerHealth,
+} from "./lib/scheduler-health";
 
 const rawPort = process.env["PORT"];
 
@@ -34,20 +41,29 @@ app.listen(port, (err) => {
   void probeSearchReadiness();
   void probePublishingReadiness();
   void probeAnalyticsReadiness();
+
+  // Establish the scheduler's boot baseline, then probe its health so a
+  // backlog of already-overdue scheduled posts (e.g. accumulated while the
+  // server was down) is visible in the deployment logs immediately.
+  markSchedulerStarted();
+  void probeSchedulerHealth();
 });
 
 // Background scheduler: every 60s, publish any scheduled posts whose time has
-// come. Errors are swallowed (logged) so a transient DB blip never kills the
-// loop; `.unref()` keeps the timer from holding the process open on shutdown.
-const SCHEDULER_INTERVAL_MS = 60_000;
+// come. Each tick is recorded (success or failure) so `/api/healthz/scheduler`
+// can tell whether the loop is still alive and whether posts are overdue.
+// Errors are swallowed (logged) so a transient DB blip never kills the loop;
+// `.unref()` keeps the timer from holding the process open on shutdown.
 const schedulerTimer = setInterval(() => {
   publishDueScheduledPosts()
     .then((ids) => {
+      recordSchedulerSuccess(ids.length);
       if (ids.length > 0) {
         logger.info({ count: ids.length, ids }, "Auto-published scheduled posts");
       }
     })
     .catch((err: unknown) => {
+      recordSchedulerError(err);
       logger.error({ err }, "Scheduled auto-publish failed");
     });
 }, SCHEDULER_INTERVAL_MS);

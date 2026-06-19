@@ -6,6 +6,7 @@ import {
   checkPublishingReadiness,
   checkAnalyticsReadiness,
 } from "@workspace/db";
+import { checkSchedulerHealth } from "../lib/scheduler-health";
 
 const router: IRouter = Router();
 
@@ -50,6 +51,19 @@ router.get("/healthz/analytics", async (_req, res, next) => {
   try {
     const readiness = await checkAnalyticsReadiness(db);
     res.status(readiness.ready ? 200 : 503).json(readiness);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Observability probe for the in-process auto-publish scheduler. Reports whether
+// the 60s tick is still firing and whether any scheduled posts are overdue.
+// Returns 200 when healthy, 503 when the scheduler looks stalled or posts are
+// overdue, 500 only when the probe itself (DB query) can't run.
+router.get("/healthz/scheduler", async (_req, res, next) => {
+  try {
+    const health = await checkSchedulerHealth();
+    res.status(health.ready ? 200 : 503).json(health);
   } catch (err) {
     next(err);
   }
