@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import { State } from "react-native-gesture-handler";
 import {
@@ -54,6 +55,7 @@ jest.mock("expo-image", () => {
 // Imported after mocks so the components pick them up.
 import { PostCard } from "@/components/PostCard";
 import { FavoritesProvider } from "@/hooks/useFavorites";
+import { ToastProvider } from "@/hooks/useToast";
 import SavedScreen from "@/app/(tabs)/saved";
 import PostDetailScreen from "@/app/post/[slug]";
 
@@ -68,10 +70,12 @@ describe("favorites end to end", () => {
     const post = makePost();
 
     render(
-      <FavoritesProvider>
+      <ToastProvider>
+        <FavoritesProvider>
         <PostCard post={post} onPress={() => {}} />
         <SavedScreen />
-      </FavoritesProvider>,
+        </FavoritesProvider>
+      </ToastProvider>,
     );
 
     // Saved tab starts empty once hydration completes.
@@ -109,10 +113,12 @@ describe("favorites end to end", () => {
     mockSlug = detail.slug;
 
     render(
-      <FavoritesProvider>
+      <ToastProvider>
+        <FavoritesProvider>
         <PostDetailScreen />
         <SavedScreen />
-      </FavoritesProvider>,
+        </FavoritesProvider>
+      </ToastProvider>,
     );
 
     await waitFor(() =>
@@ -143,9 +149,11 @@ describe("favorites end to end", () => {
     const onRemove = jest.fn();
 
     const { rerender } = render(
-      <FavoritesProvider>
+      <ToastProvider>
+        <FavoritesProvider>
         <PostCard post={post} onPress={() => {}} />
-      </FavoritesProvider>,
+        </FavoritesProvider>
+      </ToastProvider>,
     );
 
     // No collection context → no remove affordance.
@@ -154,13 +162,15 @@ describe("favorites end to end", () => {
     ).toBeNull();
 
     rerender(
-      <FavoritesProvider>
+      <ToastProvider>
+        <FavoritesProvider>
         <PostCard
           post={post}
           onPress={() => {}}
           onRemoveFromCollection={onRemove}
         />
-      </FavoritesProvider>,
+        </FavoritesProvider>
+      </ToastProvider>,
     );
 
     const btn = screen.getByTestId(`remove-from-collection-${post.slug}`);
@@ -183,9 +193,11 @@ describe("favorites end to end", () => {
     );
 
     render(
-      <FavoritesProvider>
+      <ToastProvider>
+        <FavoritesProvider>
         <SavedScreen />
-      </FavoritesProvider>,
+        </FavoritesProvider>
+      </ToastProvider>,
     );
 
     await waitFor(() =>
@@ -220,14 +232,76 @@ describe("favorites end to end", () => {
     expect(screen.getByText(/1 article bookmarked/)).toBeTruthy();
   });
 
+  it("swipe-to-remove from a collection in the Saved tab keeps the article saved under All", async () => {
+    const post = makePost();
+    // Pre-seed: the post is saved and filed into one collection.
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([post]));
+    await AsyncStorage.setItem(
+      COLLECTIONS_KEY,
+      JSON.stringify({
+        collections: [{ id: "col1", name: "Trips", createdAt: 1 }],
+        membership: { [post.id]: ["col1"] },
+        order: {},
+      }),
+    );
+
+    render(
+      <ToastProvider>
+        <FavoritesProvider>
+        <SavedScreen />
+        </FavoritesProvider>
+      </ToastProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/1 article bookmarked/)).toBeTruthy(),
+    );
+
+    // Switch to the collection's filtered view (renders SwipeableDraggablePostCard).
+    // The chip selects via a react-native-gesture-handler Tap (not a Pressable
+    // onPress), so drive it through the gesture-handler test harness.
+    fireGestureHandler(getByGestureTestId("chip-tap-col1"), [
+      { state: State.BEGAN },
+      { state: State.ACTIVE },
+      { state: State.END },
+    ]);
+
+    // The swipe "Remove" panel (RemoveAction) is rendered by ReanimatedSwipeable's
+    // renderRightActions. Both it and the inline ✕ button share the
+    // "Remove from this collection" label, but only the swipe panel shows a
+    // visible "Remove" caption — use that to target the swipe action specifically.
+    const swipeRemove = await waitFor(() => {
+      const candidate = screen
+        .getAllByLabelText("Remove from this collection")
+        .find((node) => within(node).queryByText("Remove"));
+      if (!candidate) throw new Error("swipe RemoveAction not rendered yet");
+      return candidate;
+    });
+    fireEvent.press(swipeRemove);
+
+    // The collection chip count drops to 0…
+    await waitFor(() =>
+      expect(screen.getByTestId("collection-chip-col1")).toHaveTextContent(
+        "Trips (0)",
+      ),
+    );
+    // …but the article is still saved overall (All count unchanged).
+    expect(screen.getByTestId("collection-chip-all")).toHaveTextContent(
+      "All (1)",
+    );
+    expect(screen.getByText(/1 article bookmarked/)).toBeTruthy();
+  });
+
   it("persists favorites across an app restart (AsyncStorage rehydration on mount)", async () => {
     const post = makePost();
 
     // First session: favorite a post and let it persist.
     const first = render(
-      <FavoritesProvider>
+      <ToastProvider>
+        <FavoritesProvider>
         <PostCard post={post} onPress={() => {}} />
-      </FavoritesProvider>,
+        </FavoritesProvider>
+      </ToastProvider>,
     );
 
     await waitFor(() =>
@@ -249,9 +323,11 @@ describe("favorites end to end", () => {
 
     // Second session: a fresh provider must rehydrate from storage on mount.
     render(
-      <FavoritesProvider>
+      <ToastProvider>
+        <FavoritesProvider>
         <SavedScreen />
-      </FavoritesProvider>,
+        </FavoritesProvider>
+      </ToastProvider>,
     );
 
     await waitFor(() =>
