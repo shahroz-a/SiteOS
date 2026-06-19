@@ -38,12 +38,15 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: "post.publish", label: "Published a post" },
   { value: "article.publish.scheduled", label: "Auto-published (scheduled)" },
   { value: "article.approve", label: "Approved a held-back article" },
+  { value: "redirect.deactivate.auto", label: "Auto-deactivated redirect" },
+  { value: "redirect.reactivate", label: "Re-activated a redirect" },
   { value: MEDIA_UPDATE_ACTION, label: "Edited image description" },
 ];
 
 const ENTITY_OPTIONS: { value: string; label: string }[] = [
   { value: "page", label: "Page" },
   { value: "user", label: "User" },
+  { value: "redirect", label: "Redirect" },
 ];
 
 /** Convert a yyyy-mm-dd date input into an ISO timestamp at the day boundary. */
@@ -170,6 +173,42 @@ function DiffView({
 
 function isMediaUpdate(entry: AuditLogEntry): boolean {
   return entry.action === MEDIA_UPDATE_ACTION;
+}
+
+function isRedirectChange(entry: AuditLogEntry): boolean {
+  return entry.entityType === "redirect";
+}
+
+/** Read a string field from the entry metadata, if present. */
+function metaString(entry: AuditLogEntry, key: string): string | null {
+  const value = entry.metadata?.[key];
+  return typeof value === "string" ? value : null;
+}
+
+/** Rich rendering of a redirect lifecycle entry: the affected from → to path
+ * (so editors see *which* redirect at a glance, not just its id) plus the
+ * before → after state diff. */
+function RedirectChange({ entry }: { entry: AuditLogEntry }) {
+  const from = metaString(entry, "fromPath");
+  const to = metaString(entry, "toPath");
+  return (
+    <div className="space-y-2">
+      {from || to ? (
+        <div className="min-w-0 space-y-0.5">
+          <div className="truncate font-medium" title={from ?? undefined}>
+            {from ?? "—"}
+          </div>
+          <div
+            className="truncate text-xs text-muted-foreground"
+            title={to ?? undefined}
+          >
+            → {to ?? "—"}
+          </div>
+        </div>
+      ) : null}
+      <DiffView before={entry.before} after={entry.after} />
+    </div>
+  );
 }
 
 /** Best-effort CDN URL of the edited image: the entityId is the stable
@@ -461,6 +500,8 @@ export default function AuditLogPage() {
                     <TableCell>
                       {isMediaUpdate(entry) ? (
                         <MediaChange entry={entry} />
+                      ) : isRedirectChange(entry) ? (
+                        <RedirectChange entry={entry} />
                       ) : (
                         <DiffView before={entry.before} after={entry.after} />
                       )}

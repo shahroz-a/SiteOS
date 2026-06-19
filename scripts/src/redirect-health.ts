@@ -43,6 +43,7 @@ import {
   authorsTable,
   redirectsTable,
   crawlLogsTable,
+  auditLogsTable,
 } from "@workspace/db";
 import { redirectTargetUrl } from "./prerender/redirects";
 import {
@@ -260,7 +261,32 @@ export async function run(opts: Options): Promise<RedirectHealthResult> {
     if (decision.deactivate) {
       deactivated.push(entry);
       if (!opts.dryRun) {
-        // Best-effort audit line; never let a log write fail the job.
+        // CMS audit-trail row — no human actor, so editors see the automated
+        // cleanup in the same activity feed as manual redirect edits, clearly
+        // labelled as a scheduled deactivation. Best-effort; never fail the job.
+        await db
+          .insert(auditLogsTable)
+          .values({
+            action: "redirect.deactivate.auto",
+            entityType: "redirect",
+            entityId: r.id,
+            before: { isActive: true },
+            after: {
+              isActive: false,
+              deactivatedReason: decision.reason,
+              targetLastStatus: status,
+            },
+            metadata: {
+              source: "redirect-health-job",
+              fromPath: r.fromPath,
+              toPath: r.toPath,
+              kind,
+            },
+          })
+          .catch(() => {});
+
+        // Durable crawl-log line; survives in the prod DB after the ephemeral
+        // scheduled-deployment container is gone. Best-effort.
         await db
           .insert(crawlLogsTable)
           .values({
