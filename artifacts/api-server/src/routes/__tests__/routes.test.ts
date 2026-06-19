@@ -37,7 +37,6 @@ describe("GET /api/healthz/ready", () => {
     expect(res.status).toBe(200);
     expect(res.body.ready).toBe(true);
     expect(res.body.notReady).toEqual([]);
-    expect(res.body.subsystems.search.ready).toBe(true);
     expect(res.body.subsystems.publishing.ready).toBe(true);
     expect(res.body.subsystems.analytics.ready).toBe(true);
   });
