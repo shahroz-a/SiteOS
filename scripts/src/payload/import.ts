@@ -368,7 +368,7 @@ export async function importExport(
   // round-trip by `href` only). Now that every page exists, re-resolve targets
   // by matching each link's href to a page's canonical URL — the same pass the
   // crawler uses — so "related article" connections point at real pages again.
-  stats.internalLinksResolved = await resolveInternalLinks();
+  stats.internalLinksResolved = await resolveInternalLinks(db);
 
   return stats;
 }

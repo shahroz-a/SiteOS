@@ -100,14 +100,17 @@ export async function processItem(
       continue;
     }
 
-    const stored = await storePage(page);
+    // A failing validation holds the page back: storePage records it as "draft"
+    // so it stays out of the public read API until an editor reviews it.
+    const stored = await storePage(page, { validationStatus: validation.status });
     await storeValidation(stored.pageId, validation);
+    const heldBack = validation.status === "fail";
     await logCrawl({
       url: item.url,
       pageId: stored.pageId,
       level: validation.status === "fail" ? "error" : "info",
       httpStatus: fetchResult.httpStatus,
-      message: `${stored.created ? "created" : stored.changed ? "updated" : "unchanged"} (v${stored.versionNumber}, ${page.via}); validation=${validation.status}`,
+      message: `${stored.created ? "created" : stored.changed ? "updated" : "unchanged"} (v${stored.versionNumber}, ${page.via}); validation=${validation.status}${heldBack ? " (held back for review)" : ""}`,
       details: { counts: page.counts, redirectChain: page.redirectChain },
       durationMs: Date.now() - started,
     });

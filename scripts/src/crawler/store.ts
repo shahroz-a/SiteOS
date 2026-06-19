@@ -263,7 +263,15 @@ async function writeChildren(
  * appended and all derived child rows are rebuilt. Unchanged pages only touch
  * `crawledAt`, so re-running is safe and never duplicates.
  */
-export async function storePage(page: ExtractedPage): Promise<StoreResult> {
+export async function storePage(
+  page: ExtractedPage,
+  opts: { validationStatus?: ValidationResult["status"] } = {},
+): Promise<StoreResult> {
+  // Hold back articles that failed content-fidelity validation: store them as
+  // "draft" so the public read API (which only serves status="published") never
+  // shows a half-broken page until an editor reviews and republishes it.
+  const publicationStatus: "draft" | "published" =
+    opts.validationStatus === "fail" ? "draft" : "published";
   const authorId = await upsertAuthor(page);
   const categoryIds = await upsertCategories(page);
   const tagIds = await upsertTags(page);
@@ -296,7 +304,7 @@ export async function storePage(page: ExtractedPage): Promise<StoreResult> {
     subtitle: page.subtitle,
     excerpt: page.excerpt,
     pageType: page.pageType,
-    status: "published" as const,
+    status: publicationStatus,
     language: page.language,
     originalUrl: page.requestedUrl,
     canonicalUrl: page.canonicalUrl,

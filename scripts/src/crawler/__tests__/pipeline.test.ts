@@ -72,6 +72,12 @@ function crawlLogs(): Array<{ level: string; message: string; pageId?: string | 
   return logCrawl.mock.calls.map((c) => c[0] as { level: string; message: string });
 }
 
+/** The opts (2nd arg) passed to the mocked storePage on its single call. */
+function storePageOpts(): { validationStatus?: string } {
+  expect(storePage).toHaveBeenCalledTimes(1);
+  return (storePage.mock.calls[0]![1] ?? {}) as { validationStatus?: string };
+}
+
 describe("processItem validation gate", () => {
   beforeEach(() => {
     fetchPage.mockReset();
@@ -92,6 +98,8 @@ describe("processItem validation gate", () => {
     // No retry: a passing/warning page is fetched exactly once.
     expect(fetchPage).toHaveBeenCalledTimes(1);
     expect(storedValidation().status).not.toBe("fail");
+    // Healthy article is published, not held back: storePage gets a non-fail status.
+    expect(storePageOpts().validationStatus).not.toBe("fail");
     // Recorded at info level (not error) since it did not fail.
     expect(crawlLogs().some((l) => l.level === "error")).toBe(false);
     expect(crawlLogs().some((l) => l.level === "info" && /validation=/.test(l.message))).toBe(true);
@@ -118,6 +126,16 @@ describe("processItem validation gate", () => {
     const errorLog = crawlLogs().find((l) => l.level === "error");
     expect(errorLog).toBeDefined();
     expect(errorLog!.message).toContain("validation=fail");
+  });
+
+  it("holds a broken article back by signaling its failing status to the store", async () => {
+    fetchPage.mockResolvedValue(makeFetchResult(brokenHtml, BROKEN_URL));
+
+    await processItem(makeItem(BROKEN_URL), config, () => {});
+
+    // The failing validation status is threaded to storePage, which persists the
+    // page as "draft" so it never reaches the published read API until reviewed.
+    expect(storePageOpts().validationStatus).toBe("fail");
   });
 
   it("records a fail row whose shape is what the migration reports read back", async () => {

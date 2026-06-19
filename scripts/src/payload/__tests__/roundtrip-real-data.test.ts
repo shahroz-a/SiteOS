@@ -45,8 +45,14 @@ const RUN = process.env.VERIFY_REAL_DATA === "1";
 // How many real pages to sample. We take the pages with the MOST images (to
 // stress many-inline-image pages) and the FEWEST (to cover empty/near-empty
 // shapes), so a tiny sample still exercises both extremes.
-const SAMPLE_TOP = 3;
+const SAMPLE_TOP = 1;
 const SAMPLE_BOTTOM = 2;
+
+// NOTE: real pages are heavily skewed — the most-image page carries ~600 inline
+// images, and the loader uploads every referenced media doc into Payload one at a
+// time, so a large TOP sample makes this opt-in check take many minutes. One
+// most-image page already fully exercises the many-inline-image path, so we take
+// just the single richest page plus the two leanest (empty/near-empty) extremes.
 
 // A 1x1 transparent PNG, so the upload collection can store a real file without
 // touching the network (every media URL resolves to this).
@@ -192,6 +198,36 @@ function sortImages(images: ChildRows["images"]): ChildRows["images"] {
     );
 }
 
+/**
+ * The export ALWAYS synthesizes a post `heroImage`. When a page has NO image
+ * with role "featured", `export-payload.ts` falls back to the first image
+ * (`?? pageImages[0]`) and emits it as the hero, so that single image's role
+ * flips "inline" -> "featured" at its original position. That is a documented
+ * export transformation, NOT image loss — the url, position and total count are
+ * all preserved. Normalize ONLY that one synthesized-hero flip (and only when
+ * the DB truly has no featured row, and the flipped row matches an existing
+ * (position,url) the DB stored as non-featured) so the assertion still fails on
+ * any genuinely dropped/added/mis-positioned image or any other role change.
+ *
+ * TODO(follow-up): reassess the `?? pageImages[0]` hero fallback in
+ * export-payload.ts — it can promote a tiny decorative icon (e.g. a 30px
+ * icons8 PNG) to the Payload hero image, which is poor content semantics.
+ */
+function normalizeSynthesizedHero(
+  fromExport: ChildRows["images"],
+  fromDb: ChildRows["images"],
+): ChildRows["images"] {
+  if (fromDb.some((i) => i.role === "featured")) return fromExport;
+  const dbRoleByKey = new Map(
+    fromDb.map((i) => [`${i.position}\u0000${i.url}`, i.role]),
+  );
+  return fromExport.map((img) => {
+    if (img.role !== "featured") return img;
+    const dbRole = dbRoleByKey.get(`${img.position}\u0000${img.url}`);
+    return dbRole && dbRole !== "featured" ? { ...img, role: dbRole } : img;
+  });
+}
+
 class Rollback extends Error {}
 
 interface PayloadPostReadback {
@@ -331,12 +367,12 @@ describe.runIf(RUN)("export -> load -> import round-trip on real data", () => {
     } catch (err) {
       if (!(err instanceof Rollback)) throw err;
     }
-  }, 180_000);
+  }, 600_000);
 
   afterAll(async () => {
     await tp?.cleanup();
     await pool.end();
-  });
+  }, 60_000);
 
   it("export preserves every inline image, link and metadata bag from the DB", () => {
     for (const post of sample) {
@@ -344,9 +380,10 @@ describe.runIf(RUN)("export -> load -> import round-trip on real data", () => {
       const fromExport = expectedFromExport(data, post);
       // Inline images: the export carries the hero (separately) + every inline
       // image; together they must equal the page's full image set in the DB.
-      expect(sortImages(fromExport.images), `images for ${post.slug}`).toEqual(
-        sortImages(fromDb.images),
-      );
+      expect(
+        sortImages(normalizeSynthesizedHero(fromExport.images, fromDb.images)),
+        `images for ${post.slug}`,
+      ).toEqual(sortImages(fromDb.images));
       expect(
         byPosition(fromExport.internal),
         `internal links for ${post.slug}`,

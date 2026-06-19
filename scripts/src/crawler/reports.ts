@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { eq, sql, desc } from "drizzle-orm";
+import { and, eq, sql, desc } from "drizzle-orm";
 import {
   db,
   pagesTable,
@@ -197,6 +197,45 @@ export async function generateReports(
     }),
   );
 
+  // --- Held-back articles (editor review queue) ---
+  // Articles kept out of the public read API because content-fidelity
+  // validation failed (pages.status="draft"). Editors use this queue to review
+  // and republish them. Reuses pages + the latest validation_reports row per page.
+  const latestValidationByPage = new Map<string, (typeof validations)[number]>();
+  for (const v of validations) {
+    if (v.pageId && !latestValidationByPage.has(v.pageId)) latestValidationByPage.set(v.pageId, v);
+  }
+  const draftPages = await db
+    .select({
+      id: pagesTable.id,
+      slug: pagesTable.slug,
+      title: pagesTable.title,
+      url: pagesTable.canonicalUrl,
+      pageType: pagesTable.pageType,
+      crawledAt: pagesTable.crawledAt,
+    })
+    .from(pagesTable)
+    // Only articles: editorial drafts of other page types are not part of the
+    // "broken article" review queue.
+    .where(and(eq(pagesTable.status, "draft"), eq(pagesTable.pageType, "post")))
+    .orderBy(desc(pagesTable.crawledAt));
+  const heldBack = draftPages.map((p) => {
+    const v = latestValidationByPage.get(p.id);
+    return {
+      ...p,
+      validationStatus: v?.status ?? null,
+      validationScore: v?.score ?? null,
+      issues: v?.issues ?? null,
+    };
+  });
+  written.push(
+    await writeReport(outDir, "held-back-articles.json", {
+      generatedAt: new Date().toISOString(),
+      total: heldBack.length,
+      articles: heldBack,
+    }),
+  );
+
   // --- Migration readiness report ---
   const failedValidations = validations.filter((v) => v.status === "fail").length;
   const pagesMissingCanonical = await db
@@ -207,6 +246,7 @@ export async function generateReports(
     await writeReport(outDir, "migration-readiness.json", {
       generatedAt: new Date().toISOString(),
       totalPages: pageCount?.c ?? 0,
+      heldBackArticles: heldBack.length,
       validationFailures: failedValidations,
       pagesMissingCanonical: pagesMissingCanonical[0]?.c ?? 0,
       queuePending: queueStats.pending,

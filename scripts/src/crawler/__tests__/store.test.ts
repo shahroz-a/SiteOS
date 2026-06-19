@@ -13,6 +13,7 @@ class FakeDb {
   authors = new Map<string, string>(); // slug -> id
   categories = new Map<string, string>(); // slug -> id
   tags = new Map<string, string>(); // slug -> id
+  pageStatus = new Map<string, string>(); // canonicalUrl -> stored publication status
   versions = new Map<string, Array<{ versionNumber: number; contentHash: string }>>();
   insertRowCounts: Record<string, number> = {};
   insertCallCounts: Record<string, number> = {};
@@ -69,6 +70,7 @@ class InsertBuilder {
           id = this.db.id("page");
           this.db.pages.set(url, id);
         }
+        this.db.pageStatus.set(url, String(this.vals[0]!.status));
         return [{ id }];
       }
       case "authors":
@@ -246,6 +248,7 @@ describe("storePage idempotency", () => {
     fakeDb.authors.clear();
     fakeDb.categories.clear();
     fakeDb.tags.clear();
+    fakeDb.pageStatus.clear();
     fakeDb.versions.clear();
     fakeDb.insertRowCounts = {};
     fakeDb.insertCallCounts = {};
@@ -308,5 +311,39 @@ describe("storePage idempotency", () => {
     expect(fakeDb.versions.get(first.pageId)).toHaveLength(2);
     // Children were cleared again before rebuild.
     expect(fakeDb.deleteCounts.blocks ?? 0).toBeGreaterThan(clearsAfterFirst);
+  });
+});
+
+describe("storePage publication gating (hold back failed articles)", () => {
+  beforeEach(() => {
+    fakeDb.pages.clear();
+    fakeDb.authors.clear();
+    fakeDb.categories.clear();
+    fakeDb.tags.clear();
+    fakeDb.pageStatus.clear();
+    fakeDb.versions.clear();
+    fakeDb.insertRowCounts = {};
+    fakeDb.insertCallCounts = {};
+    fakeDb.deleteCounts = {};
+  });
+
+  it("publishes a page whose validation passed", async () => {
+    await storePage(assemble(), { validationStatus: "pass" });
+    expect(fakeDb.pageStatus.get(URL)).toBe("published");
+  });
+
+  it("publishes a page whose validation only warned", async () => {
+    await storePage(assemble(), { validationStatus: "warn" });
+    expect(fakeDb.pageStatus.get(URL)).toBe("published");
+  });
+
+  it("holds back (draft) a page whose validation failed", async () => {
+    await storePage(assemble(), { validationStatus: "fail" });
+    expect(fakeDb.pageStatus.get(URL)).toBe("draft");
+  });
+
+  it("defaults to published when no validation status is provided", async () => {
+    await storePage(assemble());
+    expect(fakeDb.pageStatus.get(URL)).toBe("published");
   });
 });

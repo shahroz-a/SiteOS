@@ -15,7 +15,7 @@
     "migrate:payload": "tsx ./src/migrate-payload.ts",
     "prerender:blog": "tsx ./src/prerender-blog.ts",
     "test": "vitest run",
-    "verify:roundtrip": "VERIFY_REAL_DATA=1 vitest run scripts/src/payload/__tests__/roundtrip-real-data.test.ts",
+    "verify:roundtrip": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/payload/__tests__/roundtrip-real-data.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

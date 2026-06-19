@@ -349,8 +349,10 @@ export async function persistPage(page: ParsedPage): Promise<PersistResult> {
  * link's canonical href to a page's canonical URL. Returns the number of links
  * newly resolved.
  */
-export async function resolveInternalLinks(): Promise<number> {
-  const pages = await db
+export async function resolveInternalLinks(
+  executor: typeof db = db,
+): Promise<number> {
+  const pages = await executor
     .select({ id: pagesTable.id, canonicalUrl: pagesTable.canonicalUrl })
     .from(pagesTable);
   const byCanonical = new Map<string, string>();
@@ -360,7 +362,7 @@ export async function resolveInternalLinks(): Promise<number> {
     if (norm) byCanonical.set(norm, p.id);
   }
 
-  const links = await db
+  const links = await executor
     .select({ id: internalLinksTable.id, href: internalLinksTable.href })
     .from(internalLinksTable);
 
@@ -379,7 +381,7 @@ export async function resolveInternalLinks(): Promise<number> {
   for (const [targetPageId, ids] of byTarget) {
     for (let i = 0; i < ids.length; i += 200) {
       const batch = ids.slice(i, i + 200);
-      await db
+      await executor
         .update(internalLinksTable)
         .set({ targetPageId })
         .where(inArray(internalLinksTable.id, batch));
