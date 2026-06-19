@@ -21,6 +21,7 @@ export {
   escapeText,
   buildSeoTagList,
   applySeoTags,
+  DEFAULT_OG_IMAGE,
   indexSeo,
   searchSeo,
   categorySeo,

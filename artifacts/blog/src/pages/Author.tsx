@@ -7,7 +7,8 @@ import { Pagination } from "@/components/Pagination";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateViews";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useSeo } from "@/hooks/use-seo";
-import { authorPath, defaultOgImage } from "@/lib/blog";
+import { authorPath } from "@/lib/blog";
+import { authorSeo } from "@workspace/blog-seo";
 
 const PAGE_SIZE = 9;
 
@@ -26,15 +27,10 @@ export default function Author() {
   } = useListPosts({ author: slug, page, limit: PAGE_SIZE });
 
   const items = data?.items ?? [];
-  const previewImage =
-    items.find((post) => post.featuredImageUrl)?.featuredImageUrl ??
-    defaultOgImage();
 
-  useSeo({
-    title: author ? `${author.name} | Headout Blog` : "Author | Headout Blog",
-    description: author?.bio,
-    ogImage: previewImage,
-  });
+  useSeo(
+    author ? authorSeo(author) : authorSeo({ name: "Author", bio: null }),
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">

@@ -89,14 +89,20 @@ describe("renderSeoTags", () => {
     );
   });
 
-  it("omits canonical/og:url/og:image and empty descriptions for listing pages", () => {
+  it("omits canonical/og:url and empty descriptions but carries the brand og:image for listing pages", () => {
     const out = renderSeoTags(categorySeo({ name: "Beaches", description: null }));
     expect(out).toContain("<title>Beaches | Headout Blog</title>");
     expect(out).not.toContain("rel=\"canonical\"");
     expect(out).not.toContain("og:url");
-    expect(out).not.toContain("og:image");
     expect(out).not.toContain('name="description"');
     expect(out).not.toContain("og:description");
+    // Listing pages share the brand preview image (og:image + twitter:image).
+    expect(out).toContain(
+      '<meta property="og:image" content="/blog/og-default.png" />',
+    );
+    expect(out).toContain(
+      '<meta name="twitter:image" content="/blog/og-default.png" />',
+    );
     // og:title still falls back to the (full) title.
     expect(out).toContain(
       '<meta property="og:title" content="Beaches | Headout Blog" />',

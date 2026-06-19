@@ -235,7 +235,7 @@ describe("run — article pages", () => {
 });
 
 describe("run — listing pages", () => {
-  it("writes index and search shells without canonical/og:url/og:image", async () => {
+  it("writes index and search shells with the brand og:image but no canonical/og:url", async () => {
     await run();
 
     const index = await readDist("index.html");
@@ -244,14 +244,24 @@ describe("run — listing pages", () => {
     );
     expect(index).not.toContain('rel="canonical"');
     expect(index).not.toContain("og:url");
-    expect(index).not.toContain("og:image");
+    // Listing pages share the brand preview image so crawlers reading the
+    // prerendered HTML get the same unfurl image a JS visitor's DOM gets.
+    expect(index).toContain(
+      '<meta property="og:image" content="/blog/og-default.png" />',
+    );
+    expect(index).toContain(
+      '<meta name="twitter:image" content="/blog/og-default.png" />',
+    );
 
     const search = await readDist("search.html");
     expect(search).toContain("<title>Search | Headout Blog</title>");
+    expect(search).toContain(
+      '<meta property="og:image" content="/blog/og-default.png" />',
+    );
     expect(await readDist("search/index.html")).toBe(search);
   });
 
-  it("writes category and author pages (both file forms) without article-only tags", async () => {
+  it("writes category and author pages (both file forms) with the brand og:image but no article-only tags", async () => {
     setTables({
       categories: [
         { slug: "europe", name: "Europe", description: "Old world charm." },
@@ -269,12 +279,18 @@ describe("run — listing pages", () => {
     expect(category).not.toContain('rel="canonical"');
     expect(category).not.toContain("og:url");
     expect(category).not.toContain('property="og:type" content="article"');
+    expect(category).toContain(
+      '<meta property="og:image" content="/blog/og-default.png" />',
+    );
     expect(await readDist("category/europe/index.html")).toBe(category);
 
     const author = await readDist("author/jane.html");
     expect(author).toContain("<title>Jane Doe | Headout Blog</title>");
     expect(author).toContain(
       '<meta name="description" content="Travel writer." />',
+    );
+    expect(author).toContain(
+      '<meta property="og:image" content="/blog/og-default.png" />',
     );
     expect(await readDist("author/jane/index.html")).toBe(author);
   });

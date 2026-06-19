@@ -158,10 +158,7 @@ function readAppliedTags(doc: FakeDocument): TagRecord[] {
 const CASES: Record<string, SeoTags> = {
   index: indexSeo(),
   search: searchSeo(),
-  "search with query": {
-    title: "Search: beaches | Headout Blog",
-    description: "Search travel guides and articles on the Headout Blog.",
-  },
+  "search with query": searchSeo("beaches"),
   category: categorySeo({ name: "Beaches", description: "Sun & sand guides." }),
   "category without description": categorySeo({ name: "Europe", description: null }),
   author: authorSeo({ name: "Jane Doe", bio: 'Writes about "quirky" travel & food.' }),

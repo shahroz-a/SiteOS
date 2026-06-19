@@ -250,19 +250,40 @@ export function applySeoTags(doc: SeoDocument, tags: SeoTags): () => void {
 const SITE_DESCRIPTION =
   "Travel inspiration, family destination guides, and holiday ideas from the Headout Blog.";
 
+/**
+ * Root-relative URL of the brand Open Graph / Twitter share image used by the
+ * listing/index routes (index, search, category, author) which have no single
+ * post-specific hero image.
+ *
+ * It lives here, in the environment-agnostic SEO lib, so BOTH the static
+ * prerender (Node) and the runtime `useSeo` hook (browser) emit the exact same
+ * `og:image`/`twitter:image` for these routes — a crawler reading the
+ * prerendered HTML and a JS visitor reading the DOM can't drift. The value is
+ * intentionally origin-relative (not absolute): the build-time prerender cannot
+ * know the production origin, and a relative URL resolves against the page's
+ * own origin in both the `/blog/` preview and production. `/blog/` is the blog
+ * artifact's fixed base path; the file is shipped in `artifacts/blog/public`.
+ */
+export const DEFAULT_OG_IMAGE = "/blog/og-default.png";
+
 /** Index (`/blog/`) SEO — mirrors `pages/Index.tsx`. */
 export function indexSeo(): SeoTags {
   return {
     title: "Headout Blog — Travel inspiration & destination guides",
     description: SITE_DESCRIPTION,
+    ogImage: DEFAULT_OG_IMAGE,
   };
 }
 
-/** Search shell (`/blog/search`) SEO — mirrors `pages/Search.tsx` with no query. */
-export function searchSeo(): SeoTags {
+/**
+ * Search (`/blog/search`) SEO — mirrors `pages/Search.tsx`. With no query it is
+ * the search shell; with a query it reflects the searched term in the title.
+ */
+export function searchSeo(query?: string | null): SeoTags {
   return {
-    title: "Search | Headout Blog",
+    title: query ? `Search: ${query} | Headout Blog` : "Search | Headout Blog",
     description: "Search travel guides and articles on the Headout Blog.",
+    ogImage: DEFAULT_OG_IMAGE,
   };
 }
 
@@ -274,6 +295,7 @@ export function categorySeo(category: {
   return {
     title: `${category.name} | Headout Blog`,
     description: category.description,
+    ogImage: DEFAULT_OG_IMAGE,
   };
 }
 
@@ -282,6 +304,7 @@ export function authorSeo(author: { name: string; bio?: string | null }): SeoTag
   return {
     title: `${author.name} | Headout Blog`,
     description: author.bio,
+    ogImage: DEFAULT_OG_IMAGE,
   };
 }
 

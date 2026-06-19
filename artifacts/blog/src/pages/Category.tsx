@@ -9,7 +9,8 @@ import { PostCard } from "@/components/PostCard";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateViews";
 import { useSeo } from "@/hooks/use-seo";
-import { categoryPath, defaultOgImage } from "@/lib/blog";
+import { categoryPath } from "@/lib/blog";
+import { categorySeo } from "@workspace/blog-seo";
 
 const PAGE_SIZE = 9;
 
@@ -28,17 +29,12 @@ export default function Category() {
   } = useListPosts({ category: slug, page, limit: PAGE_SIZE });
 
   const items = data?.items ?? [];
-  const previewImage =
-    items.find((post) => post.featuredImageUrl)?.featuredImageUrl ??
-    defaultOgImage();
 
-  useSeo({
-    title: category
-      ? `${category.name} | Headout Blog`
-      : "Category | Headout Blog",
-    description: category?.description,
-    ogImage: previewImage,
-  });
+  useSeo(
+    category
+      ? categorySeo(category)
+      : categorySeo({ name: "Category", description: null }),
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">

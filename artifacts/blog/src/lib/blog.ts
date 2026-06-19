@@ -1,19 +1,5 @@
 import { format } from "date-fns";
 
-/**
- * Absolute URL for the default brand Open Graph / Twitter share image, used by
- * listing and filtered views that have no post-specific hero image. Built from
- * the current origin + Vite base path so the file in `public/` resolves both in
- * the `/blog/` preview and in production.
- */
-export function defaultOgImage(): string {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}${base}/og-default.png`;
-  }
-  return `${base}/og-default.png`;
-}
-
 /** Internal route helpers (relative to the wouter base `/blog`). */
 export function postPath(slug: string): string {
   return `/${slug}/`;
