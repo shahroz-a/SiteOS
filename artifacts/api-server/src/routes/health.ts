@@ -69,4 +69,31 @@ router.get("/healthz/scheduler", async (_req, res, next) => {
   }
 });
 
+// Aggregate readiness check that rolls up every non-migration-tracked prod
+// prerequisite (search + publishing + analytics) into a single ready/not-ready
+// summary, so post-publish verification is one call instead of polling each
+// subsystem individually. Reuses the same `check*Readiness` functions as the
+// per-subsystem routes (no duplicated DB queries). Returns 200 only when ALL
+// subsystems are ready, 503 (with the failing subsystems listed under `notReady`)
+// when any prerequisite is missing, and 500 only when a probe itself can't run.
+router.get("/healthz/ready", async (_req, res, next) => {
+  try {
+    const [search, publishing, analytics] = await Promise.all([
+      checkSearchReadiness(db),
+      checkPublishingReadiness(db),
+      checkAnalyticsReadiness(db),
+    ]);
+
+    const subsystems = { search, publishing, analytics };
+    const notReady = (
+      Object.keys(subsystems) as (keyof typeof subsystems)[]
+    ).filter((name) => !subsystems[name].ready);
+    const ready = notReady.length === 0;
+
+    res.status(ready ? 200 : 503).json({ ready, notReady, subsystems });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
