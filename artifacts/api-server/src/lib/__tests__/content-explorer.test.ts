@@ -4,6 +4,7 @@ import type { SQL } from "drizzle-orm";
 import {
   extractValidationIssues,
   listContentExplorer,
+  buildContentExport,
   type ContentExplorerOpts,
 } from "../content-explorer";
 import type { Executor } from "../cms-content";
@@ -487,5 +488,173 @@ describe("listContentExplorer — row → item mapping", () => {
     expect(items[0]?.seoScore).toBe(80);
     expect(items[0]?.validationScore).toBeNull();
     expect(items[0]?.validationStatus).toBeNull();
+  });
+});
+
+/**
+ * A `fakeExecutor` that also records how many `.execute` calls it received, so a
+ * test can assert the empty-selection short-circuit never touches the DB.
+ */
+function countingExecutor(resultSets: unknown[][]): {
+  exec: Executor;
+  calls: () => number;
+} {
+  let call = 0;
+  return {
+    exec: {
+      execute: async () => ({ rows: resultSets[call++] ?? [] }),
+    } as unknown as Executor,
+    calls: () => call,
+  };
+}
+
+describe("buildContentExport — selection ordering & filtering", () => {
+  it("preserves the caller's selection order, not the DB's order", async () => {
+    // DB returns rows in updated-desc order (p2, p3, p1); caller asked for
+    // p1, p2, p3 — the export must follow the caller's order.
+    const exec = fakeExecutor([
+      [{ count: 3 }],
+      [
+        explorerRow({ id: "p2", title: "Post Two" }),
+        explorerRow({ id: "p3", title: "Post Three" }),
+        explorerRow({ id: "p1", title: "Post One" }),
+      ],
+    ]);
+    const env = await buildContentExport(["p1", "p2", "p3"], "json", exec);
+    const parsed = JSON.parse(env.content) as { items: { id: string }[] };
+    expect(parsed.items.map((i) => i.id)).toEqual(["p1", "p2", "p3"]);
+  });
+
+  it("silently drops ids the explorer query did not return (non-post / missing)", async () => {
+    // Only p1 and p3 come back from the DB; p2 (e.g. a non-post or deleted id)
+    // and pX (never existed) are dropped without erroring.
+    const exec = fakeExecutor([
+      [{ count: 2 }],
+      [
+        explorerRow({ id: "p1", title: "Post One" }),
+        explorerRow({ id: "p3", title: "Post Three" }),
+      ],
+    ]);
+    const env = await buildContentExport(["p1", "p2", "p3", "pX"], "json", exec);
+    const parsed = JSON.parse(env.content) as { items: { id: string }[] };
+    expect(parsed.items.map((i) => i.id)).toEqual(["p1", "p3"]);
+  });
+
+  it("returns an empty export without querying when the id list is empty", async () => {
+    const { exec, calls } = countingExecutor([]);
+    const env = await buildContentExport([], "json", exec);
+    expect(calls()).toBe(0);
+    const parsed = JSON.parse(env.content) as { items: unknown[] };
+    expect(parsed.items).toEqual([]);
+  });
+
+  it("returns an empty CSV (header only) without querying when the id list is empty", async () => {
+    const { exec, calls } = countingExecutor([]);
+    const env = await buildContentExport([], "csv", exec);
+    expect(calls()).toBe(0);
+    // Header row only, no data rows.
+    expect(env.content.split("\n")).toHaveLength(1);
+    expect(env.content).toMatch(/^id,title,slug,/);
+  });
+});
+
+describe("buildContentExport — JSON envelope", () => {
+  it("returns a {filename, contentType, content} envelope with today's date", async () => {
+    const exec = fakeExecutor([[{ count: 1 }], [explorerRow({ id: "p1" })]]);
+    const env = await buildContentExport(["p1"], "json", exec);
+    expect(env.contentType).toBe("application/json");
+    expect(env.filename).toMatch(/^content-export-\d{4}-\d{2}-\d{2}\.json$/);
+    const parsed = JSON.parse(env.content) as {
+      exportedAt: string;
+      items: { id: string }[];
+    };
+    expect(typeof parsed.exportedAt).toBe("string");
+    expect(parsed.items.map((i) => i.id)).toEqual(["p1"]);
+  });
+
+  it("defaults to the json format when no format is given", async () => {
+    const exec = fakeExecutor([[{ count: 1 }], [explorerRow({ id: "p1" })]]);
+    const env = await buildContentExport(["p1"], undefined, exec);
+    expect(env.contentType).toBe("application/json");
+    expect(env.filename.endsWith(".json")).toBe(true);
+  });
+});
+
+describe("buildContentExport — CSV envelope & escaping", () => {
+  it("returns a {filename, contentType, content} CSV envelope", async () => {
+    const exec = fakeExecutor([
+      [{ count: 1 }],
+      [
+        explorerRow({
+          id: "p1",
+          title: "A Post",
+          slug: "a-post",
+          canonical_url: "https://www.headout.com/blog/a-post/",
+          status: "published",
+          seo_score: 60,
+          validation_score: 80,
+          validation_status: "warn",
+        }),
+      ],
+    ]);
+    const env = await buildContentExport(["p1"], "csv", exec);
+    expect(env.contentType).toBe("text/csv");
+    expect(env.filename).toMatch(/^content-export-\d{4}-\d{2}-\d{2}\.csv$/);
+    const [header, row] = env.content.split("\n");
+    expect(header).toBe(
+      "id,title,slug,url,author,category,status,modifiedAt,publishedAt,seoScore,validationScore,validationStatus",
+    );
+    expect(row).toBe(
+      "p1,A Post,a-post,https://www.headout.com/blog/a-post/,,,published,,,60,80,warn",
+    );
+  });
+
+  it("quotes and escapes cells containing commas, quotes, and newlines", async () => {
+    const exec = fakeExecutor([
+      [{ count: 1 }],
+      [
+        explorerRow({
+          id: "p1",
+          title: 'Hello, "World"\nNext line',
+          slug: "tricky",
+          canonical_url: "https://www.headout.com/blog/tricky/",
+          author_id: "a1",
+          author_name: "Doe, Jane",
+          status: "published",
+          seo_score: 0,
+        }),
+      ],
+    ]);
+    const env = await buildContentExport(["p1"], "csv", exec);
+    // The whole CSV (after the header line) — the embedded newline lives inside
+    // a quoted cell, so splitting on "\n" is not safe; assert on substrings.
+    expect(env.content).toContain('"Hello, ""World""\nNext line"');
+    expect(env.content).toContain('"Doe, Jane"');
+  });
+
+  it("renders nulls as empty cells and stringifies numeric scores", async () => {
+    const exec = fakeExecutor([
+      [{ count: 1 }],
+      [
+        explorerRow({
+          id: "p1",
+          title: "Plain",
+          slug: "plain",
+          canonical_url: "https://www.headout.com/blog/plain/",
+          status: "draft",
+          modified_at: null,
+          published_at: null,
+          seo_score: 40,
+          validation_score: null,
+          validation_status: null,
+        }),
+      ],
+    ]);
+    const env = await buildContentExport(["p1"], "csv", exec);
+    const row = env.content.split("\n")[1];
+    // ...,status,modifiedAt(empty),publishedAt(empty),seoScore,validationScore(empty),validationStatus(empty)
+    expect(row).toBe(
+      "p1,Plain,plain,https://www.headout.com/blog/plain/,,,draft,,,40,,",
+    );
   });
 });
