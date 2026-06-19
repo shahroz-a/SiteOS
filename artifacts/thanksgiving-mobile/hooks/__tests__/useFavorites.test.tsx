@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createElement } from "react";
 import TestRenderer, { act, type ReactTestRenderer } from "react-test-renderer";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PostSummary } from "@workspace/api-client-react";
 
@@ -22,8 +22,17 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   default: { getItem, setItem, removeItem },
 }));
 
-const { FavoritesProvider, useFavorites } = await import("../useFavorites");
+// Imported in beforeAll (not via top-level await) so this file also parses
+// under babel/jest configs that lack top-level-await support. The dynamic
+// import must still run after the const mocks above so vitest's hoisted
+// vi.mock factory can reference them when ../useFavorites pulls in AsyncStorage.
+let FavoritesProvider: typeof import("../useFavorites").FavoritesProvider;
+let useFavorites: typeof import("../useFavorites").useFavorites;
 type FavoritesValue = ReturnType<typeof useFavorites>;
+
+beforeAll(async () => {
+  ({ FavoritesProvider, useFavorites } = await import("../useFavorites"));
+});
 
 function makePost(id: string, overrides: Partial<PostSummary> = {}): PostSummary {
   return {
