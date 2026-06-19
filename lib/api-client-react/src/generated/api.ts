@@ -93,6 +93,8 @@ import type {
   UpdateMediaAltInput,
   UpdateMediaAltResponse,
   UpdateUserRoleRequest,
+  UploadFinalizeRequest,
+  UploadFinalizeResult,
   UploadUrlRequest,
   UploadUrlResponse,
   UploadedImageListResponse,
@@ -267,6 +269,78 @@ export function useListUploadedImages<TData = Awaited<ReturnType<typeof listUplo
 
 
 
+
+export const getFinalizeUploadUrl = () => {
+
+
+
+
+  return `/api/storage/uploads/finalize`
+}
+
+/**
+ * Called after the file bytes have been PUT to the presigned URL. The server re-reads the stored object's real size and sniffs its magic bytes to confirm it is a supported raster image within the size cap, deleting the object and returning 400 on rejection. Gated on the CMS session: the acting user must hold content.create or content.edit.
+ * @summary Validate an uploaded image server-side (requires content.create or content.edit)
+ */
+export const finalizeUpload = async (uploadFinalizeRequest: UploadFinalizeRequest, options?: RequestInit): Promise<UploadFinalizeResult> => {
+
+  return customFetch<UploadFinalizeResult>(getFinalizeUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      uploadFinalizeRequest,)
+  }
+);}
+
+
+
+
+export const getFinalizeUploadMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof finalizeUpload>>, TError,{data: BodyType<UploadFinalizeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof finalizeUpload>>, TError,{data: BodyType<UploadFinalizeRequest>}, TContext> => {
+
+const mutationKey = ['finalizeUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof finalizeUpload>>, {data: BodyType<UploadFinalizeRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  finalizeUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinalizeUploadMutationResult = NonNullable<Awaited<ReturnType<typeof finalizeUpload>>>
+    export type FinalizeUploadMutationBody = BodyType<UploadFinalizeRequest>
+    export type FinalizeUploadMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>
+
+    /**
+ * @summary Validate an uploaded image server-side (requires content.create or content.edit)
+ */
+export const useFinalizeUpload = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof finalizeUpload>>, TError,{data: BodyType<UploadFinalizeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof finalizeUpload>>,
+        TError,
+        {data: BodyType<UploadFinalizeRequest>},
+        TContext
+      > => {
+      return useMutation(getFinalizeUploadMutationOptions(options));
+    }
 
 export const getGetStorageObjectUrl = (objectPath: string,) => {
 

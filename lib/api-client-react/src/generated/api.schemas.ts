@@ -845,6 +845,23 @@ export interface UploadUrlResponse {
   metadata?: UploadUrlRequest;
 }
 
+export interface UploadFinalizeRequest {
+  /**
+     * Normalized object path returned by request-url (e.g. `/objects/uploads/uuid`).
+     * @minLength 1
+     */
+  objectPath: string;
+}
+
+export interface UploadFinalizeResult {
+  /** The validated object path. */
+  objectPath: string;
+  /** The server-detected (sniffed) image MIME type. */
+  contentType: string;
+  /** The stored object size in bytes. */
+  size: number;
+}
+
 export type Role = typeof Role[keyof typeof Role];
 
 

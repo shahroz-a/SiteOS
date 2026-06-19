@@ -98,6 +98,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads/finalize:
+    post:
+      tags: [Storage]
+      operationId: finalizeUpload
+      summary: Validate an uploaded image server-side (requires content.create or content.edit)
+      description: >-
+        Called after the file bytes have been PUT to the presigned URL. The
+        server re-reads the stored object's real size and sniffs its magic
+        bytes to confirm it is a supported raster image within the size cap,
+        deleting the object and returning 400 on rejection. Gated on the CMS
+        session: the acting user must hold content.create or content.edit.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadFinalizeRequest"
+      responses:
+        "200":
+          description: The uploaded object passed validation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadFinalizeResult"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          description: Uploaded object not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to validate uploaded object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /storage/objects/{objectPath}:
     get:
       tags: [Storage]
@@ -3609,6 +3654,28 @@ components:
           description: Normalized object path (e.g. `/objects/uploads/uuid`).
         metadata:
           $ref: "#/components/schemas/UploadUrlRequest"
+
+    UploadFinalizeRequest:
+      type: object
+      required: [objectPath]
+      properties:
+        objectPath:
+          type: string
+          minLength: 1
+          description: Normalized object path returned by request-url (e.g. `/objects/uploads/uuid`).
+    UploadFinalizeResult:
+      type: object
+      required: [objectPath, contentType, size]
+      properties:
+        objectPath:
+          type: string
+          description: The validated object path.
+        contentType:
+          type: string
+          description: The server-detected (sniffed) image MIME type.
+        size:
+          type: integer
+          description: The stored object size in bytes.
 
     Role:
       type: string

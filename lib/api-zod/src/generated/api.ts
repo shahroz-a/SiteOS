@@ -81,6 +81,28 @@ export const ListUploadedImagesResponse = zod.object({
 
 
 /**
+ * Called after the file bytes have been PUT to the presigned URL. The server re-reads the stored object's real size and sniffs its magic bytes to confirm it is a supported raster image within the size cap, deleting the object and returning 400 on rejection. Gated on the CMS session: the acting user must hold content.create or content.edit.
+ * @summary Validate an uploaded image server-side (requires content.create or content.edit)
+ */
+export const FinalizeUploadHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const FinalizeUploadBody = zod.object({
+  "objectPath": zod.string().min(1).describe('Normalized object path returned by request-url (e.g. `\/objects\/uploads\/uuid`).')
+})
+
+export const FinalizeUploadResponse = zod.object({
+  "objectPath": zod.string().describe('The validated object path.'),
+  "contentType": zod.string().describe('The server-detected (sniffed) image MIME type.'),
+  "size": zod.number().describe('The stored object size in bytes.')
+})
+
+
+/**
  * Streams an object uploaded via the presigned-URL flow. Uploaded blog images are public content, so this endpoint is unauthenticated. The generated client is not used for it — reference the URL directly from an `<img src>`.
  * @summary Serve an uploaded image from object storage
  */

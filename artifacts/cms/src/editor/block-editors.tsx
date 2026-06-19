@@ -118,7 +118,7 @@ export function ImageUploadButton({
   size?: "sm" | "icon";
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { upload, isUploading, error } = useImageUpload();
+  const { upload, isUploading, progress, error } = useImageUpload();
   const [localError, setLocalError] = useState<string | null>(null);
 
   const handleFiles = async (files: FileList | null) => {
@@ -157,7 +157,13 @@ export function ImageUploadButton({
         ) : (
           <Upload className={size === "icon" ? "h-4 w-4" : "mr-1 h-4 w-4"} />
         )}
-        {size === "icon" ? null : isUploading ? "Uploading…" : label}
+        {size === "icon"
+          ? null
+          : isUploading
+            ? progress !== null && progress < 100
+              ? `Uploading… ${progress}%`
+              : "Uploading…"
+            : label}
       </Button>
       {error || localError ? (
         <span className="text-xs text-destructive">{error ?? localError}</span>

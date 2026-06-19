@@ -5,9 +5,15 @@ import {
   RequestUploadUrlResponse,
   ListUploadedImagesQueryParams,
   ListUploadedImagesResponse,
+  FinalizeUploadBody,
+  FinalizeUploadResponse,
 } from "@workspace/api-zod";
 import { requireAuth, requireAnyPermission } from "../middlewares/rbac";
-import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+import {
+  ObjectStorageService,
+  ObjectNotFoundError,
+  ObjectValidationError,
+} from "../lib/objectStorage";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -95,6 +101,52 @@ router.get(
     } catch (error) {
       req.log.error({ err: error }, "Error listing uploaded images");
       res.status(500).json({ error: "Failed to list uploaded images" });
+    }
+  },
+);
+
+/**
+ * POST /storage/uploads/finalize
+ *
+ * Server-side validation gate, called by the CMS editor AFTER the bytes have
+ * been PUT directly to the presigned GCS URL. Because the upload bypasses this
+ * server, the declared size/content-type cannot be trusted — this re-reads the
+ * stored object's real size and sniffs its magic bytes to confirm it is a
+ * supported raster image within the size cap, deleting it and returning 400 on
+ * rejection. Same RBAC gate as the request-url step.
+ */
+router.post(
+  "/storage/uploads/finalize",
+  requireAuth,
+  requireAnyPermission(["content.create", "content.edit"]),
+  async (req: Request, res: Response) => {
+    const parsed = FinalizeUploadBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Missing or invalid required fields" });
+      return;
+    }
+
+    try {
+      const { objectPath } = parsed.data;
+      const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+      const { contentType, size } =
+        await objectStorageService.validateUploadedImage(objectFile);
+
+      res.json(
+        FinalizeUploadResponse.parse({ objectPath, contentType, size }),
+      );
+    } catch (error) {
+      if (error instanceof ObjectValidationError) {
+        req.log.warn({ err: error }, "Rejected uploaded object");
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      if (error instanceof ObjectNotFoundError) {
+        res.status(404).json({ error: "Uploaded object not found" });
+        return;
+      }
+      req.log.error({ err: error }, "Error validating uploaded object");
+      res.status(500).json({ error: "Failed to validate uploaded object" });
     }
   },
 );

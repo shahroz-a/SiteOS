@@ -173,6 +173,8 @@ export * from './updateMediaAltResponse';
 export * from './updateUserRoleRequest';
 export * from './uploadedImage';
 export * from './uploadedImageListResponse';
+export * from './uploadFinalizeRequest';
+export * from './uploadFinalizeResult';
 export * from './uploadUrlRequest';
 export * from './uploadUrlResponse';
 export * from './versionDiff';

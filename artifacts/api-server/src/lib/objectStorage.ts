@@ -47,6 +47,105 @@ export class ObjectNotFoundError extends Error {
   }
 }
 
+/**
+ * Raised when an uploaded object fails server-side validation (not an image,
+ * or larger than {@link MAX_IMAGE_BYTES}). Carries a user-facing message.
+ */
+export class ObjectValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ObjectValidationError";
+    Object.setPrototypeOf(this, ObjectValidationError.prototype);
+  }
+}
+
+/** Max stored image size (10 MB) — kept in lockstep with the CMS client. */
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Detected raster image format, or `null` when the bytes match no known image. */
+export type DetectedImageType =
+  | "image/jpeg"
+  | "image/png"
+  | "image/gif"
+  | "image/webp"
+  | "image/avif"
+  | "image/bmp"
+  | "image/tiff"
+  | "image/x-icon";
+
+/**
+ * Sniff the leading bytes of a file to decide whether it is a real image.
+ * Trusting the client-sent `Content-Type` is not enough — a malicious client
+ * can PUT arbitrary bytes under an `image/*` header — so we inspect the magic
+ * numbers of the stored object instead. Returns the detected MIME type or
+ * `null` if the bytes match no supported raster format.
+ *
+ * SVG is intentionally NOT accepted: it is XML that can carry inline scripts,
+ * and these objects are served back to browsers from a same-origin route.
+ */
+export function sniffImageType(buf: Buffer): DetectedImageType | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+  if (
+    buf.length >= 6 &&
+    buf[0] === 0x47 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x38 &&
+    (buf[4] === 0x37 || buf[4] === 0x39) &&
+    buf[5] === 0x61
+  ) {
+    return "image/gif";
+  }
+  if (
+    buf.length >= 12 &&
+    buf.toString("ascii", 0, 4) === "RIFF" &&
+    buf.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  if (buf.length >= 12 && buf.toString("ascii", 4, 8) === "ftyp") {
+    const brand = buf.toString("ascii", 8, 12);
+    if (brand === "avif" || brand === "avis") {
+      return "image/avif";
+    }
+  }
+  if (buf.length >= 2 && buf[0] === 0x42 && buf[1] === 0x4d) {
+    return "image/bmp";
+  }
+  if (
+    buf.length >= 4 &&
+    ((buf[0] === 0x49 && buf[1] === 0x49 && buf[2] === 0x2a && buf[3] === 0x00) ||
+      (buf[0] === 0x4d && buf[1] === 0x4d && buf[2] === 0x00 && buf[3] === 0x2a))
+  ) {
+    return "image/tiff";
+  }
+  if (
+    buf.length >= 4 &&
+    buf[0] === 0x00 &&
+    buf[1] === 0x00 &&
+    buf[2] === 0x01 &&
+    buf[3] === 0x00
+  ) {
+    return "image/x-icon";
+  }
+  return null;
+}
+
 export class ObjectStorageService {
   constructor() {}
 
@@ -209,6 +308,73 @@ export class ObjectStorageService {
       throw new ObjectNotFoundError();
     }
     return objectFile;
+  }
+
+  /**
+   * Validate an uploaded object server-side AFTER the direct-to-GCS PUT.
+   *
+   * The presigned-URL flow means the bytes never pass through this server, so
+   * we cannot trust the client's declared size/content-type. This reads the
+   * stored object's real size from GCS metadata and sniffs its leading bytes
+   * to confirm it is a supported raster image within {@link MAX_IMAGE_BYTES}.
+   *
+   * On failure the offending object is deleted (best-effort) and an
+   * {@link ObjectValidationError} is thrown with a user-facing message. On
+   * success the detected content-type is persisted to the object's metadata so
+   * the serving route returns the true type rather than whatever the client
+   * claimed.
+   */
+  async validateUploadedImage(
+    objectFile: File,
+  ): Promise<{ contentType: DetectedImageType; size: number }> {
+    const [metadata] = await objectFile.getMetadata();
+    const size = Number(metadata.size ?? 0);
+
+    if (size <= 0) {
+      await this.deleteObjectQuietly(objectFile);
+      throw new ObjectValidationError("Uploaded file is empty.");
+    }
+    if (size > MAX_IMAGE_BYTES) {
+      await this.deleteObjectQuietly(objectFile);
+      throw new ObjectValidationError(
+        `Image is too large (max ${Math.floor(MAX_IMAGE_BYTES / (1024 * 1024))} MB).`,
+      );
+    }
+
+    const head = await this.readObjectHead(objectFile, 64);
+    const detected = sniffImageType(head);
+    if (!detected) {
+      await this.deleteObjectQuietly(objectFile);
+      throw new ObjectValidationError(
+        "Uploaded file is not a supported image (JPEG, PNG, GIF, WebP, AVIF, BMP, TIFF or ICO).",
+      );
+    }
+
+    if (metadata.contentType !== detected) {
+      await objectFile.setMetadata({ contentType: detected });
+    }
+
+    return { contentType: detected, size };
+  }
+
+  /** Read the first `length` bytes of an object into a Buffer. */
+  private async readObjectHead(objectFile: File, length: number): Promise<Buffer> {
+    const chunks: Array<Buffer> = [];
+    const stream = objectFile.createReadStream({ start: 0, end: length - 1 });
+    for await (const chunk of stream) {
+      chunks.push(chunk as Buffer);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  /** Delete an object, swallowing errors (used on the validation-failure path). */
+  private async deleteObjectQuietly(objectFile: File): Promise<void> {
+    try {
+      await objectFile.delete({ ignoreNotFound: true });
+    } catch {
+      // Best-effort cleanup; a leaked object is preferable to masking the
+      // original validation error.
+    }
   }
 
   normalizeObjectEntityPath(rawPath: string): string {
