@@ -76,4 +76,33 @@ describe("prepareArticleHtml (the live render path)", () => {
   it("returns falsy input unchanged with an empty toc", () => {
     expect(prepareArticleHtml("")).toEqual({ html: "", toc: [] });
   });
+
+  it("normalizes unit-bearing width/height attributes so icons aren't ballooned", () => {
+    // mod_pagespeed/WP emit `width="60px"`; the unit makes the browser ignore
+    // the attribute and the icon grows to its intrinsic size. Strip the unit.
+    const raw =
+      '<img src="https://cdn.example.com/icon.png" width="60px" height="60px" alt="jan">';
+    const { html } = prepareArticleHtml(raw);
+    expect(html).toContain('width="60"');
+    expect(html).toContain('height="60"');
+    expect(html).not.toMatch(/\d+px"/);
+  });
+
+  it("strips the px unit case-insensitively (PX/Px)", () => {
+    const raw = '<img src="x.png" width="48PX" height="48Px" alt="up">';
+    const { html } = prepareArticleHtml(raw);
+    expect(html).toContain('width="48"');
+    expect(html).toContain('height="48"');
+    expect(html).not.toMatch(/\d+px"/i);
+  });
+
+  it("leaves valid unitless dimensions and CSS style widths untouched", () => {
+    const raw =
+      '<img src="x.png" width="90" height="90" style="width: 90px;" alt="spring">';
+    const { html } = prepareArticleHtml(raw);
+    expect(html).toContain('width="90"');
+    expect(html).toContain('height="90"');
+    // The CSS `style` width keeps its unit — only the HTML attributes are fixed.
+    expect(html).toContain("width: 90px;");
+  });
 });

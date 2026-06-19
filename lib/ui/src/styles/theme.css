@@ -434,6 +434,9 @@
     border-radius: var(--radius);
     max-width: 100%;
     height: auto;
+    /* Defensive cap so a stray oversized or intrinsic-size image can never
+       dominate the column; widget images below reset this with fixed boxes. */
+    max-height: 34rem;
   }
 
   /* Standalone (block) images get vertical rhythm + centering */
@@ -557,6 +560,336 @@
     border-radius: var(--radius);
     margin-top: 2rem;
     margin-bottom: 2rem;
+  }
+
+  /* ================================================================== */
+  /* Migrated WordPress embedded widgets                                 */
+  /* The source articles ship rich Thrive/Headout blocks — season cards, */
+  /* month-glyph rows, tour sliders, day-by-day itineraries and related- */
+  /* post grids — whose original theme CSS was never migrated. Without    */
+  /* these rules they collapse into unstyled stacks and their icons/SVGs  */
+  /* balloon to full width. Styling the real class names makes them read  */
+  /* as intentional components across the whole corpus. Everything here   */
+  /* is scoped under .blog-prose so it never leaks into app/CMS chrome.   */
+  /* ================================================================== */
+
+  /* Card-wrapping links must not inherit the prose link underline/colour. */
+  .blog-prose .min-icon-group a,
+  .blog-prose .simplecard-events-post a,
+  .blog-prose .itn-body a,
+  .blog-prose .post-list__card a {
+    text-decoration: none;
+    color: inherit;
+    background: none;
+  }
+
+  /* --- Month glyph row (.min-icon-group) ---------------------------- */
+  .blog-prose .min-icon-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.25rem 1.1rem;
+    margin: 2rem 0;
+  }
+  .blog-prose .min-icon-group .icon-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    width: 4.75rem;
+  }
+  .blog-prose .min-icon-group .icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 9999px;
+    background: hsl(var(--primary) / 0.08);
+    border: 1px solid hsl(var(--primary) / 0.16);
+    transition:
+      background 150ms ease,
+      transform 150ms ease;
+  }
+  .blog-prose .min-icon-group .icon-wrap:hover .icon {
+    background: hsl(var(--primary) / 0.14);
+    transform: translateY(-2px);
+  }
+  .blog-prose .min-icon-group .icon img {
+    width: 2.1rem;
+    height: 2.1rem;
+    max-height: none;
+    object-fit: contain;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .blog-prose .min-icon-group .text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: hsl(var(--foreground) / 0.7);
+  }
+
+  /* --- Season cards (.weather) -------------------------------------- */
+  .blog-prose .weather {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    margin: 1.25rem 0;
+    background: hsl(var(--secondary) / 0.4);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+  .blog-prose .weather > .tve_empty_dropzone {
+    flex-shrink: 0;
+    margin: 0;
+  }
+  .blog-prose .weather > div:not(.tve_empty_dropzone) {
+    flex: 1;
+    min-width: 0;
+  }
+  .blog-prose .weather .tve_image_caption {
+    width: auto !important;
+    margin: 0 !important;
+  }
+  .blog-prose .weather .tve_image_frame img {
+    margin: 0;
+    box-shadow: none;
+    border-radius: var(--radius-sm);
+  }
+  .blog-prose .weather h5 {
+    margin: 0 0 0.4rem;
+    font-size: 1.15rem;
+  }
+  .blog-prose .weather p {
+    margin: 0;
+    font-size: 0.97rem;
+  }
+
+  /* --- Tour / product slider (.slider > .simplecard-events-post) ---- */
+  .blog-prose .slider {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 0.5rem 0.25rem 1.25rem;
+    margin: 1.5rem 0;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+  .blog-prose .slider .product-card-wrapper,
+  .blog-prose .slider .product-slider-wrapper {
+    display: contents;
+  }
+  .blog-prose .simplecard-events-post {
+    position: relative;
+    flex: 0 0 auto;
+    width: 15rem;
+    display: flex;
+    flex-direction: column;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    overflow: hidden;
+    scroll-snap-align: start;
+    transition:
+      box-shadow 150ms ease,
+      transform 150ms ease;
+  }
+  .blog-prose .simplecard-events-post:hover {
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+  }
+  .blog-prose .simplecard-link {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+  }
+  .blog-prose .safety-label {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+  }
+  .blog-prose .safety-label svg {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+  .blog-prose .simplecard-images {
+    margin: 0;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: hsl(var(--muted));
+  }
+  .blog-prose .simplecard-images picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .blog-prose .simplecard-images img {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .blog-prose .simplecard-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.75rem 0.9rem 1rem;
+  }
+  .blog-prose .simplecard-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.35;
+    color: hsl(var(--foreground));
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .blog-prose .simplecard-from-text {
+    font-size: 0.78rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .blog-prose .simplecard-price {
+    font-weight: 700;
+    color: hsl(var(--foreground));
+  }
+
+  /* --- Day-by-day itinerary (.page-card / .itn-*) ------------------- */
+  .blog-prose .page-card {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: hsl(var(--secondary) / 0.35);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+  .blog-prose .page-card > h2,
+  .blog-prose .page-card > h3 {
+    margin-top: 0;
+  }
+  .blog-prose .days {
+    display: flex;
+    align-items: stretch;
+    gap: 1.25rem;
+    padding: 1.1rem 0;
+  }
+  .blog-prose .days + .days {
+    border-top: 1px solid hsl(var(--border));
+  }
+  .blog-prose .itn-day {
+    flex: 0 0 3.25rem;
+    text-align: center;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+  }
+  .blog-prose .itn-day .day-num {
+    display: block;
+    font-size: 1.6rem;
+    line-height: 1.15;
+    font-weight: 700;
+    color: hsl(var(--primary));
+  }
+  .blog-prose .vl-div {
+    flex: 0 0 1px;
+    align-self: stretch;
+    background: hsl(var(--border));
+  }
+  .blog-prose .itn-flex-row-container {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .blog-prose .itn-body {
+    flex: 1 1 0;
+    min-width: 9rem;
+  }
+  .blog-prose .itn-body br {
+    display: none;
+  }
+  .blog-prose .itn-img {
+    width: 100%;
+    height: 9rem;
+    max-height: none;
+    object-fit: cover;
+    border-radius: var(--radius);
+    margin: 0 0 0.6rem;
+    box-shadow: none;
+  }
+  .blog-prose .itn-time {
+    margin-bottom: 0.4rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: hsl(var(--primary));
+  }
+  .blog-prose .itn-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  /* --- Related posts grid (.post-list) ----------------------------- */
+  .blog-prose .post-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: 1.25rem;
+    margin: 1.5rem 0 2rem;
+  }
+  .blog-prose .post-list__card {
+    overflow: hidden;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    transition:
+      box-shadow 150ms ease,
+      transform 150ms ease;
+  }
+  .blog-prose .post-list__card:hover {
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+  }
+  .blog-prose .post-list__img {
+    display: block;
+    margin: 0;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: hsl(var(--muted));
+  }
+  .blog-prose .post-list__img img {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .blog-prose .post-list__content {
+    padding: 0.75rem 0.9rem 1rem;
+  }
+  .blog-prose .post-list__content .title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.35;
+    color: hsl(var(--foreground));
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 

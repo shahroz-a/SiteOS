@@ -212,6 +212,14 @@ function repairImg(imgTag: string): string {
     /\spagespeed_[a-z_]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
     "",
   );
+  // Normalize unit-bearing dimension attributes. mod_pagespeed / WordPress
+  // sometimes emit `width="60px"` / `height="90px"`, but the HTML width/height
+  // *attributes* must be unitless integers — a unit makes the browser ignore
+  // the attribute entirely, so the icon falls back to `.blog-prose img`'s
+  // `max-width:100%` and balloons to its intrinsic size. Strip the `px` unit so
+  // the intended pixel dimension is honoured. (A CSS `style="width:90px"` is
+  // valid and is deliberately left untouched.)
+  out = out.replace(/(\s(?:width|height)\s*=\s*)(["'])(\d+)px\2/gi, "$1$2$3$2");
   return out;
 }
 
