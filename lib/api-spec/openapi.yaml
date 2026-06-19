@@ -980,6 +980,60 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /cms/redirects/deactivated:
+    get:
+      tags: [cms]
+      operationId: listCmsDeactivatedRedirects
+      summary: List auto-deactivated and at-risk redirects for review (requires url.manage)
+      description: >-
+        The redirect-target-health job auto-deactivates redirects whose
+        destinations are confirmed dead, recording `deactivatedReason` /
+        `deactivatedAt` on the row. This returns those auto-deactivated
+        redirects so an operator can review and undo them, plus off-blog
+        "at-risk" redirects (still active, failed at least once but below the
+        deactivation threshold) so they can be watched.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The auto-deactivated and at-risk redirect lists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeactivatedRedirectListResponse"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/redirects/{id}/reactivate:
+    post:
+      tags: [cms]
+      operationId: reactivateCmsRedirect
+      summary: Re-activate an auto-deactivated redirect (requires url.manage)
+      description: >-
+        Flip `isActive` back to true and clear the health bookkeeping
+        (`deactivatedReason`, `deactivatedAt`, `targetCheckFailures`) so the
+        redirect serves again. The change is written to the audit log.
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The re-activated redirect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeactivatedRedirect"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
   /cms/posts:
     get:
       tags: [cms]
@@ -4776,3 +4830,66 @@ components:
             $ref: '#/components/schemas/AnalyticsTimePoint'
         health:
           $ref: '#/components/schemas/AnalyticsHealth'
+
+    DeactivatedRedirect:
+      type: object
+      required:
+        - id
+        - fromPath
+        - toPath
+        - statusCode
+        - isActive
+        - kind
+        - deactivatedReason
+        - deactivatedAt
+        - targetLastStatus
+        - targetCheckedAt
+        - targetCheckFailures
+      properties:
+        id:
+          type: string
+        fromPath:
+          type: string
+        toPath:
+          type: string
+        statusCode:
+          type: integer
+        isActive:
+          type: boolean
+        kind:
+          type: string
+          enum: [on-blog, off-blog]
+          description: Whether the target resolves on the blog or to an external origin.
+        deactivatedReason:
+          type: [string, "null"]
+          enum: [on-blog-target-missing, off-blog-target-dead, null]
+          description: Why the auto-deactivator flipped isActive to false. Null while active.
+        deactivatedAt:
+          type: [string, "null"]
+          format: date-time
+        targetLastStatus:
+          type: [integer, "null"]
+          description: Last observed final HTTP status for an off-blog target (null for on-blog).
+        targetCheckedAt:
+          type: [string, "null"]
+          format: date-time
+        targetCheckFailures:
+          type: integer
+          description: Consecutive confirmed-dead readings of the target.
+
+    DeactivatedRedirectListResponse:
+      type: object
+      required: [deactivated, atRisk]
+      properties:
+        deactivated:
+          type: array
+          description: Redirects auto-deactivated because their target is confirmed dead.
+          items:
+            $ref: "#/components/schemas/DeactivatedRedirect"
+        atRisk:
+          type: array
+          description: >-
+            Still-active off-blog redirects that failed at least once but
+            haven't reached the deactivation threshold yet.
+          items:
+            $ref: "#/components/schemas/DeactivatedRedirect"

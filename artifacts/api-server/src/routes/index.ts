@@ -16,6 +16,7 @@ import cmsMediaRouter from "./cms-media";
 import cmsViewsRouter from "./cms-views";
 import storageRouter from "./storage";
 import analyticsRouter from "./analytics";
+import cmsRedirectsRouter from "./cms-redirects";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(cmsMediaRouter);
 router.use(cmsViewsRouter);
 router.use(storageRouter);
 router.use(analyticsRouter);
+router.use(cmsRedirectsRouter);
 
 export default router;

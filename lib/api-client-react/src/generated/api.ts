@@ -53,6 +53,8 @@ import type {
   ContentImportInput,
   ContentImportResult,
   ContentRestoreInput,
+  DeactivatedRedirect,
+  DeactivatedRedirectListResponse,
   Error,
   ErrorEnvelope,
   ExportCmsContentParams,
@@ -2585,6 +2587,155 @@ export function useGetCmsHeldBackArticleSource<TData = Awaited<ReturnType<typeof
 
 
 
+
+export const getListCmsDeactivatedRedirectsUrl = () => {
+
+
+
+
+  return `/api/cms/redirects/deactivated`
+}
+
+/**
+ * The redirect-target-health job auto-deactivates redirects whose destinations are confirmed dead, recording `deactivatedReason` / `deactivatedAt` on the row. This returns those auto-deactivated redirects so an operator can review and undo them, plus off-blog "at-risk" redirects (still active, failed at least once but below the deactivation threshold) so they can be watched.
+ * @summary List auto-deactivated and at-risk redirects for review (requires url.manage)
+ */
+export const listCmsDeactivatedRedirects = async ( options?: RequestInit): Promise<DeactivatedRedirectListResponse> => {
+
+  return customFetch<DeactivatedRedirectListResponse>(getListCmsDeactivatedRedirectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsDeactivatedRedirectsQueryKey = () => {
+    return [
+    `/api/cms/redirects/deactivated`
+    ] as const;
+    }
+
+
+export const getListCmsDeactivatedRedirectsQueryOptions = <TData = Awaited<ReturnType<typeof listCmsDeactivatedRedirects>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsDeactivatedRedirects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsDeactivatedRedirectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsDeactivatedRedirects>>> = ({ signal }) => listCmsDeactivatedRedirects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsDeactivatedRedirects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsDeactivatedRedirectsQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsDeactivatedRedirects>>>
+export type ListCmsDeactivatedRedirectsQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary List auto-deactivated and at-risk redirects for review (requires url.manage)
+ */
+
+export function useListCmsDeactivatedRedirects<TData = Awaited<ReturnType<typeof listCmsDeactivatedRedirects>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsDeactivatedRedirects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsDeactivatedRedirectsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getReactivateCmsRedirectUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/redirects/${id}/reactivate`
+}
+
+/**
+ * Flip `isActive` back to true and clear the health bookkeeping (`deactivatedReason`, `deactivatedAt`, `targetCheckFailures`) so the redirect serves again. The change is written to the audit log.
+ * @summary Re-activate an auto-deactivated redirect (requires url.manage)
+ */
+export const reactivateCmsRedirect = async (id: string, options?: RequestInit): Promise<DeactivatedRedirect> => {
+
+  return customFetch<DeactivatedRedirect>(getReactivateCmsRedirectUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getReactivateCmsRedirectMutationOptions = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reactivateCmsRedirect>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reactivateCmsRedirect>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['reactivateCmsRedirect'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reactivateCmsRedirect>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  reactivateCmsRedirect(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReactivateCmsRedirectMutationResult = NonNullable<Awaited<ReturnType<typeof reactivateCmsRedirect>>>
+
+    export type ReactivateCmsRedirectMutationError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Re-activate an auto-deactivated redirect (requires url.manage)
+ */
+export const useReactivateCmsRedirect = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reactivateCmsRedirect>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reactivateCmsRedirect>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getReactivateCmsRedirectMutationOptions(options));
+    }
 
 export const getListCmsPostUrl = (params?: ListCmsPostParams,) => {
   const normalizedParams = new URLSearchParams();

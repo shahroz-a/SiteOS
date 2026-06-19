@@ -19,6 +19,7 @@ import ImportExportPage from "@/pages/import-export";
 import MediaPage from "@/pages/media";
 import HeldBackPage from "@/pages/held-back";
 import ContentHistoryPage from "@/pages/content-history";
+import RedirectsPage from "@/pages/redirects";
 import { AppShell } from "@/components/app-shell";
 import { CmsAuthProvider, useCmsAuth } from "@/lib/cms-auth-context";
 
@@ -108,6 +109,11 @@ function AuthenticatedApp() {
               <ContentHistoryPage id={params.id} />
             </RequirePermission>
           )}
+        </Route>
+        <Route path="/redirects">
+          <RequirePermission permission="url.manage">
+            <RedirectsPage />
+          </RequirePermission>
         </Route>
         <Route path="/users">
           <RequirePermission permission="users.manage">

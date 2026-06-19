@@ -929,6 +929,71 @@ export const GetCmsHeldBackArticleSourceResponse = zod.object({
 
 
 /**
+ * The redirect-target-health job auto-deactivates redirects whose destinations are confirmed dead, recording `deactivatedReason` / `deactivatedAt` on the row. This returns those auto-deactivated redirects so an operator can review and undo them, plus off-blog "at-risk" redirects (still active, failed at least once but below the deactivation threshold) so they can be watched.
+ * @summary List auto-deactivated and at-risk redirects for review (requires url.manage)
+ */
+export const ListCmsDeactivatedRedirectsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsDeactivatedRedirectsResponse = zod.object({
+  "deactivated": zod.array(zod.object({
+  "id": zod.string(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "kind": zod.enum(['on-blog', 'off-blog']).describe('Whether the target resolves on the blog or to an external origin.'),
+  "deactivatedReason": zod.union([zod.literal('on-blog-target-missing'),zod.literal('off-blog-target-dead'),zod.literal(null)]).nullable().describe('Why the auto-deactivator flipped isActive to false. Null while active.'),
+  "deactivatedAt": zod.coerce.date().nullable(),
+  "targetLastStatus": zod.number().nullable().describe('Last observed final HTTP status for an off-blog target (null for on-blog).'),
+  "targetCheckedAt": zod.coerce.date().nullable(),
+  "targetCheckFailures": zod.number().describe('Consecutive confirmed-dead readings of the target.')
+})).describe('Redirects auto-deactivated because their target is confirmed dead.'),
+  "atRisk": zod.array(zod.object({
+  "id": zod.string(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "kind": zod.enum(['on-blog', 'off-blog']).describe('Whether the target resolves on the blog or to an external origin.'),
+  "deactivatedReason": zod.union([zod.literal('on-blog-target-missing'),zod.literal('off-blog-target-dead'),zod.literal(null)]).nullable().describe('Why the auto-deactivator flipped isActive to false. Null while active.'),
+  "deactivatedAt": zod.coerce.date().nullable(),
+  "targetLastStatus": zod.number().nullable().describe('Last observed final HTTP status for an off-blog target (null for on-blog).'),
+  "targetCheckedAt": zod.coerce.date().nullable(),
+  "targetCheckFailures": zod.number().describe('Consecutive confirmed-dead readings of the target.')
+})).describe('Still-active off-blog redirects that failed at least once but haven\'t reached the deactivation threshold yet.')
+})
+
+
+/**
+ * Flip `isActive` back to true and clear the health bookkeeping (`deactivatedReason`, `deactivatedAt`, `targetCheckFailures`) so the redirect serves again. The change is written to the audit log.
+ * @summary Re-activate an auto-deactivated redirect (requires url.manage)
+ */
+export const ReactivateCmsRedirectParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const ReactivateCmsRedirectHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ReactivateCmsRedirectResponse = zod.object({
+  "id": zod.string(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "kind": zod.enum(['on-blog', 'off-blog']).describe('Whether the target resolves on the blog or to an external origin.'),
+  "deactivatedReason": zod.union([zod.literal('on-blog-target-missing'),zod.literal('off-blog-target-dead'),zod.literal(null)]).nullable().describe('Why the auto-deactivator flipped isActive to false. Null while active.'),
+  "deactivatedAt": zod.coerce.date().nullable(),
+  "targetLastStatus": zod.number().nullable().describe('Last observed final HTTP status for an off-blog target (null for on-blog).'),
+  "targetCheckedAt": zod.coerce.date().nullable(),
+  "targetCheckFailures": zod.number().describe('Consecutive confirmed-dead readings of the target.')
+})
+
+
+/**
  * Paginated list of articles across every status (draft, published, archived) for the CMS content list and the internal-linking assistant. Optional full-text `q` matches title/slug; `status` narrows to one state.
  * @summary List/search articles of any status (requires content.view)
  */

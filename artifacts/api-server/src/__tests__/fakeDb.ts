@@ -23,6 +23,8 @@ type Cond =
   | { __op: "or"; conds: Cond[] }
   | { __op: "inArray"; col: ColRef; vals: unknown[] }
   | { __op: "ilike"; col: ColRef; pattern: string }
+  | { __op: "isNotNull"; col: ColRef }
+  | { __op: "gt"; col: ColRef; val: unknown }
   | { __op: "sql"; strings: string[]; values: unknown[] };
 type OrderKey =
   | { __op: "desc"; col: ColRef }
@@ -72,6 +74,13 @@ function evalCond(cond: Cond, combined: Combined): boolean {
       const v = resolveCol(cond.col, combined);
       if (v == null) return false;
       return likeToRegex(cond.pattern).test(String(v));
+    }
+    case "isNotNull":
+      return resolveCol(cond.col, combined) != null;
+    case "gt": {
+      const v = resolveCol(cond.col, combined);
+      if (v == null) return false;
+      return baseCompare(v, cond.val) > 0;
     }
     default:
       return true;
@@ -435,6 +444,7 @@ export function makeDbMock(tables: Tables) {
     auditLogsTable: tableProxy("audit_logs"),
     validationReportsTable: tableProxy("validation_reports"),
     savedViewsTable: tableProxy("saved_views"),
+    redirectsTable: tableProxy("redirects"),
   };
 }
 
@@ -452,6 +462,8 @@ export function makeDrizzleMock() {
     }),
     inArray: (col: ColRef, vals: unknown[]) => ({ __op: "inArray", col, vals }),
     ilike: (col: ColRef, pattern: string) => ({ __op: "ilike", col, pattern }),
+    isNotNull: (col: ColRef) => ({ __op: "isNotNull", col }),
+    gt: (col: ColRef, val: unknown) => ({ __op: "gt", col, val }),
     desc: (col: ColRef) => ({ __op: "desc", col }),
     asc: (col: ColRef) => ({ __op: "asc", col }),
     sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({

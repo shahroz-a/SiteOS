@@ -10,6 +10,7 @@ import {
   Image,
   ScrollText,
   Search,
+  Signpost,
   Tag,
   UserPen,
   Users,
@@ -90,6 +91,12 @@ const NAV_ITEMS: NavItem[] = [
     href: "/search",
     icon: Search,
     permission: "content.view",
+  },
+  {
+    label: "Redirects",
+    href: "/redirects",
+    icon: Signpost,
+    permission: "url.manage",
   },
   { label: "Users", href: "/users", icon: Users, permission: "users.manage" },
   {

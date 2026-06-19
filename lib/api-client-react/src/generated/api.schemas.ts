@@ -1558,6 +1558,62 @@ export interface CmsAnalytics {
 }
 
 /**
+ * Whether the target resolves on the blog or to an external origin.
+ */
+export type DeactivatedRedirectKind = typeof DeactivatedRedirectKind[keyof typeof DeactivatedRedirectKind];
+
+
+export const DeactivatedRedirectKind = {
+  'on-blog': 'on-blog',
+  'off-blog': 'off-blog',
+} as const;
+
+/**
+ * Why the auto-deactivator flipped isActive to false. Null while active.
+ * @nullable
+ */
+export type DeactivatedRedirectDeactivatedReason = typeof DeactivatedRedirectDeactivatedReason[keyof typeof DeactivatedRedirectDeactivatedReason] | null;
+
+
+export const DeactivatedRedirectDeactivatedReason = {
+  'on-blog-target-missing': 'on-blog-target-missing',
+  'off-blog-target-dead': 'off-blog-target-dead',
+} as const;
+
+export interface DeactivatedRedirect {
+  id: string;
+  fromPath: string;
+  toPath: string;
+  statusCode: number;
+  isActive: boolean;
+  /** Whether the target resolves on the blog or to an external origin. */
+  kind: DeactivatedRedirectKind;
+  /**
+     * Why the auto-deactivator flipped isActive to false. Null while active.
+     * @nullable
+     */
+  deactivatedReason: DeactivatedRedirectDeactivatedReason;
+  /** @nullable */
+  deactivatedAt: string | null;
+  /**
+     * Last observed final HTTP status for an off-blog target (null for on-blog).
+     * @nullable
+     */
+  targetLastStatus: number | null;
+  /** @nullable */
+  targetCheckedAt: string | null;
+  /** Consecutive confirmed-dead readings of the target. */
+  targetCheckFailures: number;
+}
+
+export interface DeactivatedRedirectListResponse {
+  /** Redirects auto-deactivated because their target is confirmed dead. */
+  deactivated: DeactivatedRedirect[];
+  /** Still-active off-blog redirects that failed at least once but haven't reached the deactivation threshold yet. */
+  atRisk: DeactivatedRedirect[];
+}
+
+/**
  * Invalid request body.
  */
 export type CmsBadRequestResponse = ErrorEnvelope;
