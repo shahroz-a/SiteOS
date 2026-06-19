@@ -570,7 +570,7 @@ function formatElapsed(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function ReextractPanel({
+export function ReextractPanel({
   stage,
   elapsedMs,
   error,
