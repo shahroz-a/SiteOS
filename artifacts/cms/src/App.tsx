@@ -9,6 +9,7 @@ import HomePage from "@/pages/home";
 import UsersPage from "@/pages/users";
 import AuditLogPage from "@/pages/audit-log";
 import ImportExportPage from "@/pages/import-export";
+import MediaPage from "@/pages/media";
 import { AppShell } from "@/components/app-shell";
 import { CmsAuthProvider, useCmsAuth } from "@/lib/cms-auth-context";
 
@@ -43,6 +44,11 @@ function AuthenticatedApp() {
         <Route path="/import-export">
           <RequirePermission permission="content.view">
             <ImportExportPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/media">
+          <RequirePermission permission="media.manage">
+            <MediaPage />
           </RequirePermission>
         </Route>
         <Route path="/users">

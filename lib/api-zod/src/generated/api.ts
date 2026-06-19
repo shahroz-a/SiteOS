@@ -498,6 +498,67 @@ export const ListCmsAuditLogsResponse = zod.object({
 
 
 /**
+ * @summary Browse the media library of existing CDN images, with usage counts, referencing pages and alt-text accessibility validation (requires media.manage)
+ */
+export const listCmsMediaQueryOnlyIssuesDefault = false;
+export const listCmsMediaQueryPageDefault = 1;
+
+export const listCmsMediaQueryLimitDefault = 12;
+export const listCmsMediaQueryLimitMax = 100;
+
+
+
+export const ListCmsMediaQueryParams = zod.object({
+  "q": zod.string().optional().describe('Case-insensitive search across image URL, alt, caption and title.'),
+  "onlyIssues": zod.coerce.boolean().default(listCmsMediaQueryOnlyIssuesDefault).describe('When true, only return images whose alt text is missing or poor.'),
+  "page": zod.coerce.number().min(1).default(listCmsMediaQueryPageDefault).describe('1-based page number'),
+  "limit": zod.coerce.number().min(1).max(listCmsMediaQueryLimitMax).default(listCmsMediaQueryLimitDefault).describe('Number of items per page')
+})
+
+export const ListCmsMediaHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsMediaResponse = zod.object({
+  "items": zod.array(zod.object({
+  "url": zod.string().describe('The canonical CDN URL — the stable identifier for the media item.'),
+  "originalUrl": zod.string().nullable(),
+  "alt": zod.string().nullable().describe('The most descriptive (longest) alt text found across usages.'),
+  "title": zod.string().nullable(),
+  "caption": zod.string().nullable(),
+  "credit": zod.string().nullable(),
+  "width": zod.number().nullable(),
+  "height": zod.number().nullable(),
+  "mimeType": zod.string().nullable(),
+  "role": zod.string().nullable(),
+  "usageCount": zod.number().describe('Total number of times this image is referenced across all pages.'),
+  "pageCount": zod.number().describe('Number of distinct pages that reference this image.'),
+  "altStatus": zod.enum(['ok', 'missing', 'poor']).describe('Accessibility classification of an image\'s alt text. `ok` = descriptive alt present; `missing` = no alt text at all; `poor` = alt text is too short, a generic placeholder, or just a filename.'),
+  "altIssues": zod.array(zod.string()).describe('Human-readable accessibility warnings for this image\'s alt text.'),
+  "pages": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "pathname": zod.string(),
+  "alt": zod.string().nullable(),
+  "altStatus": zod.enum(['ok', 'missing', 'poor']).describe('Accessibility classification of an image\'s alt text. `ok` = descriptive alt present; `missing` = no alt text at all; `poor` = alt text is too short, a generic placeholder, or just a filename.')
+}).describe('A page that references a media item, with the alt text used there.')).describe('Pages referencing this image (capped). Empty in list rows that omit usage detail.')
+}).describe('A unique CDN image (keyed by URL) aggregated across every page that references it. The library never re-uploads binaries; it reuses the existing Headout CDN URL.')),
+  "pagination": zod.object({
+  "page": zod.number(),
+  "limit": zod.number(),
+  "total": zod.number(),
+  "totalPages": zod.number()
+}),
+  "summary": zod.object({
+  "totalImages": zod.number(),
+  "withAltIssues": zod.number()
+}).describe('Aggregate counts across the full (search-filtered) media set.')
+})
+
+
+/**
  * @summary Create an article (page) with all nested content (requires content.create)
  */
 export const CreateCmsPostHeader = zod.object({

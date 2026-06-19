@@ -50,8 +50,10 @@ import type {
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   ListCmsAuditLogsParams,
+  ListCmsMediaParams,
   ListPostsParams,
   LogoutSuccess,
+  MediaListResponse,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   PayloadMappingResponse,
@@ -1549,6 +1551,90 @@ export function useListCmsAuditLogs<TData = Awaited<ReturnType<typeof listCmsAud
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCmsAuditLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListCmsMediaUrl = (params?: ListCmsMediaParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/cms/media?${stringifiedParams}` : `/api/cms/media`
+}
+
+/**
+ * @summary Browse the media library of existing CDN images, with usage counts, referencing pages and alt-text accessibility validation (requires media.manage)
+ */
+export const listCmsMedia = async (params?: ListCmsMediaParams, options?: RequestInit): Promise<MediaListResponse> => {
+
+  return customFetch<MediaListResponse>(getListCmsMediaUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsMediaQueryKey = (params?: ListCmsMediaParams,) => {
+    return [
+    `/api/cms/media`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCmsMediaQueryOptions = <TData = Awaited<ReturnType<typeof listCmsMedia>>, TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>>(params?: ListCmsMediaParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsMediaQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsMedia>>> = ({ signal }) => listCmsMedia(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsMedia>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsMediaQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsMedia>>>
+export type ListCmsMediaQueryError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary Browse the media library of existing CDN images, with usage counts, referencing pages and alt-text accessibility validation (requires media.manage)
+ */
+
+export function useListCmsMedia<TData = Awaited<ReturnType<typeof listCmsMedia>>, TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+ params?: ListCmsMediaParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsMediaQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

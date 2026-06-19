@@ -818,6 +818,84 @@ export interface PayloadMappingResponse {
 }
 
 /**
+ * Accessibility classification of an image's alt text. `ok` = descriptive alt present; `missing` = no alt text at all; `poor` = alt text is too short, a generic placeholder, or just a filename.
+ */
+export type MediaAltStatus = typeof MediaAltStatus[keyof typeof MediaAltStatus];
+
+
+export const MediaAltStatus = {
+  ok: 'ok',
+  missing: 'missing',
+  poor: 'poor',
+} as const;
+
+/**
+ * A page that references a media item, with the alt text used there.
+ */
+export interface MediaUsagePage {
+  id: string;
+  slug: string;
+  title: string;
+  status: PageStatus;
+  pathname: string;
+  /** @nullable */
+  alt: string | null;
+  altStatus: MediaAltStatus;
+}
+
+/**
+ * A unique CDN image (keyed by URL) aggregated across every page that references it. The library never re-uploads binaries; it reuses the existing Headout CDN URL.
+ */
+export interface MediaItem {
+  /** The canonical CDN URL — the stable identifier for the media item. */
+  url: string;
+  /** @nullable */
+  originalUrl: string | null;
+  /**
+     * The most descriptive (longest) alt text found across usages.
+     * @nullable
+     */
+  alt: string | null;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  caption: string | null;
+  /** @nullable */
+  credit: string | null;
+  /** @nullable */
+  width: number | null;
+  /** @nullable */
+  height: number | null;
+  /** @nullable */
+  mimeType: string | null;
+  /** @nullable */
+  role: string | null;
+  /** Total number of times this image is referenced across all pages. */
+  usageCount: number;
+  /** Number of distinct pages that reference this image. */
+  pageCount: number;
+  altStatus: MediaAltStatus;
+  /** Human-readable accessibility warnings for this image's alt text. */
+  altIssues: string[];
+  /** Pages referencing this image (capped). Empty in list rows that omit usage detail. */
+  pages: MediaUsagePage[];
+}
+
+/**
+ * Aggregate counts across the full (search-filtered) media set.
+ */
+export interface MediaSummary {
+  totalImages: number;
+  withAltIssues: number;
+}
+
+export interface MediaListResponse {
+  items: MediaItem[];
+  pagination: Pagination;
+  summary: MediaSummary;
+}
+
+/**
  * Invalid request body.
  */
 export type CmsBadRequestResponse = ErrorEnvelope;
@@ -942,3 +1020,24 @@ export const ExportCmsContentFormat = {
   payload: 'payload',
 } as const;
 
+export type ListCmsMediaParams = {
+/**
+ * Case-insensitive search across image URL, alt, caption and title.
+ */
+q?: string;
+/**
+ * When true, only return images whose alt text is missing or poor.
+ */
+onlyIssues?: boolean;
+/**
+ * 1-based page number
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * Number of items per page
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
+};

@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeftRight, FileText, Home, ScrollText, Users } from "lucide-react";
+import { ArrowLeftRight, FileText, Home, Image, ScrollText, Users } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -35,6 +35,12 @@ const NAV_ITEMS: NavItem[] = [
     href: "/import-export",
     icon: ArrowLeftRight,
     permission: "content.view",
+  },
+  {
+    label: "Media",
+    href: "/media",
+    icon: Image,
+    permission: "media.manage",
   },
   { label: "Users", href: "/users", icon: Users, permission: "users.manage" },
   {

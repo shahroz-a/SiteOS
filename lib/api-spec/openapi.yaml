@@ -461,6 +461,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /cms/media:
+    get:
+      tags: [cms]
+      operationId: listCmsMedia
+      summary: >-
+        Browse the media library of existing CDN images, with usage counts,
+        referencing pages and alt-text accessibility validation (requires
+        media.manage)
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Case-insensitive search across image URL, alt, caption and title.
+          schema:
+            type: string
+        - name: onlyIssues
+          in: query
+          required: false
+          description: When true, only return images whose alt text is missing or poor.
+          schema:
+            type: boolean
+            default: false
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: A paginated list of media items (most-used first).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaListResponse"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
 
   /cms/posts:
     post:
@@ -2438,3 +2477,134 @@ components:
             $ref: "#/components/schemas/PayloadBlockMapping"
         report:
           $ref: "#/components/schemas/PayloadMigrationReport"
+
+    MediaAltStatus:
+      type: string
+      description: >-
+        Accessibility classification of an image's alt text. `ok` = descriptive
+        alt present; `missing` = no alt text at all; `poor` = alt text is too
+        short, a generic placeholder, or just a filename.
+      enum:
+        - ok
+        - missing
+        - poor
+
+    MediaUsagePage:
+      type: object
+      description: A page that references a media item, with the alt text used there.
+      required:
+        - id
+        - slug
+        - title
+        - status
+        - pathname
+        - alt
+        - altStatus
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/PageStatus"
+        pathname:
+          type: string
+        alt:
+          type: [string, "null"]
+        altStatus:
+          $ref: "#/components/schemas/MediaAltStatus"
+
+    MediaItem:
+      type: object
+      description: >-
+        A unique CDN image (keyed by URL) aggregated across every page that
+        references it. The library never re-uploads binaries; it reuses the
+        existing Headout CDN URL.
+      required:
+        - url
+        - originalUrl
+        - alt
+        - title
+        - caption
+        - credit
+        - width
+        - height
+        - mimeType
+        - role
+        - usageCount
+        - pageCount
+        - altStatus
+        - altIssues
+        - pages
+      properties:
+        url:
+          type: string
+          description: The canonical CDN URL — the stable identifier for the media item.
+        originalUrl:
+          type: [string, "null"]
+        alt:
+          type: [string, "null"]
+          description: The most descriptive (longest) alt text found across usages.
+        title:
+          type: [string, "null"]
+        caption:
+          type: [string, "null"]
+        credit:
+          type: [string, "null"]
+        width:
+          type: [integer, "null"]
+        height:
+          type: [integer, "null"]
+        mimeType:
+          type: [string, "null"]
+        role:
+          type: [string, "null"]
+        usageCount:
+          type: integer
+          description: Total number of times this image is referenced across all pages.
+        pageCount:
+          type: integer
+          description: Number of distinct pages that reference this image.
+        altStatus:
+          $ref: "#/components/schemas/MediaAltStatus"
+        altIssues:
+          type: array
+          description: Human-readable accessibility warnings for this image's alt text.
+          items:
+            type: string
+        pages:
+          type: array
+          description: Pages referencing this image (capped). Empty in list rows that omit usage detail.
+          items:
+            $ref: "#/components/schemas/MediaUsagePage"
+
+    MediaSummary:
+      type: object
+      description: Aggregate counts across the full (search-filtered) media set.
+      required:
+        - totalImages
+        - withAltIssues
+      properties:
+        totalImages:
+          type: integer
+        withAltIssues:
+          type: integer
+
+    MediaListResponse:
+      type: object
+      required:
+        - items
+        - pagination
+        - summary
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+        summary:
+          $ref: "#/components/schemas/MediaSummary"
