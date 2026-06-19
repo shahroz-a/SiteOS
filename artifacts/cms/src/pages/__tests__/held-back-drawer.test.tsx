@@ -23,11 +23,15 @@ import type {
 
 // Capture the AbortSignal + event sink handed to the mocked stream so the test
 // can assert the controller is aborted and drive progress/error/result events.
+// `toast` / `invalidateQueries` are stable spies (not fresh per render) so the
+// completion-path tests can assert exactly what the post-stream block fired.
 const h = vi.hoisted(() => ({
   captured: {
     signal: null as AbortSignal | null,
     onEvent: null as ((event: ReextractEvent) => void) | null,
   },
+  toast: vi.fn(),
+  invalidateQueries: vi.fn(),
 }));
 
 // `held-back.tsx` pulls in the whole CMS dependency graph at module load. The
@@ -58,7 +62,7 @@ vi.mock("@/hooks/use-debounced-value", () => ({
 
 vi.mock("@workspace/blog-renderer", () => ({ ContentRenderer: () => null }));
 vi.mock("@workspace/ui", () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: h.toast }),
   cn: (...args: unknown[]) =>
     args
       .flat(Infinity)
@@ -112,7 +116,7 @@ vi.mock("@workspace/api-client-react", () => ({
   getListCmsAuditLogsQueryKey: () => ["audit"],
 }));
 vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: h.invalidateQueries }),
 }));
 
 // Imported after the mocks are registered.
@@ -241,6 +245,8 @@ function startReextract(renderer: TestRenderer.ReactTestRenderer) {
 beforeEach(() => {
   h.captured.signal = null;
   h.captured.onEvent = null;
+  h.toast.mockClear();
+  h.invalidateQueries.mockClear();
   vi.mocked(streamReextract).mockClear();
 });
 
@@ -305,5 +311,131 @@ describe("ArticleDrawer — re-extract lifecycle", () => {
     });
 
     expect(h.captured.signal?.aborted).toBe(true);
+  });
+});
+
+// Stream mock that captures the sink/signal, emits the given `result` event, then
+// resolves — exercising the post-stream block in `handleReextract`.
+function mockStreamEmits(result: ReextractResultEvent) {
+  vi.mocked(streamReextract).mockImplementationOnce(
+    async (
+      _articleId: string,
+      onEvent: (event: ReextractEvent) => void,
+      signal: AbortSignal,
+    ) => {
+      h.captured.signal = signal;
+      h.captured.onEvent = onEvent;
+      onEvent(result);
+    },
+  );
+}
+
+// Click "Re-extract" and await the whole `handleReextract` chain (the button's
+// onClick is `handleReextract`, which returns the promise) so the post-stream
+// toast/invalidation has fired by the time the act resolves.
+async function runReextractToCompletion(
+  renderer: TestRenderer.ReactTestRenderer,
+) {
+  const onClick = reextractButton(renderer).props.onClick as () => Promise<void>;
+  await act(async () => {
+    await onClick();
+  });
+}
+
+describe("ArticleDrawer — re-extract completion", () => {
+  it("refreshes the held-back list and toasts the still-held-back / changed outcome", async () => {
+    mockStreamEmits(
+      makeResult({
+        heldBack: true,
+        changed: true,
+        validationStatus: "fail",
+        validationScore: 42,
+      }),
+    );
+
+    const renderer = render(makeArticle("a1"));
+    await runReextractToCompletion(renderer);
+
+    expect(h.captured.signal?.aborted).toBe(false);
+    expect(h.invalidateQueries).toHaveBeenCalledTimes(1);
+    expect(h.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["held-back"],
+    });
+    expect(h.toast).toHaveBeenCalledTimes(1);
+    expect(h.toast).toHaveBeenCalledWith({
+      title: "Re-extracted — still held back",
+      description: "Validation: fail (42). Content changed.",
+    });
+  });
+
+  it("toasts the cleared-the-queue / unchanged outcome", async () => {
+    mockStreamEmits(
+      makeResult({
+        heldBack: false,
+        changed: false,
+        validationStatus: "pass",
+        validationScore: 95,
+        pageStatus: "published",
+      }),
+    );
+
+    const renderer = render(makeArticle("a1"));
+    await runReextractToCompletion(renderer);
+
+    expect(h.invalidateQueries).toHaveBeenCalledTimes(1);
+    expect(h.toast).toHaveBeenCalledTimes(1);
+    expect(h.toast).toHaveBeenCalledWith({
+      title: "Re-extracted — article cleared the queue",
+      description: "It passed validation and was published. Content unchanged.",
+    });
+  });
+
+  it("does not toast or refresh when the stream is aborted before it resolves", async () => {
+    // A deferred stream so the test controls exactly when it resolves: emit a
+    // result, abort (by switching article), THEN resolve — so the post-stream
+    // block runs against an already-aborted controller.
+    let resolveStream!: () => void;
+    vi.mocked(streamReextract).mockImplementationOnce(
+      (
+        _articleId: string,
+        onEvent: (event: ReextractEvent) => void,
+        signal: AbortSignal,
+      ) => {
+        h.captured.signal = signal;
+        h.captured.onEvent = onEvent;
+        return new Promise<void>((resolve) => {
+          resolveStream = resolve;
+        });
+      },
+    );
+
+    const renderer = render(makeArticle("a1"));
+    startReextract(renderer);
+
+    // The result has arrived but the stream is still in-flight.
+    act(() => {
+      h.captured.onEvent?.(makeResult({ heldBack: true, changed: true }));
+    });
+    expect(h.captured.signal?.aborted).toBe(false);
+
+    // Switch to a different article — this aborts the in-flight controller.
+    act(() => {
+      renderer.update(
+        createElement(ArticleDrawer, {
+          article: makeArticle("b1"),
+          open: true,
+          onOpenChange: vi.fn(),
+        }),
+      );
+    });
+    expect(h.captured.signal?.aborted).toBe(true);
+
+    // Now let the aborted stream resolve; the post-stream block must bail out.
+    await act(async () => {
+      resolveStream();
+    });
+
+    expect(h.toast).not.toHaveBeenCalled();
+    expect(h.invalidateQueries).not.toHaveBeenCalled();
   });
 });
