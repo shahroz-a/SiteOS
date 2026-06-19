@@ -1,3 +1,4 @@
+- [Published app empty — separate empty prod DB](published-app-empty-prod-db.md) — deployed app blank while dev is full = Replit prod DB is separate & unseeded; 304 ≠ data exists; fix = Publish UI "overwrite data".
 - [Migrated HTML inline handlers](migrated-html-inline-handlers.md) — corpus HTML carries mod_pagespeed `onload="pagespeed…"`; any raw-HTML injection must strip inline `on*` or it throws `pagespeed is not defined`.
 - [Content-fidelity migrations](content-fidelity-migrations.md) — author source content yourself as a data file; design subagents paraphrase/drop/"fix" content if they transcribe it.
 - [opacity-0 + animate-in hides content](animate-in-invisible-content.md) — always-visible content must NOT use an opacity-0 base with animate-in; it vanishes under reduced-motion / iframe contexts.
