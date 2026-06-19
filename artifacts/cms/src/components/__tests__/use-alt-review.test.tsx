@@ -596,6 +596,58 @@ describe("useAltReview — cross-tab approval sync", () => {
     r.unmount();
   });
 
+  it("refreshes the displayed alt when another tab re-edits an already-approved image without re-counting", () => {
+    const r = renderReview({
+      initialItems: [mk("a")],
+      total: 5,
+      fetchNext: vi.fn(async () => []),
+    });
+    // Another tab approves 'a'.
+    act(() => {
+      sub.approvedCb.current?.({ a: "first alt" });
+    });
+    expect(r.api.states["a"]).toEqual({ kind: "approved", alt: "first alt" });
+    expect(r.api.session.approved).toBe(1);
+
+    // The other tab re-edits 'a' with corrected alt text.
+    act(() => {
+      sub.approvedCb.current?.({ a: "corrected alt" });
+    });
+    // Displayed alt refreshes, but the count stays at 1 (already handled).
+    expect(r.api.states["a"]).toEqual({
+      kind: "approved",
+      alt: "corrected alt",
+    });
+    expect(r.api.session.approved).toBe(1);
+    r.unmount();
+  });
+
+  it("refreshes an already-approved alt re-edited in a URL outside the current window without re-counting", async () => {
+    const fetchNext = vi.fn(async () => []);
+    const r = renderReview({
+      initialItems: [mk("a")],
+      total: 5,
+      // 'z' was approved by another tab; not in this window.
+      initialApproved: { z: "old z alt" },
+      fetchNext,
+    });
+    expect(r.api.session.approved).toBe(0);
+
+    // The other tab corrects 'z' (outside this window).
+    act(() => {
+      sub.approvedCb.current?.({ z: "new z alt" });
+    });
+    // No double count — 'z' was already handled (seeded).
+    expect(r.api.session.approved).toBe(0);
+
+    // The corrected alt is what gets excluded/persisted: approve 'a' to flush
+    // the approved map, and confirm the next fetch still excludes 'z'.
+    r.run((a) => a.approve("a", "alt a"));
+    await r.flush();
+    expect(fetchNext).toHaveBeenCalledWith(expect.arrayContaining(["z", "a"]));
+    r.unmount();
+  });
+
   it("counts a cross-tab approval for a URL outside the current window", async () => {
     const fetchNext = vi.fn(async () => []);
     const r = renderReview({

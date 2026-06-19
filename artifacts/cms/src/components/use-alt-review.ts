@@ -331,26 +331,48 @@ export function useAltReview({
   // this window are flipped to "approved" with the exact alt the other tab saved.
   useEffect(() => {
     return subscribeApproved(filter, (entries) => {
+      // Newly-seen approvals (count once); plus already-approved URLs whose alt
+      // an editor *corrected* in another tab (refresh the displayed/stored alt
+      // but DON'T re-count — the image was already handled here).
       const added: string[] = [];
+      const refreshed: string[] = [];
       for (const [url, alt] of Object.entries(entries)) {
-        if (seenRef.current.has(url)) continue;
+        if (seenRef.current.has(url)) {
+          // Only approvals get refreshed: a URL seen because it was skipped (or
+          // errored) here is not an approval to update. A no-op when the alt is
+          // unchanged (e.g. another tab echoing the same approval back).
+          if (url in approvedRef.current && approvedRef.current[url] !== alt) {
+            approvedRef.current[url] = alt;
+            refreshed.push(url);
+          }
+          continue;
+        }
         seenRef.current.add(url);
         approvedRef.current[url] = alt;
         added.push(url);
       }
-      if (added.length === 0) return;
+      if (added.length === 0 && refreshed.length === 0) return;
       setStates((prev) => {
         let next: Record<string, ItemState> | null = null;
-        for (const url of added) {
+        for (const url of [...added, ...refreshed]) {
           const existing = prev[url];
-          if (existing !== undefined && existing.kind !== "approved") {
+          const alt = entries[url] ?? "";
+          // Flip pending/ready items to approved, and update an already-approved
+          // item whose alt changed; skip when it already shows the exact alt.
+          if (
+            existing !== undefined &&
+            !(existing.kind === "approved" && existing.alt === alt)
+          ) {
             next ??= { ...prev };
-            next[url] = { kind: "approved", alt: entries[url] ?? "" };
+            next[url] = { kind: "approved", alt };
           }
         }
         return next ?? prev;
       });
-      setSession((s) => ({ ...s, approved: s.approved + added.length }));
+      // Only the newly-seen approvals move the running count.
+      if (added.length > 0) {
+        setSession((s) => ({ ...s, approved: s.approved + added.length }));
+      }
     });
   }, [filter]);
 
