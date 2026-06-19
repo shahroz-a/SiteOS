@@ -22,3 +22,4 @@
 - [Prerender-blog test harness](prerender-blog-test-harness.md) — runner exports run/main behind isEntrypoint guard; DIST_DIR read from BLOG_DIST at import, so set env before dynamic import.
 - [Internal-link resolution is shared](internal-link-resolution.md) — resolveInternalLinks() in import/persist.ts is the only href→page matcher; both crawler and Payload importer must call it once after all pages exist.
 - [Playwright browser deps on NixOS](playwright-nixos-browser-deps.md) — downloaded Chromium needs Nix libs (glib…libgbm) via installSystemDependencies; redirect output to file; one spec/run; pool exhaustion ≠ test bug.
+- [Real-data round-trip gating](realdata-roundtrip-gating.md) — opt-in real-DB export→load→import test gates on VERIFY_REAL_DATA (NOT always-set DATABASE_URL); tx-rollback + stubbed media keep it non-destructive; compare reimport vs export (hero normalized).

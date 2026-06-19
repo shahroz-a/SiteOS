@@ -34,16 +34,83 @@ import {
   externalLinksTable,
   metadataTable,
 } from "@workspace/db";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import {
   mapAuthor,
   mapCategory,
   mapImage,
   mapPost,
   mapTag,
+  type PayloadAuthorDoc,
+  type PayloadCategoryDoc,
   type PayloadExport,
+  type PayloadMediaDoc,
+  type PayloadPostDoc,
+  type PayloadTagDoc,
   type SourcePageBundle,
 } from "./payload/mapping.js";
+
+export interface BuildExportOptions {
+  /**
+   * Restrict the export to these page ids (plus the media, authors, categories
+   * — including ancestor categories — and tags those pages reference). When
+   * omitted, every page is exported. Used by the real-dataset round-trip
+   * verification to operate on a small, interesting sample of live pages.
+   */
+  pageIds?: string[];
+}
+
+/**
+ * Prune the global media/authors/categories/tags collections down to only the
+ * documents the sampled posts actually reference. Keeps the export self-
+ * contained (every relationship resolves on load) without dragging the whole
+ * media library along for a handful of sampled pages.
+ */
+function pruneToReferenced(all: {
+  mediaDocs: PayloadMediaDoc[];
+  authorDocs: PayloadAuthorDoc[];
+  categoryDocs: PayloadCategoryDoc[];
+  tagDocs: PayloadTagDoc[];
+  postDocs: PayloadPostDoc[];
+}): PayloadExport["collections"] {
+  const { mediaDocs, authorDocs, categoryDocs, tagDocs, postDocs } = all;
+  const usedAuthors = new Set<string>();
+  const usedCategories = new Set<string>();
+  const usedTags = new Set<string>();
+  const usedMedia = new Set<string>();
+
+  for (const p of postDocs) {
+    if (p.author) usedAuthors.add(p.author);
+    if (p.heroImage) usedMedia.add(p.heroImage);
+    for (const ii of p.inlineImages) usedMedia.add(ii.image);
+    for (const c of p.categories) usedCategories.add(c);
+    if (p.primaryCategory) usedCategories.add(p.primaryCategory);
+    for (const t of p.tags) usedTags.add(t);
+  }
+
+  // Referenced authors may carry an avatar media doc.
+  for (const a of authorDocs) {
+    if (usedAuthors.has(a.id) && a.avatar) usedMedia.add(a.avatar);
+  }
+
+  // Include category ancestors so `parent` relationships resolve on load.
+  const categoryById = new Map(categoryDocs.map((c) => [c.id, c]));
+  for (const id of [...usedCategories]) {
+    let cur = categoryById.get(id);
+    while (cur?.parent) {
+      usedCategories.add(cur.parent);
+      cur = categoryById.get(cur.parent);
+    }
+  }
+
+  return {
+    media: mediaDocs.filter((m) => usedMedia.has(m.id)),
+    authors: authorDocs.filter((a) => usedAuthors.has(a.id)),
+    categories: categoryDocs.filter((c) => usedCategories.has(c.id)),
+    tags: tagDocs.filter((t) => usedTags.has(t.id)),
+    posts: postDocs,
+  };
+}
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
@@ -54,40 +121,49 @@ function parseOutPath(argv: string[]): string {
   return resolve(SCRIPT_DIR, "../out/payload-export.json");
 }
 
-export async function buildExport(): Promise<PayloadExport> {
+export async function buildExport(
+  opts: BuildExportOptions = {},
+): Promise<PayloadExport> {
+  const sampling = opts.pageIds !== undefined && opts.pageIds.length > 0;
+  // Project only the columns the export consumes. Selecting `*` also pulls
+  // `original_html` (~500MB across the corpus) which the Payload export never
+  // uses (it emits `cleanedHtml`), and loading it OOMs the Node heap.
+  const pageColumns = {
+    id: pagesTable.id,
+    slug: pagesTable.slug,
+    title: pagesTable.title,
+    subtitle: pagesTable.subtitle,
+    excerpt: pagesTable.excerpt,
+    status: pagesTable.status,
+    language: pagesTable.language,
+    canonicalUrl: pagesTable.canonicalUrl,
+    pathname: pagesTable.pathname,
+    parentPath: pagesTable.parentPath,
+    featuredImageUrl: pagesTable.featuredImageUrl,
+    featuredImageAlt: pagesTable.featuredImageAlt,
+    cleanedHtml: pagesTable.cleanedHtml,
+    richText: pagesTable.richText,
+    componentTree: pagesTable.componentTree,
+    readingTimeMinutes: pagesTable.readingTimeMinutes,
+    wordCount: pagesTable.wordCount,
+    publishedAt: pagesTable.publishedAt,
+    modifiedAt: pagesTable.modifiedAt,
+    authorId: pagesTable.authorId,
+    primaryCategoryId: pagesTable.primaryCategoryId,
+  };
+  const pagesQuery = sampling
+    ? db
+        .select(pageColumns)
+        .from(pagesTable)
+        .where(inArray(pagesTable.id, opts.pageIds!))
+        .orderBy(asc(pagesTable.publishedAt))
+    : db.select(pageColumns).from(pagesTable).orderBy(asc(pagesTable.publishedAt));
+
   const [authors, categories, tags, pages, images] = await Promise.all([
     db.select().from(authorsTable),
     db.select().from(categoriesTable),
     db.select().from(tagsTable),
-    // Project only the columns the export consumes. Selecting `*` also pulls
-    // `original_html` (~500MB across the corpus) which the Payload export never
-    // uses (it emits `cleanedHtml`), and loading it OOMs the Node heap.
-    db
-      .select({
-        id: pagesTable.id,
-        slug: pagesTable.slug,
-        title: pagesTable.title,
-        subtitle: pagesTable.subtitle,
-        excerpt: pagesTable.excerpt,
-        status: pagesTable.status,
-        language: pagesTable.language,
-        canonicalUrl: pagesTable.canonicalUrl,
-        pathname: pagesTable.pathname,
-        parentPath: pagesTable.parentPath,
-        featuredImageUrl: pagesTable.featuredImageUrl,
-        featuredImageAlt: pagesTable.featuredImageAlt,
-        cleanedHtml: pagesTable.cleanedHtml,
-        richText: pagesTable.richText,
-        componentTree: pagesTable.componentTree,
-        readingTimeMinutes: pagesTable.readingTimeMinutes,
-        wordCount: pagesTable.wordCount,
-        publishedAt: pagesTable.publishedAt,
-        modifiedAt: pagesTable.modifiedAt,
-        authorId: pagesTable.authorId,
-        primaryCategoryId: pagesTable.primaryCategoryId,
-      })
-      .from(pagesTable)
-      .orderBy(asc(pagesTable.publishedAt)),
+    pagesQuery,
     db.select().from(imagesTable).orderBy(asc(imagesTable.position)),
   ]);
 
@@ -141,7 +217,7 @@ export async function buildExport(): Promise<PayloadExport> {
   );
 
   // Posts: load per-page relations and structured content.
-  const postDocs = [];
+  const postDocs: PayloadPostDoc[] = [];
   for (const page of pages) {
     const [
       pageCats,
@@ -302,16 +378,26 @@ export async function buildExport(): Promise<PayloadExport> {
     postDocs.push(mapPost(bundle, featured?.id ?? null));
   }
 
+  const collections = sampling
+    ? pruneToReferenced({
+        mediaDocs,
+        authorDocs,
+        categoryDocs,
+        tagDocs,
+        postDocs,
+      })
+    : {
+        media: mediaDocs,
+        authors: authorDocs,
+        categories: categoryDocs,
+        tags: tagDocs,
+        posts: postDocs,
+      };
+
   return {
     exportedAt: new Date().toISOString(),
     schemaVersion: "1",
-    collections: {
-      media: mediaDocs,
-      authors: authorDocs,
-      categories: categoryDocs,
-      tags: tagDocs,
-      posts: postDocs,
-    },
+    collections,
   };
 }
 

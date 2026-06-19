@@ -16,7 +16,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import {
-  db,
+  db as defaultDb,
   authorsTable,
   categoriesTable,
   tagsTable,
@@ -109,7 +109,13 @@ export interface ImportStats {
 
 export async function importExport(
   collections: PayloadExport["collections"],
+  executor: typeof defaultDb = defaultDb,
 ): Promise<ImportStats> {
+  // All DB work goes through `executor` (defaults to the shared client). Passing
+  // a transaction handle lets callers run the whole import inside one
+  // transaction — e.g. the real-dataset round-trip verification imports into a
+  // transaction it then rolls back, so it never mutates the live database.
+  const db = executor;
   const stats: ImportStats = {
     authors: 0,
     categories: 0,
@@ -345,6 +351,7 @@ export async function importExport(
     // Rewrite every child relation the Payload export now owns: hero + inline
     // images, internal/external links and the raw metadata bag all round-trip.
     await rewritePostChildren({
+      executor: db,
       pageId,
       componentTree,
       categoryIds,
@@ -367,6 +374,7 @@ export async function importExport(
 }
 
 async function rewritePostChildren(opts: {
+  executor: typeof defaultDb;
   pageId: string;
   componentTree: ReturnType<typeof layoutToComponentTree>;
   categoryIds: string[];
@@ -379,8 +387,9 @@ async function rewritePostChildren(opts: {
     position: number;
   }>;
 }): Promise<void> {
-  const { pageId, componentTree, categoryIds, tagIds, post, heroMedia, inlineMedia } =
+  const { executor, pageId, componentTree, categoryIds, tagIds, post, heroMedia, inlineMedia } =
     opts;
+  const db = executor;
 
   // Component tree (one row per page) + flattened blocks.
   await db
