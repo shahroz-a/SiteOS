@@ -1,6 +1,13 @@
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import ReorderableList, {
+  reorderItems,
+  useReorderableDrag,
+  type ReorderableListReorderEvent,
+} from "react-native-reorderable-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CollectionChips } from "@/components/CollectionChips";
@@ -12,6 +19,37 @@ import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
 import { useFavorites, type Collection } from "@/hooks/useFavorites";
 import type { PostSummary } from "@workspace/api-client-react";
+
+/**
+ * A PostCard wrapper for the reorderable list. Long-pressing the card starts a
+ * drag (with a haptic tap), letting readers reorder articles in a collection.
+ */
+function DraggablePostCard({
+  post,
+  onPress,
+  onManageCollections,
+}: {
+  post: PostSummary;
+  onPress: (slug: string) => void;
+  onManageCollections: (post: PostSummary) => void;
+}) {
+  const drag = useReorderableDrag();
+  const handleLongPress = useCallback(() => {
+    if (Platform.OS !== "web") {
+      Haptics.selectionAsync().catch(() => {});
+    }
+    drag();
+  }, [drag]);
+
+  return (
+    <PostCard
+      post={post}
+      onPress={onPress}
+      onManageCollections={onManageCollections}
+      onLongPress={handleLongPress}
+    />
+  );
+}
 
 type FormState =
   | { mode: "create" }
@@ -30,7 +68,8 @@ export default function SavedScreen() {
     isLoaded,
     collections,
     collectionCount,
-    getPostCollections,
+    getCollectionPosts,
+    reorderCollection,
     createCollection,
     renameCollection,
     deleteCollection,
@@ -46,16 +85,28 @@ export default function SavedScreen() {
       ? selected
       : null;
 
+  // The unfiltered "All" view keeps save order; a selected collection uses the
+  // reader's custom per-collection order.
   const visiblePosts = useMemo(() => {
     if (activeSelected === null) return favorites;
-    return favorites.filter((p) =>
-      getPostCollections(p.id).includes(activeSelected),
-    );
-  }, [favorites, activeSelected, getPostCollections]);
+    return getCollectionPosts(activeSelected);
+  }, [favorites, activeSelected, getCollectionPosts]);
 
   const handleOpen = useCallback(
     (slug: string) => router.push(`/post/${slug}`),
     [router],
+  );
+
+  const handleReorder = useCallback(
+    ({ from, to }: ReorderableListReorderEvent) => {
+      if (activeSelected === null) return;
+      const reordered = reorderItems(visiblePosts, from, to);
+      reorderCollection(
+        activeSelected,
+        reordered.map((p) => p.id),
+      );
+    },
+    [activeSelected, visiblePosts, reorderCollection],
   );
 
   const handleManage = useCallback(
@@ -133,45 +184,70 @@ export default function SavedScreen() {
           />
         </View>
       ) : null}
+      {activeSelected !== null && visiblePosts.length > 1 ? (
+        <View style={styles.reorderHint}>
+          <Feather name="move" size={13} color={colors.mutedForeground} />
+          <Text style={[styles.reorderHintText, { color: colors.mutedForeground }]}>
+            Long-press and drag to reorder
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 
+  const sharedListProps = {
+    keyExtractor: (item: PostSummary) => item.id,
+    ListHeaderComponent: header,
+    contentContainerStyle: [
+      styles.listContent,
+      { paddingBottom: insets.bottom + (isWeb ? 100 : 40) },
+    ],
+    showsVerticalScrollIndicator: false,
+    ListEmptyComponent: !isLoaded ? (
+      <LoadingView />
+    ) : count === 0 ? (
+      <EmptyView
+        icon="heart"
+        title="No saved articles yet"
+        message="Tap the heart on any story to bookmark it and find it here later."
+      />
+    ) : (
+      <EmptyView
+        icon="folder"
+        title="Nothing in this collection"
+        message="Tap the folder icon on a saved article to add it here."
+      />
+    ),
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <FlatList
-        data={visiblePosts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <PostCard
-            post={item}
-            onPress={handleOpen}
-            onManageCollections={handleManage}
-          />
-        )}
-        ListHeaderComponent={header}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: insets.bottom + (isWeb ? 100 : 40) },
-        ]}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          !isLoaded ? (
-            <LoadingView />
-          ) : count === 0 ? (
-            <EmptyView
-              icon="heart"
-              title="No saved articles yet"
-              message="Tap the heart on any story to bookmark it and find it here later."
+      {activeSelected !== null ? (
+        <ReorderableList
+          {...sharedListProps}
+          data={visiblePosts}
+          onReorder={handleReorder}
+          renderItem={({ item }) => (
+            <DraggablePostCard
+              post={item}
+              onPress={handleOpen}
+              onManageCollections={handleManage}
             />
-          ) : (
-            <EmptyView
-              icon="folder"
-              title="Nothing in this collection"
-              message="Tap the folder icon on a saved article to add it here."
+          )}
+        />
+      ) : (
+        <FlatList
+          {...sharedListProps}
+          data={visiblePosts}
+          renderItem={({ item }) => (
+            <PostCard
+              post={item}
+              onPress={handleOpen}
+              onManageCollections={handleManage}
             />
-          )
-        }
-      />
+          )}
+        />
+      )}
 
       <CollectionsModal
         post={managingPost}
@@ -206,6 +282,16 @@ const styles = StyleSheet.create({
   chipsWrap: {
     marginHorizontal: -20,
     marginBottom: 16,
+  },
+  reorderHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 14,
+  },
+  reorderHintText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 12,
   },
   kicker: {
     fontFamily: fonts.sansBold,

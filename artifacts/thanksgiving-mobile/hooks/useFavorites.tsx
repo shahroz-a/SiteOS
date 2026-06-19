@@ -25,11 +25,13 @@ export type Collection = {
 /**
  * Persisted collections payload. `membership` maps a post id to the set of
  * collection ids it belongs to, so a single saved article can live in many
- * collections at once.
+ * collections at once. `order` maps a collection id to a reader-defined
+ * ordering of post ids; ids missing from the array fall back to save order.
  */
 type CollectionsState = {
   collections: Collection[];
   membership: Record<string, string[]>;
+  order: Record<string, string[]>;
 };
 
 type FavoritesContextValue = {
@@ -65,6 +67,13 @@ type FavoritesContextValue = {
   togglePostCollection: (post: PostSummary, collectionId: string) => void;
   /** Number of saved posts assigned to the given collection. */
   collectionCount: (collectionId: string) => number;
+  /**
+   * Saved posts assigned to the given collection, in the reader's custom order.
+   * Newly-added posts (not yet in the stored order) appear first, in save order.
+   */
+  getCollectionPosts: (collectionId: string) => PostSummary[];
+  /** Persist a reader-defined ordering of post ids for a collection. */
+  reorderCollection: (collectionId: string, postIds: string[]) => void;
 };
 
 const FavoritesContext = createContext<FavoritesContextValue | null>(null);
@@ -92,6 +101,24 @@ function toStoredSummary(post: PostSummary): PostSummary {
   };
 }
 
+/**
+ * Returns a new order map with the given post id removed from every
+ * collection's ordering array. Returns the same reference when nothing changed.
+ */
+function dropPostFromOrder(
+  order: Record<string, string[]>,
+  postId: string,
+): Record<string, string[]> {
+  let changed = false;
+  const next: Record<string, string[]> = {};
+  for (const [collectionId, ids] of Object.entries(order)) {
+    const filtered = ids.filter((id) => id !== postId);
+    if (filtered.length !== ids.length) changed = true;
+    next[collectionId] = filtered;
+  }
+  return changed ? next : order;
+}
+
 function makeCollectionId(): string {
   return `c_${Date.now().toString(36)}_${Math.random()
     .toString(36)
@@ -102,6 +129,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const [favorites, setFavorites] = useState<PostSummary[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [membership, setMembership] = useState<Record<string, string[]>>({});
+  const [order, setOrder] = useState<Record<string, string[]>>({});
   const [isLoaded, setIsLoaded] = useState(false);
   const hydrated = useRef(false);
   const collectionsHydrated = useRef(false);
@@ -147,6 +175,9 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
             if (parsed.membership && typeof parsed.membership === "object") {
               setMembership(parsed.membership as Record<string, string[]>);
             }
+            if (parsed.order && typeof parsed.order === "object") {
+              setOrder(parsed.order as Record<string, string[]>);
+            }
           }
         }
       } catch {
@@ -173,11 +204,11 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   // Persist collections + membership whenever either changes.
   useEffect(() => {
     if (!collectionsHydrated.current) return;
-    const payload: CollectionsState = { collections, membership };
+    const payload: CollectionsState = { collections, membership, order };
     AsyncStorage.setItem(COLLECTIONS_KEY, JSON.stringify(payload)).catch(() => {
       // Ignore write failures; in-memory state remains the source of truth.
     });
-  }, [collections, membership]);
+  }, [collections, membership, order]);
 
   const isFavorite = useCallback(
     (id: string) => favorites.some((p) => p.id === id),
@@ -193,7 +224,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       nowFavorite = true;
       return [toStoredSummary(post), ...prev];
     });
-    // When un-saving, drop any collection membership for the post.
+    // When un-saving, drop any collection membership and custom-order entries.
     if (!nowFavorite) {
       setMembership((prev) => {
         if (!prev[post.id]) return prev;
@@ -201,6 +232,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
         delete next[post.id];
         return next;
       });
+      setOrder((prev) => dropPostFromOrder(prev, post.id));
     }
     return nowFavorite;
   }, []);
@@ -213,6 +245,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       delete next[id];
       return next;
     });
+    setOrder((prev) => dropPostFromOrder(prev, id));
   }, []);
 
   const createCollection = useCallback((name: string) => {
@@ -246,6 +279,12 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
         if (filtered.length > 0) next[postId] = filtered;
       }
       return changed ? next : prev;
+    });
+    setOrder((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
   }, []);
 
@@ -294,6 +333,33 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     [membership],
   );
 
+  const getCollectionPosts = useCallback(
+    (collectionId: string) => {
+      // `favorites` is already in save order (most-recent first).
+      const inCollection = favorites.filter((p) =>
+        (membership[p.id] ?? []).includes(collectionId),
+      );
+      const savedOrder = order[collectionId];
+      if (!savedOrder || savedOrder.length === 0) return inCollection;
+      const rank = new Map(savedOrder.map((id, i) => [id, i]));
+      // Stable sort: known ids by their stored rank, unknown (newly-added) ids
+      // sort to the front and keep their relative save order.
+      return [...inCollection].sort((a, b) => {
+        const ra = rank.has(a.id) ? rank.get(a.id)! : -1;
+        const rb = rank.has(b.id) ? rank.get(b.id)! : -1;
+        return ra - rb;
+      });
+    },
+    [favorites, membership, order],
+  );
+
+  const reorderCollection = useCallback(
+    (collectionId: string, postIds: string[]) => {
+      setOrder((prev) => ({ ...prev, [collectionId]: postIds }));
+    },
+    [],
+  );
+
   const value = useMemo<FavoritesContextValue>(
     () => ({
       favorites,
@@ -310,6 +376,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       isInCollection,
       togglePostCollection,
       collectionCount,
+      getCollectionPosts,
+      reorderCollection,
     }),
     [
       favorites,
@@ -325,6 +393,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       isInCollection,
       togglePostCollection,
       collectionCount,
+      getCollectionPosts,
+      reorderCollection,
     ],
   );
 

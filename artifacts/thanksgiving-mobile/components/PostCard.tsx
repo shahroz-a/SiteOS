@@ -14,6 +14,8 @@ type Props = {
   featured?: boolean;
   /** When provided, shows a folder action to file the post into collections. */
   onManageCollections?: (post: PostSummary) => void;
+  /** When provided, long-pressing the card triggers this (e.g. to start a drag). */
+  onLongPress?: () => void;
 };
 
 function formatDate(value?: string | null): string | null {
@@ -32,6 +34,7 @@ function PostCardBase({
   onPress,
   featured = false,
   onManageCollections,
+  onLongPress,
 }: Props) {
   const colors = useColors();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -42,6 +45,8 @@ function PostCardBase({
     <Pressable
       testID={`post-card-${post.slug}`}
       onPress={() => onPress(post.slug)}
+      onLongPress={onLongPress}
+      delayLongPress={250}
       style={({ pressed }) => [
         styles.card,
         {

@@ -26,3 +26,4 @@
 - [Real-data round-trip gating](realdata-roundtrip-gating.md) — opt-in real-DB export→load→import test gates on VERIFY_REAL_DATA (NOT always-set DATABASE_URL); tx-rollback + stubbed media keep it non-destructive; compare reimport vs export (hero normalized).
 - [Expo dev-server reachability](expo-dev-server-reachability.md) — Metro healthy but workflow DIDNT_OPEN_A_PORT can be structural; verify Expo code with `expo export --platform web` since bash can't keep a dev server alive.
 - [Expo jest testing](expo-jest-testing.md) — mobile artifact tested via its own jest-expo runner (not root vitest); pnpm-aware transformIgnorePatterns, `mock`-prefixed factory vars, and synthetic `stopPropagation` on card-toggle presses are the gotchas.
+- [Mobile drag-reorder library choice](mobile-drag-reorder-library.md) — use react-native-reorderable-list; reanimated 4 removed useAnimatedGestureHandler so react-native-draggable-flatlist won't work.
