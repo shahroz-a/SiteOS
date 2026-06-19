@@ -6,9 +6,10 @@
  *
  * It mirrors the real-data round-trip pattern of
  * `scripts/src/payload/__tests__/roundtrip-real-data.test.ts`, but exercises the
- * CMS content-io path instead of the Payload exporter:
- *   1. EXPORT  — `loadContentBundle()` reads the live corpus, then we serialize
- *      it in EVERY supported format (json/csv/markdown/sql/payload).
+ * CMS content-io path instead of the Payload exporter. Each batch of pages runs
+ * the same round-trip (`checkBatch`):
+ *   1. EXPORT  — `loadContentBundle(db, { pageIds })` reads just that batch, then
+ *      we serialize it in EVERY supported format (json/csv/markdown/sql/payload).
  *   2. IMPORT  — we re-import the JSON and Payload bundles via
  *      `importContentBundle(bundle, tx)` and assert posts are *matched* (none
  *      created — they all resolve by canonicalUrl), the re-import is idempotent
@@ -16,6 +17,13 @@
  *   3. RESTORE — we round-trip the JSON backup wire format and force the update
  *      (clear + rewrite children) path, then read the freshly-written child rows
  *      back and assert NO image / link / metadata is lost.
+ *
+ * The corpus is processed in BATCHES rather than all at once: full mode chunks
+ * every page id into `CMS_IO_BATCH_SIZE` groups and runs the round-trip per
+ * batch, so peak memory tracks one batch instead of materializing + serializing
+ * all ~3.7k pages in five formats simultaneously (which grows unbounded with the
+ * blog). Bounded mode is simply a single small sample batch. Either way the
+ * no-image/link/metadata-loss assertion now spans every page that is processed.
  *
  * Non-destructive by construction: the export leg only SELECTs, and every import
  * runs inside a transaction that is ALWAYS rolled back, so the live database is
@@ -68,6 +76,17 @@ const VERIFY_LIMIT = (() => {
   if (!raw) return null;
   const n = Number(raw);
   return Number.isInteger(n) && n > 0 ? n : null;
+})();
+
+/**
+ * FULL-mode batch size: how many pages are loaded + serialized + round-tripped
+ * at once. Tunable via `CMS_IO_BATCH_SIZE` (positive integer); defaults to 200.
+ * Smaller batches lower peak memory at the cost of more per-batch overhead.
+ */
+const BATCH_SIZE = (() => {
+  const raw = process.env.CMS_IO_BATCH_SIZE;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : 200;
 })();
 
 type Executor = typeof db;
@@ -258,58 +277,144 @@ async function pickSamplePageIds(
   return [...new Set(ids)];
 }
 
-describe.runIf(RUN)("CMS import/export/restore round-trip on real data", () => {
-  let bundle: ContentBundle;
-  let sampleBundle: ContentBundle;
-  // Baseline DB child rows for each sampled post, keyed by canonicalUrl.
+/** Split `items` into fixed-size chunks (the last chunk may be smaller). */
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+
+/**
+ * The whole round-trip for ONE batch of pages: it loads only those pages into a
+ * bundle, serializes them in every format, re-imports the JSON + Payload bundles
+ * (matched, idempotent) and forces a backup→restore rewrite, asserting no
+ * image/link/metadata is lost. The bundle and its per-page baseline are scoped
+ * to this call, so they are GC'd between batches — peak memory tracks one batch,
+ * not the whole corpus. This is the unit of work for BOTH modes: bounded mode
+ * runs it once over the small sample; full mode runs it over every batch of the
+ * corpus in turn.
+ */
+async function checkBatch(pageIds: string[]): Promise<void> {
+  const bundle = await loadContentBundle(db, { pageIds });
+  expect(bundle.posts.length, "batch loaded posts").toBeGreaterThan(0);
+
+  // EXPORT: serialize this batch in every supported format without error.
+  for (const format of EXPORT_FORMATS) {
+    const text = serializeBundle(bundle, format);
+    expect(typeof text, `serialized ${format}`).toBe("string");
+    expect(text.length, `non-empty ${format}`).toBeGreaterThan(0);
+  }
+
+  // Capture the live DB child rows for each page in the batch (no-loss baseline).
   const baseline = new Map<string, ChildRows>();
+  for (const post of bundle.posts) {
+    const id = await pageIdByCanonical(db, post.canonicalUrl);
+    expect(id, `page for ${post.slug} should exist`).toBeDefined();
+    baseline.set(post.canonicalUrl, await readChildRows(db, id!));
+  }
+
+  // IMPORT (JSON): every post resolves by canonicalUrl (none created), and an
+  // identical second pass in the same tx is fully idempotent.
+  const parsedJson = parseBundle(serializeBundle(bundle, "json"), "json");
+  expect(parsedJson.posts.length).toBe(bundle.posts.length);
+  await inRolledBackTx(async (tx) => {
+    const first = await importContentBundle(parsedJson, { exec: tx });
+    expect(first.postsCreated).toBe(0);
+    expect(first.postsUpdated + first.postsUnchanged).toBe(bundle.posts.length);
+    // Internal links are resolved corpus-wide against the page set.
+    expect(first.internalLinksResolved).toBeGreaterThanOrEqual(0);
+
+    const second = await importContentBundle(parsedJson, { exec: tx });
+    expect(second.postsCreated).toBe(0);
+    expect(second.postsUpdated).toBe(0);
+    expect(second.postsUnchanged).toBe(bundle.posts.length);
+  });
+
+  // IMPORT (Payload): posts matched (no duplicates created).
+  const parsedPayload = parseBundle(
+    serializeBundle(bundle, "payload"),
+    "payload",
+  );
+  expect(parsedPayload.posts.length).toBe(bundle.posts.length);
+  for (const post of parsedPayload.posts) {
+    expect(post.canonicalUrl, "payload post carries canonicalUrl").toBeTruthy();
+  }
+  await inRolledBackTx(async (tx) => {
+    const result = await importContentBundle(parsedPayload, { exec: tx });
+    expect(result.postsCreated).toBe(0);
+    expect(result.postsUpdated + result.postsUnchanged).toBe(
+      parsedPayload.posts.length,
+    );
+  });
+
+  // BACKUP → RESTORE: force the update (clear + rewrite children) path by bumping
+  // each title, then read the freshly-written child rows back and assert nothing
+  // was dropped for any page in the batch.
+  const restored = parseBundle(serializeBundle(bundle, "json"), "json");
+  const mutated: ContentBundle = {
+    ...restored,
+    posts: restored.posts.map((p) => ({
+      ...p,
+      title: `${p.title} [restore-check]`,
+    })),
+  };
+  await inRolledBackTx(async (tx) => {
+    const result = await importContentBundle(mutated, { exec: tx });
+    expect(result.postsCreated).toBe(0);
+    expect(result.postsUpdated).toBe(mutated.posts.length);
+
+    for (const post of mutated.posts) {
+      const id = await pageIdByCanonical(tx, post.canonicalUrl);
+      expect(id, `restored page for ${post.slug}`).toBeDefined();
+      const back = await readChildRows(tx, id!);
+      const base = baseline.get(post.canonicalUrl)!;
+      expect(sortImages(back.images), `images for ${post.slug}`).toEqual(
+        sortImages(base.images),
+      );
+      expect(
+        byPosition(back.internal),
+        `internal links for ${post.slug}`,
+      ).toEqual(byPosition(base.internal));
+      expect(
+        byPosition(back.external),
+        `external links for ${post.slug}`,
+      ).toEqual(byPosition(base.external));
+      expect(back.metadata, `metadata for ${post.slug}`).toEqual(base.metadata);
+    }
+  });
+}
+
+describe.runIf(RUN)("CMS import/export/restore round-trip on real data", () => {
+  // The batches of page ids to process, one bundle's worth at a time.
+  let batches: string[][] = [];
 
   beforeAll(async () => {
-    let sampled: ContentBundle["posts"];
-
     if (VERIFY_LIMIT !== null) {
-      // BOUNDED mode: never materialize the whole corpus. Pick the sample page
-      // ids straight from the DB (image extremes + the most-linked page + the
-      // largest component tree), then load ONLY those pages. `bundle` and
-      // `sampleBundle` are the same small, self-contained bundle (taxonomy
-      // pruned to referenced docs).
+      // BOUNDED mode: a single small sample batch resolved straight from the DB
+      // (image extremes + the most-linked page + the largest component tree) —
+      // never the whole corpus.
       const topN = Math.min(SAMPLE_TOP, VERIFY_LIMIT);
       const bottomN = VERIFY_LIMIT - topN;
       const ids = await pickSamplePageIds(topN, bottomN);
       expect(ids.length, "bounded sample resolved page ids").toBeGreaterThan(0);
-      bundle = await loadContentBundle(db, { pageIds: ids });
-      expect(bundle.posts.length).toBeGreaterThan(0);
-      sampled = bundle.posts;
-      sampleBundle = bundle;
+      batches = [ids];
     } else {
-      // FULL mode: read the whole corpus (read-only), then sample in memory.
-      bundle = await loadContentBundle();
-      expect(bundle.posts.length).toBeGreaterThan(0);
-
-      // Pick an interesting sample: most images + fewest images.
-      const ranked = bundle.posts
-        .map((p) => ({ post: p, n: p.images.length }))
-        .sort((a, b) => b.n - a.n)
-        .map((r) => r.post);
-      sampled = [
-        ...new Map(
-          [...ranked.slice(0, SAMPLE_TOP), ...ranked.slice(-SAMPLE_BOTTOM)].map(
-            (p) => [p.canonicalUrl, p],
-          ),
-        ).values(),
-      ];
-      expect(sampled.length).toBeGreaterThan(0);
-
-      // A sub-bundle with only the sampled posts (taxonomy kept whole — upserts
-      // are idempotent and cheap) so the rolled-back imports stay small.
-      sampleBundle = { ...bundle, posts: sampled };
-    }
-
-    // Capture the live DB child rows for each sampled page (no-loss baseline).
-    for (const post of sampled) {
-      const id = await pageIdByCanonical(db, post.canonicalUrl);
-      expect(id, `page for ${post.slug} should exist`).toBeDefined();
-      baseline.set(post.canonicalUrl, await readChildRows(db, id!));
+      // FULL mode: chunk the ENTIRE corpus into fixed-size batches. Only the page
+      // ids (not their content) are materialized here; each batch's content is
+      // loaded + serialized + round-tripped one at a time in `checkBatch`, so
+      // peak memory stays roughly flat as the blog grows instead of holding all
+      // ~3.7k pages serialized in five formats at once.
+      const rows = await db
+        .select({ id: pagesTable.id })
+        .from(pagesTable)
+        .orderBy(asc(pagesTable.slug));
+      expect(rows.length, "corpus page ids").toBeGreaterThan(0);
+      batches = chunk(
+        rows.map((r) => r.id),
+        BATCH_SIZE,
+      );
     }
   }, 600_000);
 
@@ -317,98 +422,10 @@ describe.runIf(RUN)("CMS import/export/restore round-trip on real data", () => {
     await pool.end();
   }, 60_000);
 
-  it("exports the corpus in every supported format without error", () => {
-    for (const format of EXPORT_FORMATS) {
-      const text = serializeBundle(bundle, format);
-      expect(typeof text, `serialized ${format}`).toBe("string");
-      expect(text.length, `non-empty ${format}`).toBeGreaterThan(0);
+  it("round-trips every page with no image/link/metadata loss (batched)", async () => {
+    expect(batches.length, "batches to process").toBeGreaterThan(0);
+    for (const batch of batches) {
+      await checkBatch(batch);
     }
-  });
-
-  it("re-imports the JSON export: posts matched, idempotent, links resolved", async () => {
-    const parsed = parseBundle(serializeBundle(sampleBundle, "json"), "json");
-    expect(parsed.posts.length).toBe(sampleBundle.posts.length);
-
-    await inRolledBackTx(async (tx) => {
-      // First pass: every post resolves by canonicalUrl — none are created.
-      const first = await importContentBundle(parsed, { exec: tx });
-      expect(first.postsCreated).toBe(0);
-      expect(first.postsUpdated + first.postsUnchanged).toBe(
-        sampleBundle.posts.length,
-      );
-      // Internal links are resolved corpus-wide against the page set.
-      expect(first.internalLinksResolved).toBeGreaterThanOrEqual(0);
-
-      // Second pass in the same tx: now a content-io version hash exists, so the
-      // identical re-import is fully idempotent (all unchanged, none rewritten).
-      const second = await importContentBundle(parsed, { exec: tx });
-      expect(second.postsCreated).toBe(0);
-      expect(second.postsUpdated).toBe(0);
-      expect(second.postsUnchanged).toBe(sampleBundle.posts.length);
-    });
-  }, 600_000);
-
-  it("re-imports the Payload export: posts matched (no duplicates created)", async () => {
-    const parsed = parseBundle(
-      serializeBundle(sampleBundle, "payload"),
-      "payload",
-    );
-    expect(parsed.posts.length).toBe(sampleBundle.posts.length);
-    for (const post of parsed.posts) {
-      expect(post.canonicalUrl, "payload post carries canonicalUrl").toBeTruthy();
-    }
-
-    await inRolledBackTx(async (tx) => {
-      const result = await importContentBundle(parsed, { exec: tx });
-      expect(result.postsCreated).toBe(0);
-      expect(result.postsUpdated + result.postsUnchanged).toBe(
-        parsed.posts.length,
-      );
-    });
-  }, 600_000);
-
-  it("backup → restore round-trips with no image/link/metadata loss", async () => {
-    // GET /cms/backup serializes the canonical bundle as JSON; POST /cms/restore
-    // parses it back and calls importContentBundle. Force the update (clear +
-    // rewrite children) path by bumping each title, then read the freshly-written
-    // child rows back and assert nothing was dropped.
-    const backupText = serializeBundle(sampleBundle, "json");
-    const restored = parseBundle(backupText, "json");
-    const mutated: ContentBundle = {
-      ...restored,
-      posts: restored.posts.map((p) => ({
-        ...p,
-        title: `${p.title} [restore-check]`,
-      })),
-    };
-
-    await inRolledBackTx(async (tx) => {
-      const result = await importContentBundle(mutated, { exec: tx });
-      // Title change differs from any stored hash, so every post takes the
-      // update path that clears and rewrites its children.
-      expect(result.postsCreated).toBe(0);
-      expect(result.postsUpdated).toBe(mutated.posts.length);
-
-      for (const post of mutated.posts) {
-        const id = await pageIdByCanonical(tx, post.canonicalUrl);
-        expect(id, `restored page for ${post.slug}`).toBeDefined();
-        const back = await readChildRows(tx, id!);
-        const base = baseline.get(post.canonicalUrl)!;
-        expect(sortImages(back.images), `images for ${post.slug}`).toEqual(
-          sortImages(base.images),
-        );
-        expect(
-          byPosition(back.internal),
-          `internal links for ${post.slug}`,
-        ).toEqual(byPosition(base.internal));
-        expect(
-          byPosition(back.external),
-          `external links for ${post.slug}`,
-        ).toEqual(byPosition(base.external));
-        expect(back.metadata, `metadata for ${post.slug}`).toEqual(
-          base.metadata,
-        );
-      }
-    });
-  }, 600_000);
+  }, 3_600_000);
 });
