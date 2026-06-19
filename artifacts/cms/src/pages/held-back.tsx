@@ -4,10 +4,13 @@ import { Loader2, RefreshCw } from "lucide-react";
 import {
   useListCmsHeldBackArticles,
   useResolveCmsHeldBackArticle,
+  useReparseCmsHeldBackArticle,
   useGetCmsHeldBackArticleSource,
   getListCmsHeldBackArticlesQueryKey,
+  getGetCmsHeldBackArticleSourceQueryKey,
   type HeldBackArticle,
   type HeldBackValidationIssue,
+  type ReparseHeldBackArticleResponse,
 } from "@workspace/api-client-react";
 import { ContentRenderer } from "@workspace/blog-renderer";
 import {
@@ -17,6 +20,7 @@ import {
 } from "@/lib/reextract-client";
 import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
+import { Textarea } from "@workspace/ui/textarea";
 import {
   Table,
   TableBody,
@@ -556,6 +560,130 @@ function SourceComparison({ articleId }: { articleId: string }) {
   );
 }
 
+function reparseVerdictToast(
+  result: ReparseHeldBackArticleResponse,
+): { title: string; description: string } {
+  const action = result.mode === "edit" ? "Edited body re-checked" : "Re-parsed";
+  if (result.validationStatus === "fail") {
+    return {
+      title: action,
+      description: `Still failing content-fidelity checks (score ${result.validationScore}). Review the parsed result and edit again if needed.`,
+    };
+  }
+  return {
+    title: action,
+    description: `Now ${
+      result.validationStatus === "pass" ? "passing" : "warning-only"
+    } (score ${result.validationScore}). It can be published.`,
+  };
+}
+
+// Lets an editor fix a garbled import in place: re-run the parser on the stored
+// source, or hand-edit the body HTML and re-parse that. Both persist to the
+// page's componentTree/richText and write a fresh content-fidelity report, so
+// the parsed preview and the verdict reflect the correction immediately.
+function ReparsePanel({ article }: { article: HeldBackArticle }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: source } = useGetCmsHeldBackArticleSource(article.id);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const reparse = useReparseCmsHeldBackArticle({
+    mutation: {
+      onSuccess: (result) => {
+        queryClient.invalidateQueries({
+          queryKey: getListCmsHeldBackArticlesQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetCmsHeldBackArticleSourceQueryKey(article.id),
+        });
+        setEditing(false);
+        toast(reparseVerdictToast(result));
+      },
+      onError: () => {
+        toast({
+          title: "Could not re-parse",
+          description:
+            "The body could not be parsed, or something went wrong. Check the HTML and try again.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const pending = reparse.isPending;
+  const sourceHtml = source?.sourceHtml ?? "";
+
+  function startEditing() {
+    setDraft(sourceHtml);
+    setEditing(true);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <h3 className="font-medium">Fix the import</h3>
+        <p className="text-sm text-muted-foreground">
+          Re-run the parser on the stored source, or hand-edit the article HTML
+          and re-parse it. The fix is saved to the article and the checks above
+          re-run against the corrected body.
+        </p>
+      </div>
+
+      {editing ? (
+        <div className="space-y-2">
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            spellCheck={false}
+            className="h-64 font-mono text-xs"
+            placeholder="Edit the article body HTML…"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              disabled={pending || draft.trim().length === 0}
+              onClick={() =>
+                reparse.mutate({ id: article.id, data: { html: draft } })
+              }
+            >
+              Save &amp; re-check
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pending}
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() => reparse.mutate({ id: article.id, data: {} })}
+          >
+            Re-parse stored source
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending || sourceHtml.trim().length === 0}
+            onClick={startEditing}
+          >
+            Edit body HTML
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ArticleDrawer({
   article,
   open,
@@ -756,6 +884,13 @@ function ArticleDrawer({
               </div>
 
               <SourceComparison articleId={article.id} />
+
+              {canResolve ? (
+                <>
+                  <Separator />
+                  <ReparsePanel article={article} />
+                </>
+              ) : null}
             </div>
 
             <SheetFooter className="flex-col gap-2 sm:flex-col">

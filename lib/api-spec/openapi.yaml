@@ -1181,6 +1181,77 @@ paths:
         "404":
           $ref: "#/components/responses/CmsNotFound"
 
+  /cms/held-back-articles/{id}/reparse:
+    post:
+      tags: [cms]
+      operationId: reparseCmsHeldBackArticle
+      summary: Re-parse or hand-edit a held-back article's body (requires review.approve)
+      description: >-
+        Re-extract a held-back article's structured body and persist the result,
+        letting an editor fix a garbled import without leaving the review screen.
+        With no request body (or {} ), the stored source HTML (cleaned article
+        HTML, falling back to the raw original HTML) is re-run through the live
+        parser. When an `html` body is supplied, that hand-edited HTML is parsed
+        instead. Either way the page's componentTree, richText and cleanedHtml are
+        replaced, the blocks and component-tree rows are rewritten, and a fresh
+        content-fidelity validation_reports row is appended so re-running the
+        fidelity check reflects the correction. The article stays a draft (the
+        editor publishes separately). Restricted to articles still in the review
+        queue (pages.status="draft", page_type="post"). Audited via the
+        append-only audit log.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The page id of the held-back article to re-parse.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReparseHeldBackArticleRequest"
+      responses:
+        "200":
+          description: The re-parsed bodies and fresh validation verdict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReparseHeldBackArticleResponse"
+        "400":
+          description: Invalid request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Insufficient permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Article not found or not in the review queue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          description: The supplied or stored HTML could not be parsed into any content.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /cms/posts:
     get:
       tags: [cms]
@@ -4889,6 +4960,64 @@ components:
           type: string
           enum: [published, archived]
           description: The article's status after the decision was applied.
+
+    ReparseHeldBackArticleRequest:
+      type: object
+      properties:
+        html:
+          type: string
+          description: >-
+            Hand-edited article body HTML to parse instead of the stored source.
+            When omitted, the stored source HTML (cleaned, falling back to the
+            raw original) is re-parsed as-is.
+
+    ReparseHeldBackArticleResponse:
+      type: object
+      required:
+        - id
+        - slug
+        - mode
+        - componentTree
+        - richText
+        - validationStatus
+        - validationScore
+        - issues
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        mode:
+          type: string
+          enum: [reparse, edit]
+          description: >-
+            "reparse" when the stored source HTML was re-parsed; "edit" when
+            hand-edited HTML was supplied in the request body.
+        componentTree:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
+            - type: 'null'
+          description: The freshly parsed Payload-style block tree now persisted on the page.
+        richText:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          description: The freshly parsed Lexical rich-text tree now persisted on the page.
+        validationStatus:
+          type: string
+          enum: [pass, warn, fail]
+          description: The content-fidelity verdict of the re-parsed body.
+        validationScore:
+          type: integer
+          description: The content-fidelity score (0-100) of the re-parsed body.
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/HeldBackValidationIssue'
 
     PageVersionSummary:
       type: object

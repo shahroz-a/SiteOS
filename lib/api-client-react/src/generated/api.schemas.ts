@@ -1536,6 +1536,64 @@ export interface ResolveHeldBackArticleResponse {
   status: ResolveHeldBackArticleResponseStatus;
 }
 
+export interface ReparseHeldBackArticleRequest {
+  /** Hand-edited article body HTML to parse instead of the stored source. When omitted, the stored source HTML (cleaned, falling back to the raw original) is re-parsed as-is. */
+  html?: string;
+}
+
+/**
+ * "reparse" when the stored source HTML was re-parsed; "edit" when hand-edited HTML was supplied in the request body.
+ */
+export type ReparseHeldBackArticleResponseMode = typeof ReparseHeldBackArticleResponseMode[keyof typeof ReparseHeldBackArticleResponseMode];
+
+
+export const ReparseHeldBackArticleResponseMode = {
+  reparse: 'reparse',
+  edit: 'edit',
+} as const;
+
+/**
+ * The freshly parsed Payload-style block tree now persisted on the page.
+ */
+export type ReparseHeldBackArticleResponseComponentTree = { [key: string]: unknown } | unknown[] | null;
+
+/**
+ * The freshly parsed Lexical rich-text tree now persisted on the page.
+ * @nullable
+ */
+export type ReparseHeldBackArticleResponseRichText = { [key: string]: unknown } | null;
+
+/**
+ * The content-fidelity verdict of the re-parsed body.
+ */
+export type ReparseHeldBackArticleResponseValidationStatus = typeof ReparseHeldBackArticleResponseValidationStatus[keyof typeof ReparseHeldBackArticleResponseValidationStatus];
+
+
+export const ReparseHeldBackArticleResponseValidationStatus = {
+  pass: 'pass',
+  warn: 'warn',
+  fail: 'fail',
+} as const;
+
+export interface ReparseHeldBackArticleResponse {
+  id: string;
+  slug: string;
+  /** "reparse" when the stored source HTML was re-parsed; "edit" when hand-edited HTML was supplied in the request body. */
+  mode: ReparseHeldBackArticleResponseMode;
+  /** The freshly parsed Payload-style block tree now persisted on the page. */
+  componentTree: ReparseHeldBackArticleResponseComponentTree;
+  /**
+     * The freshly parsed Lexical rich-text tree now persisted on the page.
+     * @nullable
+     */
+  richText: ReparseHeldBackArticleResponseRichText;
+  /** The content-fidelity verdict of the re-parsed body. */
+  validationStatus: ReparseHeldBackArticleResponseValidationStatus;
+  /** The content-fidelity score (0-100) of the re-parsed body. */
+  validationScore: number;
+  issues: HeldBackValidationIssue[];
+}
+
 export interface PageVersionSummary {
   versionNumber: number;
   /** @nullable */

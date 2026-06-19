@@ -503,6 +503,125 @@ describe("GET /api/cms/held-back-articles/:id/source", () => {
   });
 });
 
+describe("POST /api/cms/held-back-articles/:id/reparse", () => {
+  const PERMITTED: Role[] = ["admin", "editor", "reviewer"];
+
+  // A rich article body that the parser extracts cleanly into a real tree, used
+  // to prove a hand-edit / re-parse turns a failing article into a passing one.
+  const GOOD_HTML =
+    "<article class='entry-content'>" +
+    "<h2>Intro</h2><p>First real paragraph.</p>" +
+    "<h2>Details</h2><p>Second real paragraph.</p><p>Third paragraph.</p>" +
+    "</article>";
+
+  beforeEach(() => {
+    const fresh = seedHeldBack();
+    for (const k of Object.keys(tables)) delete tables[k];
+    for (const [k, v] of Object.entries(fresh)) tables[k] = v;
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app).post(
+      "/api/cms/held-back-articles/p-fail/reparse",
+    );
+    expect(res.status).toBe(401);
+  });
+
+  for (const role of ROLES.filter((r) => !PERMITTED.includes(r))) {
+    it(`returns 403 for ${role} (lacks review.approve)`, async () => {
+      const res = await request(app)
+        .post("/api/cms/held-back-articles/p-fail/reparse")
+        .set("Authorization", bearer(role));
+      expect(res.status).toBe(403);
+    });
+  }
+
+  it("re-parses the stored source HTML and persists the result", async () => {
+    // Replace the broken article's stored body with parseable content, then
+    // re-parse the stored source (no html in the request).
+    tables.pages.find((p) => p.id === "p-fail")!.cleanedHtml = GOOD_HTML;
+
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-fail/reparse")
+      .set("Authorization", bearer("reviewer"))
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.mode).toBe("reparse");
+    expect(res.body.validationStatus).toBe("pass");
+    expect(res.body.componentTree).toBeTruthy();
+
+    // The page row now carries the freshly parsed trees.
+    const page = tables.pages.find((p) => p.id === "p-fail")!;
+    expect(page.componentTree).toBeTruthy();
+    expect(page.richText).toBeTruthy();
+
+    // Derived rows were rewritten and a fresh validation report appended.
+    expect(tables.blocks.length).toBeGreaterThan(0);
+    expect(tables.blocks.every((b) => b.pageId === "p-fail")).toBe(true);
+    expect(tables.component_tree).toHaveLength(1);
+    const reports = tables.validation_reports.filter(
+      (r) => r.pageId === "p-fail",
+    );
+    expect(reports.length).toBe(2); // seeded + the new one
+    expect(reports.some((r) => r.status === "pass")).toBe(true);
+
+    // Audited as a re-parse.
+    expect(tables.audit_logs[0].action).toBe("article.reparse");
+    expect(tables.audit_logs[0].entityId).toBe("p-fail");
+  });
+
+  it("parses hand-edited HTML when supplied (mode=edit)", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-fail/reparse")
+      .set("Authorization", bearer("editor"))
+      .send({ html: GOOD_HTML });
+    expect(res.status).toBe(200);
+    expect(res.body.mode).toBe("edit");
+    expect(res.body.validationStatus).toBe("pass");
+    expect(tables.audit_logs[0].action).toBe("article.edit");
+  });
+
+  it("keeps the article a draft (editor publishes separately)", async () => {
+    await request(app)
+      .post("/api/cms/held-back-articles/p-fail/reparse")
+      .set("Authorization", bearer("reviewer"))
+      .send({ html: GOOD_HTML });
+    expect(tables.pages.find((p) => p.id === "p-fail")?.status).toBe("draft");
+  });
+
+  it("returns 422 when the supplied HTML parses to no content", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-fail/reparse")
+      .set("Authorization", bearer("admin"))
+      .send({ html: "<div>   </div>" });
+    expect(res.status).toBe(422);
+  });
+
+  it("returns 404 for a published post (not in the queue)", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-pub/reparse")
+      .set("Authorization", bearer("admin"))
+      .send({ html: GOOD_HTML });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for a draft non-post page (not in the queue)", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-cat/reparse")
+      .set("Authorization", bearer("admin"))
+      .send({ html: GOOD_HTML });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for an unknown id", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/does-not-exist/reparse")
+      .set("Authorization", bearer("admin"))
+      .send({ html: GOOD_HTML });
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("PATCH /api/cms/held-back-articles/:id", () => {
   const PERMITTED: Role[] = ["admin", "editor", "reviewer"];
 

@@ -469,6 +469,8 @@ export function makeDbMock(tables: Tables) {
     imagesTable: tableProxy("images"),
     jsonldTable: tableProxy("jsonld"),
     seoTable: tableProxy("seo"),
+    blocksTable: tableProxy("blocks"),
+    componentTreeTable: tableProxy("component_tree"),
     usersTable: tableProxy("users"),
     sessionsTable: tableProxy("sessions"),
     auditLogsTable: tableProxy("audit_logs"),

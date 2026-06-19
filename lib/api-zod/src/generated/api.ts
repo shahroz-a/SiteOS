@@ -1088,6 +1088,40 @@ export const ReactivateCmsRedirectResponse = zod.object({
 
 
 /**
+ * Re-extract a held-back article's structured body and persist the result, letting an editor fix a garbled import without leaving the review screen. With no request body (or {} ), the stored source HTML (cleaned article HTML, falling back to the raw original HTML) is re-run through the live parser. When an `html` body is supplied, that hand-edited HTML is parsed instead. Either way the page's componentTree, richText and cleanedHtml are replaced, the blocks and component-tree rows are rewritten, and a fresh content-fidelity validation_reports row is appended so re-running the fidelity check reflects the correction. The article stays a draft (the editor publishes separately). Restricted to articles still in the review queue (pages.status="draft", page_type="post"). Audited via the append-only audit log.
+ * @summary Re-parse or hand-edit a held-back article's body (requires review.approve)
+ */
+export const ReparseCmsHeldBackArticleParams = zod.object({
+  "id": zod.string().describe('The page id of the held-back article to re-parse.')
+})
+
+export const ReparseCmsHeldBackArticleHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ReparseCmsHeldBackArticleBody = zod.object({
+  "html": zod.string().optional().describe('Hand-edited article body HTML to parse instead of the stored source. When omitted, the stored source HTML (cleaned, falling back to the raw original) is re-parsed as-is.')
+})
+
+export const ReparseCmsHeldBackArticleResponse = zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "mode": zod.enum(['reparse', 'edit']).describe('\"reparse\" when the stored source HTML was re-parsed; \"edit\" when hand-edited HTML was supplied in the request body.'),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).describe('The freshly parsed Payload-style block tree now persisted on the page.'),
+  "richText": zod.record(zod.string(), zod.unknown()).nullable().describe('The freshly parsed Lexical rich-text tree now persisted on the page.'),
+  "validationStatus": zod.enum(['pass', 'warn', 'fail']).describe('The content-fidelity verdict of the re-parsed body.'),
+  "validationScore": zod.number().describe('The content-fidelity score (0-100) of the re-parsed body.'),
+  "issues": zod.array(zod.object({
+  "field": zod.string(),
+  "source": zod.number(),
+  "parsed": zod.number(),
+  "severity": zod.enum(['warn', 'fail']),
+  "message": zod.string()
+}))
+})
+
+
+/**
  * Paginated list of articles across every status (draft, published, archived) for the CMS content list and the internal-linking assistant. Optional full-text `q` matches title/slug; `status` narrows to one state.
  * @summary List/search articles of any status (requires content.view)
  */

@@ -1,10 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import {
   db,
   usersTable,
   auditLogsTable,
   pagesTable,
+  blocksTable,
+  componentTreeTable,
   validationReportsTable,
 } from "@workspace/db";
 import {
@@ -15,6 +18,9 @@ import {
   ListCmsHeldBackArticlesResponse,
   GetCmsHeldBackArticleSourceParams,
   GetCmsHeldBackArticleSourceResponse,
+  ReparseCmsHeldBackArticleBody,
+  ReparseCmsHeldBackArticleParams,
+  ReparseCmsHeldBackArticleResponse,
   ResolveCmsHeldBackArticleBody,
   ResolveCmsHeldBackArticleParams,
   ResolveCmsHeldBackArticleResponse,
@@ -28,7 +34,9 @@ import {
   isRole,
   type Role,
 } from "@workspace/cms-auth";
-import { rescoreStoredValidation } from "@workspace/content-validation";
+import { rescoreStoredValidation, scoreValidation } from "@workspace/content-validation";
+import { flattenBlocks } from "@workspace/content";
+import { parseArticleBody } from "@workspace/article-parser";
 import { requireAuth, requirePermission } from "../middlewares/rbac";
 import { recordAudit } from "../lib/audit";
 import { runReextract, type ReextractEvent } from "../lib/reextract";
@@ -514,6 +522,158 @@ router.post(
       ended = true;
       cancel();
     });
+  },
+);
+
+// Re-parse OR hand-edit a held-back article's body, persisting the result so an
+// editor can fix a garbled import without leaving the review screen. With no
+// `html` in the body the stored source HTML (cleaned, falling back to original)
+// is re-run through the live parser; with `html` supplied, that hand-edited HTML
+// is parsed instead. Either way componentTree/richText/cleanedHtml are replaced,
+// the blocks + component-tree rows are rewritten, and a fresh content-fidelity
+// validation_reports row is appended (same `{issues,source,parsed}` shape the
+// revalidate job writes) so re-scoring via rescoreStoredValidation reflects the
+// correction. The article stays a draft; the editor publishes separately.
+// Gated on review.approve and audited. Only rows still in the queue
+// (status="draft", page_type="post") can be re-parsed.
+router.post(
+  "/cms/held-back-articles/:id/reparse",
+  requireAuth,
+  requirePermission("review.approve"),
+  async (req: Request, res: Response) => {
+    const parsedBody = ReparseCmsHeldBackArticleBody.safeParse(req.body ?? {});
+    if (!parsedBody.success) {
+      res.status(400).json({ error: "Invalid request body" });
+      return;
+    }
+    const { id } = ReparseCmsHeldBackArticleParams.parse(req.params);
+    const editedHtml = parsedBody.data.html?.trim() ? parsedBody.data.html : null;
+    const mode: "reparse" | "edit" = editedHtml ? "edit" : "reparse";
+
+    // Only a draft post is in the review queue.
+    const [page] = await db
+      .select({
+        id: pagesTable.id,
+        slug: pagesTable.slug,
+        title: pagesTable.title,
+        url: pagesTable.canonicalUrl,
+        pageType: pagesTable.pageType,
+        cleanedHtml: pagesTable.cleanedHtml,
+      })
+      .from(pagesTable)
+      .where(
+        and(
+          eq(pagesTable.id, id),
+          eq(pagesTable.status, "draft"),
+          eq(pagesTable.pageType, "post"),
+        ),
+      );
+
+    if (!page) {
+      res.status(404).json({ error: "Article not found in the review queue" });
+      return;
+    }
+
+    // Resolve the HTML to parse: hand-edited body if supplied, else the stored
+    // cleaned body, falling back to the (large) raw original only when needed.
+    let html = editedHtml;
+    if (!html) {
+      html = page.cleanedHtml?.trim() ? page.cleanedHtml : null;
+      if (!html) {
+        const [raw] = await db
+          .select({ originalHtml: pagesTable.originalHtml })
+          .from(pagesTable)
+          .where(eq(pagesTable.id, id));
+        html = raw?.originalHtml?.trim() ? raw.originalHtml : null;
+      }
+    }
+
+    if (!html) {
+      res.status(422).json({ error: "No source HTML available to parse" });
+      return;
+    }
+
+    const parsed = parseArticleBody(html, {
+      baseUrl: page.url ?? "https://www.headout.com/blog/",
+      title: page.title,
+    });
+
+    if (parsed.blocks.length === 0) {
+      res
+        .status(422)
+        .json({ error: "The supplied HTML could not be parsed into any content" });
+      return;
+    }
+
+    const validation = scoreValidation({
+      source: parsed.sourceCounts,
+      parsed: parsed.parsedCounts,
+      title: page.title ?? "",
+      pageType: page.pageType,
+      url: page.url ?? "",
+    });
+
+    // Persist atomically: replace the page's body trees, rewrite the derived
+    // blocks + component-tree rows, and append the fresh validation report.
+    await db.transaction(async (tx) => {
+      await tx
+        .update(pagesTable)
+        .set({
+          componentTree: parsed.componentTree,
+          richText: parsed.richText,
+          cleanedHtml: parsed.cleanedHtml,
+          updatedAt: new Date(),
+        })
+        .where(eq(pagesTable.id, id));
+
+      await tx.delete(blocksTable).where(eq(blocksTable.pageId, id));
+      const blockRows = flattenBlocks(parsed.blocks, randomUUID).map((r) => ({
+        ...r,
+        pageId: id,
+      }));
+      if (blockRows.length) await tx.insert(blocksTable).values(blockRows);
+
+      await tx
+        .delete(componentTreeTable)
+        .where(eq(componentTreeTable.pageId, id));
+      await tx
+        .insert(componentTreeTable)
+        .values({ pageId: id, tree: parsed.componentTree });
+
+      await tx.insert(validationReportsTable).values({
+        pageId: id,
+        reportType: "content-fidelity",
+        status: validation.status,
+        score: validation.score,
+        issues: {
+          issues: validation.issues,
+          source: validation.source,
+          parsed: validation.parsed,
+        },
+      });
+    });
+
+    await recordAudit(req, {
+      action: mode === "edit" ? "article.edit" : "article.reparse",
+      entityType: "page",
+      entityId: id,
+      actorRole: req.cmsRole ?? null,
+      before: null,
+      after: { validationStatus: validation.status, validationScore: validation.score },
+    });
+
+    res.json(
+      ReparseCmsHeldBackArticleResponse.parse({
+        id: page.id,
+        slug: page.slug,
+        mode,
+        componentTree: parsed.componentTree,
+        richText: parsed.richText,
+        validationStatus: validation.status,
+        validationScore: validation.score,
+        issues: validation.issues,
+      }),
+    );
   },
 );
 

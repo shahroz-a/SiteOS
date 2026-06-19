@@ -22,6 +22,9 @@
       "path": "./lib/content"
     },
     {
+      "path": "./lib/article-parser"
+    },
+    {
       "path": "./lib/content-io"
     },
     {

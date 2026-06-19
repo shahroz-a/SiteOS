@@ -9,6 +9,10 @@
       "drizzle-orm": ["../lib/db/node_modules/drizzle-orm"]
     }
   },
-  "references": [{ "path": "../lib/content" }, { "path": "../lib/content-validation" }],
+  "references": [
+    { "path": "../lib/article-parser" },
+    { "path": "../lib/content" },
+    { "path": "../lib/content-validation" }
+  ],
   "include": ["src"]
 }

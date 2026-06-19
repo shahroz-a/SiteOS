@@ -15,6 +15,7 @@
   "dependencies": {
     "@google-cloud/storage": "^7.21.0",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/article-parser": "workspace:*",
     "@workspace/cms-auth": "workspace:*",
     "@workspace/content": "workspace:*",
     "@workspace/content-io": "workspace:*",

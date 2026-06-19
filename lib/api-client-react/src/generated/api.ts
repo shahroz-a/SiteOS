@@ -78,6 +78,8 @@ import type {
   PostDetail,
   PostListResponse,
   RecordPageViewRequest,
+  ReparseHeldBackArticleRequest,
+  ReparseHeldBackArticleResponse,
   ResolveHeldBackArticleRequest,
   ResolveHeldBackArticleResponse,
   SavedView,
@@ -3040,6 +3042,79 @@ export const useReactivateCmsRedirect = <TError = ErrorType<CmsUnauthorizedRespo
         TContext
       > => {
       return useMutation(getReactivateCmsRedirectMutationOptions(options));
+    }
+
+export const getReparseCmsHeldBackArticleUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/held-back-articles/${id}/reparse`
+}
+
+/**
+ * Re-extract a held-back article's structured body and persist the result, letting an editor fix a garbled import without leaving the review screen. With no request body (or {} ), the stored source HTML (cleaned article HTML, falling back to the raw original HTML) is re-run through the live parser. When an `html` body is supplied, that hand-edited HTML is parsed instead. Either way the page's componentTree, richText and cleanedHtml are replaced, the blocks and component-tree rows are rewritten, and a fresh content-fidelity validation_reports row is appended so re-running the fidelity check reflects the correction. The article stays a draft (the editor publishes separately). Restricted to articles still in the review queue (pages.status="draft", page_type="post"). Audited via the append-only audit log.
+ * @summary Re-parse or hand-edit a held-back article's body (requires review.approve)
+ */
+export const reparseCmsHeldBackArticle = async (id: string,
+    reparseHeldBackArticleRequest?: ReparseHeldBackArticleRequest, options?: RequestInit): Promise<ReparseHeldBackArticleResponse> => {
+
+  return customFetch<ReparseHeldBackArticleResponse>(getReparseCmsHeldBackArticleUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reparseHeldBackArticleRequest,)
+  }
+);}
+
+
+
+
+export const getReparseCmsHeldBackArticleMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reparseCmsHeldBackArticle>>, TError,{id: string;data?: BodyType<ReparseHeldBackArticleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reparseCmsHeldBackArticle>>, TError,{id: string;data?: BodyType<ReparseHeldBackArticleRequest>}, TContext> => {
+
+const mutationKey = ['reparseCmsHeldBackArticle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reparseCmsHeldBackArticle>>, {id: string;data?: BodyType<ReparseHeldBackArticleRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reparseCmsHeldBackArticle(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReparseCmsHeldBackArticleMutationResult = NonNullable<Awaited<ReturnType<typeof reparseCmsHeldBackArticle>>>
+    export type ReparseCmsHeldBackArticleMutationBody = BodyType<ReparseHeldBackArticleRequest> | undefined
+    export type ReparseCmsHeldBackArticleMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Re-parse or hand-edit a held-back article's body (requires review.approve)
+ */
+export const useReparseCmsHeldBackArticle = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reparseCmsHeldBackArticle>>, TError,{id: string;data?: BodyType<ReparseHeldBackArticleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reparseCmsHeldBackArticle>>,
+        TError,
+        {id: string;data?: BodyType<ReparseHeldBackArticleRequest>},
+        TContext
+      > => {
+      return useMutation(getReparseCmsHeldBackArticleMutationOptions(options));
     }
 
 export const getListCmsPostUrl = (params?: ListCmsPostParams,) => {

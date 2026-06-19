@@ -1,8 +1,6 @@
 import * as cheerio from "cheerio";
 import type { CheerioAPI } from "cheerio";
-import type { Element } from "domhandler";
 import type {
-  BlockNode,
   FetchResult,
   ParsedBreadcrumb,
   ParsedFaq,
@@ -24,7 +22,11 @@ import {
   titleFromSlug,
 } from "./util";
 import { buildComponentTree, buildRichText } from "./transform";
-import { createAnchorAllocator } from "../anchors";
+import {
+  absolutize,
+  buildBlocks,
+  stripNonContent,
+} from "@workspace/article-parser";
 
 type MetaMap = Map<string, string>;
 
@@ -210,24 +212,6 @@ function extractAuthor(
   };
 }
 
-/** Remove non-content cruft from a cloned content subtree. */
-function stripNonContent($: CheerioAPI, container: ReturnType<CheerioAPI>): void {
-  container
-    .find(
-      "script, style, noscript, ins, iframe, .saswp-schema-markup-output, .sharedaddy, .jp-relatedposts, .code-block, .adsbygoogle, .post-tags, .post-share, [class*='advert'], [class*='newsletter']",
-    )
-    .remove();
-}
-
-function absolutize(src: string | undefined, base: string): string | null {
-  if (!src) return null;
-  try {
-    return new URL(src, base).toString();
-  } catch {
-    return null;
-  }
-}
-
 function extractImages(
   $: CheerioAPI,
   content: ReturnType<CheerioAPI>,
@@ -328,99 +312,6 @@ function extractLinks(
     }
   });
   return { internal, external };
-}
-
-/**
- * Walk the cleaned content's top-level children into an ordered, nested block
- * tree. Headings (h2/h3) open a section; following paragraphs/lists/images/
- * quotes nest inside it. Content before the first heading sits at the root.
- */
-function buildBlocks(
-  $: CheerioAPI,
-  content: ReturnType<CheerioAPI>,
-  base: string,
-): BlockNode[] {
-  const roots: BlockNode[] = [];
-  let current: BlockNode | null = null;
-  const allocAnchor = createAnchorAllocator();
-
-  const push = (node: BlockNode) => {
-    if (current) (current.children ??= []).push(node);
-    else roots.push(node);
-  };
-
-  const handle = (el: Element) => {
-    const tag = el.tagName?.toLowerCase();
-    const $el = $(el);
-    if (!tag) return;
-    if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
-      const text = normalizeWhitespace($el.text());
-      if (!text) return;
-      const level = Number(tag.slice(1));
-      if (level <= 3) {
-        current = {
-          blockType: "section",
-          anchorId: allocAnchor(slugify(text)),
-          data: { heading: text, level },
-          children: [],
-        };
-        roots.push(current);
-      } else {
-        push({
-          blockType: "heading",
-          text,
-          anchorId: allocAnchor(slugify(text)),
-          data: { level },
-        });
-      }
-      return;
-    }
-    if (tag === "p") {
-      const text = normalizeWhitespace($el.text());
-      if (text) push({ blockType: "paragraph", text });
-      return;
-    }
-    if (tag === "ul" || tag === "ol") {
-      const items: string[] = [];
-      $el.children("li").each((_, li) => {
-        const t = normalizeWhitespace($(li).text());
-        if (t) items.push(t);
-      });
-      if (items.length)
-        push({ blockType: "list", data: { ordered: tag === "ol", items } });
-      return;
-    }
-    if (tag === "blockquote") {
-      const text = normalizeWhitespace($el.text());
-      if (text) push({ blockType: "quote", text });
-      return;
-    }
-    if (tag === "figure" || tag === "img") {
-      const $img = tag === "img" ? $el : $el.find("img").first();
-      const src = absolutize(
-        $img.attr("data-src") ?? $img.attr("src"),
-        base,
-      );
-      if (src)
-        push({
-          blockType: "image",
-          data: {
-            url: src,
-            alt: $img.attr("alt") ?? null,
-            caption:
-              normalizeWhitespace($el.find("figcaption").text()) || null,
-          },
-        });
-      return;
-    }
-    if (tag === "div" || tag === "section") {
-      // Recurse into wrapper divs so nested content is not lost.
-      $el.children().each((_, child) => handle(child as Element));
-    }
-  };
-
-  content.children().each((_, el) => handle(el as Element));
-  return roots;
 }
 
 function readingStats(text: string): { words: number; minutes: number } {
