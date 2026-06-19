@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   jsonb,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -30,6 +31,12 @@ export const seoTable = pgTable("seo", {
   twitterTitle: text("twitter_title"),
   twitterDescription: text("twitter_description"),
   twitterImage: text("twitter_image"),
+  /**
+   * Set when the SEO row was cloned/scaffolded and needs an editor's review
+   * before publish — e.g. a duplicated article carries the original's SEO with
+   * this flag raised so it isn't shipped verbatim.
+   */
+  needsReview: boolean("needs_review").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

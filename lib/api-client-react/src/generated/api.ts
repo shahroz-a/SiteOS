@@ -25,7 +25,19 @@ import type {
   Author,
   BeginBrowserLoginParams,
   Category,
+  CmsAuthorInput,
+  CmsBadRequestResponse,
+  CmsCategoryInput,
+  CmsDeleteResult,
+  CmsDuplicateInput,
+  CmsForbiddenResponse,
   CmsMe,
+  CmsNotFoundResponse,
+  CmsPostDetail,
+  CmsPostInput,
+  CmsScaffoldInput,
+  CmsTagInput,
+  CmsUnauthorizedResponse,
   CmsUser,
   Error,
   ErrorEnvelope,
@@ -1541,4 +1553,1076 @@ export function useListCmsAuditLogs<TData = Awaited<ReturnType<typeof listCmsAud
 
 
 
+
+export const getCreateCmsPostUrl = () => {
+
+
+
+
+  return `/api/cms/posts`
+}
+
+/**
+ * @summary Create an article (page) with all nested content (requires content.create)
+ */
+export const createCmsPost = async (cmsPostInput: CmsPostInput, options?: RequestInit): Promise<CmsPostDetail> => {
+
+  return customFetch<CmsPostDetail>(getCreateCmsPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsPostInput,)
+  }
+);}
+
+
+
+
+export const getCreateCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsPost>>, TError,{data: BodyType<CmsPostInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCmsPost>>, TError,{data: BodyType<CmsPostInput>}, TContext> => {
+
+const mutationKey = ['createCmsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCmsPost>>, {data: BodyType<CmsPostInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCmsPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCmsPostMutationResult = NonNullable<Awaited<ReturnType<typeof createCmsPost>>>
+    export type CreateCmsPostMutationBody = BodyType<CmsPostInput>
+    export type CreateCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Create an article (page) with all nested content (requires content.create)
+ */
+export const useCreateCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsPost>>, TError,{data: BodyType<CmsPostInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCmsPost>>,
+        TError,
+        {data: BodyType<CmsPostInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCmsPostMutationOptions(options));
+    }
+
+export const getScaffoldCmsPostUrl = () => {
+
+
+
+
+  return `/api/cms/posts/scaffold`
+}
+
+/**
+ * @summary Create a blank draft article scaffold (requires content.create)
+ */
+export const scaffoldCmsPost = async (cmsScaffoldInput: CmsScaffoldInput, options?: RequestInit): Promise<CmsPostDetail> => {
+
+  return customFetch<CmsPostDetail>(getScaffoldCmsPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsScaffoldInput,)
+  }
+);}
+
+
+
+
+export const getScaffoldCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scaffoldCmsPost>>, TError,{data: BodyType<CmsScaffoldInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof scaffoldCmsPost>>, TError,{data: BodyType<CmsScaffoldInput>}, TContext> => {
+
+const mutationKey = ['scaffoldCmsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scaffoldCmsPost>>, {data: BodyType<CmsScaffoldInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  scaffoldCmsPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScaffoldCmsPostMutationResult = NonNullable<Awaited<ReturnType<typeof scaffoldCmsPost>>>
+    export type ScaffoldCmsPostMutationBody = BodyType<CmsScaffoldInput>
+    export type ScaffoldCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Create a blank draft article scaffold (requires content.create)
+ */
+export const useScaffoldCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scaffoldCmsPost>>, TError,{data: BodyType<CmsScaffoldInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof scaffoldCmsPost>>,
+        TError,
+        {data: BodyType<CmsScaffoldInput>},
+        TContext
+      > => {
+      return useMutation(getScaffoldCmsPostMutationOptions(options));
+    }
+
+export const getGetCmsPostUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}`
+}
+
+/**
+ * @summary Get a single article by internal id, any status (requires content.view)
+ */
+export const getCmsPost = async (id: string, options?: RequestInit): Promise<CmsPostDetail> => {
+
+  return customFetch<CmsPostDetail>(getGetCmsPostUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsPostQueryKey = (id: string,) => {
+    return [
+    `/api/cms/posts/${id}`
+    ] as const;
+    }
+
+
+export const getGetCmsPostQueryOptions = <TData = Awaited<ReturnType<typeof getCmsPost>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsPostQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsPost>>> = ({ signal }) => getCmsPost(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsPost>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsPostQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsPost>>>
+export type GetCmsPostQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+
+/**
+ * @summary Get a single article by internal id, any status (requires content.view)
+ */
+
+export function useGetCmsPost<TData = Awaited<ReturnType<typeof getCmsPost>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsPostQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateCmsPostUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}`
+}
+
+/**
+ * @summary Replace an article and all its nested content (requires content.edit)
+ */
+export const updateCmsPost = async (id: string,
+    cmsPostInput: CmsPostInput, options?: RequestInit): Promise<CmsPostDetail> => {
+
+  return customFetch<CmsPostDetail>(getUpdateCmsPostUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsPostInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsPost>>, TError,{id: string;data: BodyType<CmsPostInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCmsPost>>, TError,{id: string;data: BodyType<CmsPostInput>}, TContext> => {
+
+const mutationKey = ['updateCmsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCmsPost>>, {id: string;data: BodyType<CmsPostInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCmsPost(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCmsPostMutationResult = NonNullable<Awaited<ReturnType<typeof updateCmsPost>>>
+    export type UpdateCmsPostMutationBody = BodyType<CmsPostInput>
+    export type UpdateCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Replace an article and all its nested content (requires content.edit)
+ */
+export const useUpdateCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsPost>>, TError,{id: string;data: BodyType<CmsPostInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCmsPost>>,
+        TError,
+        {id: string;data: BodyType<CmsPostInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCmsPostMutationOptions(options));
+    }
+
+export const getDeleteCmsPostUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}`
+}
+
+/**
+ * @summary Delete an article and all its nested content (requires content.delete)
+ */
+export const deleteCmsPost = async (id: string, options?: RequestInit): Promise<CmsDeleteResult> => {
+
+  return customFetch<CmsDeleteResult>(getDeleteCmsPostUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCmsPostMutationOptions = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCmsPost>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCmsPost>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteCmsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCmsPost>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCmsPost(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCmsPostMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCmsPost>>>
+
+    export type DeleteCmsPostMutationError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Delete an article and all its nested content (requires content.delete)
+ */
+export const useDeleteCmsPost = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCmsPost>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCmsPost>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCmsPostMutationOptions(options));
+    }
+
+export const getDuplicateCmsPostUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/duplicate`
+}
+
+/**
+ * @summary Duplicate an article as a new draft with SEO flagged for review (requires content.create)
+ */
+export const duplicateCmsPost = async (id: string,
+    cmsDuplicateInput?: CmsDuplicateInput, options?: RequestInit): Promise<CmsPostDetail> => {
+
+  return customFetch<CmsPostDetail>(getDuplicateCmsPostUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsDuplicateInput,)
+  }
+);}
+
+
+
+
+export const getDuplicateCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof duplicateCmsPost>>, TError,{id: string;data?: BodyType<CmsDuplicateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof duplicateCmsPost>>, TError,{id: string;data?: BodyType<CmsDuplicateInput>}, TContext> => {
+
+const mutationKey = ['duplicateCmsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof duplicateCmsPost>>, {id: string;data?: BodyType<CmsDuplicateInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  duplicateCmsPost(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DuplicateCmsPostMutationResult = NonNullable<Awaited<ReturnType<typeof duplicateCmsPost>>>
+    export type DuplicateCmsPostMutationBody = BodyType<CmsDuplicateInput> | undefined
+    export type DuplicateCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Duplicate an article as a new draft with SEO flagged for review (requires content.create)
+ */
+export const useDuplicateCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof duplicateCmsPost>>, TError,{id: string;data?: BodyType<CmsDuplicateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof duplicateCmsPost>>,
+        TError,
+        {id: string;data?: BodyType<CmsDuplicateInput>},
+        TContext
+      > => {
+      return useMutation(getDuplicateCmsPostMutationOptions(options));
+    }
+
+export const getCreateCmsAuthorUrl = () => {
+
+
+
+
+  return `/api/cms/authors`
+}
+
+/**
+ * @summary Create an author (requires taxonomy.manage)
+ */
+export const createCmsAuthor = async (cmsAuthorInput: CmsAuthorInput, options?: RequestInit): Promise<Author> => {
+
+  return customFetch<Author>(getCreateCmsAuthorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsAuthorInput,)
+  }
+);}
+
+
+
+
+export const getCreateCmsAuthorMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsAuthor>>, TError,{data: BodyType<CmsAuthorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCmsAuthor>>, TError,{data: BodyType<CmsAuthorInput>}, TContext> => {
+
+const mutationKey = ['createCmsAuthor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCmsAuthor>>, {data: BodyType<CmsAuthorInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCmsAuthor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCmsAuthorMutationResult = NonNullable<Awaited<ReturnType<typeof createCmsAuthor>>>
+    export type CreateCmsAuthorMutationBody = BodyType<CmsAuthorInput>
+    export type CreateCmsAuthorMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Create an author (requires taxonomy.manage)
+ */
+export const useCreateCmsAuthor = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsAuthor>>, TError,{data: BodyType<CmsAuthorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCmsAuthor>>,
+        TError,
+        {data: BodyType<CmsAuthorInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCmsAuthorMutationOptions(options));
+    }
+
+export const getUpdateCmsAuthorUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/authors/${id}`
+}
+
+/**
+ * @summary Update an author (requires taxonomy.manage)
+ */
+export const updateCmsAuthor = async (id: string,
+    cmsAuthorInput: CmsAuthorInput, options?: RequestInit): Promise<Author> => {
+
+  return customFetch<Author>(getUpdateCmsAuthorUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsAuthorInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCmsAuthorMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsAuthor>>, TError,{id: string;data: BodyType<CmsAuthorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCmsAuthor>>, TError,{id: string;data: BodyType<CmsAuthorInput>}, TContext> => {
+
+const mutationKey = ['updateCmsAuthor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCmsAuthor>>, {id: string;data: BodyType<CmsAuthorInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCmsAuthor(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCmsAuthorMutationResult = NonNullable<Awaited<ReturnType<typeof updateCmsAuthor>>>
+    export type UpdateCmsAuthorMutationBody = BodyType<CmsAuthorInput>
+    export type UpdateCmsAuthorMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Update an author (requires taxonomy.manage)
+ */
+export const useUpdateCmsAuthor = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsAuthor>>, TError,{id: string;data: BodyType<CmsAuthorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCmsAuthor>>,
+        TError,
+        {id: string;data: BodyType<CmsAuthorInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCmsAuthorMutationOptions(options));
+    }
+
+export const getDeleteCmsAuthorUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/authors/${id}`
+}
+
+/**
+ * @summary Delete an author (requires taxonomy.manage)
+ */
+export const deleteCmsAuthor = async (id: string, options?: RequestInit): Promise<CmsDeleteResult> => {
+
+  return customFetch<CmsDeleteResult>(getDeleteCmsAuthorUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCmsAuthorMutationOptions = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCmsAuthor>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCmsAuthor>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteCmsAuthor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCmsAuthor>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCmsAuthor(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCmsAuthorMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCmsAuthor>>>
+
+    export type DeleteCmsAuthorMutationError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Delete an author (requires taxonomy.manage)
+ */
+export const useDeleteCmsAuthor = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCmsAuthor>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCmsAuthor>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCmsAuthorMutationOptions(options));
+    }
+
+export const getCreateCmsCategoryUrl = () => {
+
+
+
+
+  return `/api/cms/categories`
+}
+
+/**
+ * @summary Create a category (requires taxonomy.manage)
+ */
+export const createCmsCategory = async (cmsCategoryInput: CmsCategoryInput, options?: RequestInit): Promise<Category> => {
+
+  return customFetch<Category>(getCreateCmsCategoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsCategoryInput,)
+  }
+);}
+
+
+
+
+export const getCreateCmsCategoryMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsCategory>>, TError,{data: BodyType<CmsCategoryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCmsCategory>>, TError,{data: BodyType<CmsCategoryInput>}, TContext> => {
+
+const mutationKey = ['createCmsCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCmsCategory>>, {data: BodyType<CmsCategoryInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCmsCategory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCmsCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof createCmsCategory>>>
+    export type CreateCmsCategoryMutationBody = BodyType<CmsCategoryInput>
+    export type CreateCmsCategoryMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Create a category (requires taxonomy.manage)
+ */
+export const useCreateCmsCategory = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsCategory>>, TError,{data: BodyType<CmsCategoryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCmsCategory>>,
+        TError,
+        {data: BodyType<CmsCategoryInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCmsCategoryMutationOptions(options));
+    }
+
+export const getUpdateCmsCategoryUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/categories/${id}`
+}
+
+/**
+ * @summary Update a category (requires taxonomy.manage)
+ */
+export const updateCmsCategory = async (id: string,
+    cmsCategoryInput: CmsCategoryInput, options?: RequestInit): Promise<Category> => {
+
+  return customFetch<Category>(getUpdateCmsCategoryUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsCategoryInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCmsCategoryMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsCategory>>, TError,{id: string;data: BodyType<CmsCategoryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCmsCategory>>, TError,{id: string;data: BodyType<CmsCategoryInput>}, TContext> => {
+
+const mutationKey = ['updateCmsCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCmsCategory>>, {id: string;data: BodyType<CmsCategoryInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCmsCategory(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCmsCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateCmsCategory>>>
+    export type UpdateCmsCategoryMutationBody = BodyType<CmsCategoryInput>
+    export type UpdateCmsCategoryMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Update a category (requires taxonomy.manage)
+ */
+export const useUpdateCmsCategory = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsCategory>>, TError,{id: string;data: BodyType<CmsCategoryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCmsCategory>>,
+        TError,
+        {id: string;data: BodyType<CmsCategoryInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCmsCategoryMutationOptions(options));
+    }
+
+export const getDeleteCmsCategoryUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/categories/${id}`
+}
+
+/**
+ * @summary Delete a category (requires taxonomy.manage)
+ */
+export const deleteCmsCategory = async (id: string, options?: RequestInit): Promise<CmsDeleteResult> => {
+
+  return customFetch<CmsDeleteResult>(getDeleteCmsCategoryUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCmsCategoryMutationOptions = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCmsCategory>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCmsCategory>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteCmsCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCmsCategory>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCmsCategory(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCmsCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCmsCategory>>>
+
+    export type DeleteCmsCategoryMutationError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Delete a category (requires taxonomy.manage)
+ */
+export const useDeleteCmsCategory = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCmsCategory>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCmsCategory>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCmsCategoryMutationOptions(options));
+    }
+
+export const getCreateCmsTagUrl = () => {
+
+
+
+
+  return `/api/cms/tags`
+}
+
+/**
+ * @summary Create a tag (requires taxonomy.manage)
+ */
+export const createCmsTag = async (cmsTagInput: CmsTagInput, options?: RequestInit): Promise<Tag> => {
+
+  return customFetch<Tag>(getCreateCmsTagUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsTagInput,)
+  }
+);}
+
+
+
+
+export const getCreateCmsTagMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsTag>>, TError,{data: BodyType<CmsTagInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCmsTag>>, TError,{data: BodyType<CmsTagInput>}, TContext> => {
+
+const mutationKey = ['createCmsTag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCmsTag>>, {data: BodyType<CmsTagInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCmsTag(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCmsTagMutationResult = NonNullable<Awaited<ReturnType<typeof createCmsTag>>>
+    export type CreateCmsTagMutationBody = BodyType<CmsTagInput>
+    export type CreateCmsTagMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Create a tag (requires taxonomy.manage)
+ */
+export const useCreateCmsTag = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsTag>>, TError,{data: BodyType<CmsTagInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCmsTag>>,
+        TError,
+        {data: BodyType<CmsTagInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCmsTagMutationOptions(options));
+    }
+
+export const getUpdateCmsTagUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/tags/${id}`
+}
+
+/**
+ * @summary Update a tag (requires taxonomy.manage)
+ */
+export const updateCmsTag = async (id: string,
+    cmsTagInput: CmsTagInput, options?: RequestInit): Promise<Tag> => {
+
+  return customFetch<Tag>(getUpdateCmsTagUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsTagInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCmsTagMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsTag>>, TError,{id: string;data: BodyType<CmsTagInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCmsTag>>, TError,{id: string;data: BodyType<CmsTagInput>}, TContext> => {
+
+const mutationKey = ['updateCmsTag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCmsTag>>, {id: string;data: BodyType<CmsTagInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCmsTag(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCmsTagMutationResult = NonNullable<Awaited<ReturnType<typeof updateCmsTag>>>
+    export type UpdateCmsTagMutationBody = BodyType<CmsTagInput>
+    export type UpdateCmsTagMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Update a tag (requires taxonomy.manage)
+ */
+export const useUpdateCmsTag = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsTag>>, TError,{id: string;data: BodyType<CmsTagInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCmsTag>>,
+        TError,
+        {id: string;data: BodyType<CmsTagInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCmsTagMutationOptions(options));
+    }
+
+export const getDeleteCmsTagUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/tags/${id}`
+}
+
+/**
+ * @summary Delete a tag (requires taxonomy.manage)
+ */
+export const deleteCmsTag = async (id: string, options?: RequestInit): Promise<CmsDeleteResult> => {
+
+  return customFetch<CmsDeleteResult>(getDeleteCmsTagUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCmsTagMutationOptions = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCmsTag>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCmsTag>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteCmsTag'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCmsTag>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCmsTag(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCmsTagMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCmsTag>>>
+
+    export type DeleteCmsTagMutationError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Delete a tag (requires taxonomy.manage)
+ */
+export const useDeleteCmsTag = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCmsTag>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCmsTag>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCmsTagMutationOptions(options));
+    }
 

@@ -9,5 +9,6 @@
       "drizzle-orm": ["../lib/db/node_modules/drizzle-orm"]
     }
   },
+  "references": [{ "path": "../lib/content" }],
   "include": ["src"]
 }

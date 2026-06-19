@@ -461,6 +461,408 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+
+  /cms/posts:
+    post:
+      tags: [cms]
+      operationId: createCmsPost
+      summary: Create an article (page) with all nested content (requires content.create)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsPostInput"
+      responses:
+        "201":
+          description: The created article.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostDetail"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/posts/scaffold:
+    post:
+      tags: [cms]
+      operationId: scaffoldCmsPost
+      summary: Create a blank draft article scaffold (requires content.create)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsScaffoldInput"
+      responses:
+        "201":
+          description: The created blank draft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostDetail"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/posts/{id}:
+    get:
+      tags: [cms]
+      operationId: getCmsPost
+      summary: Get a single article by internal id, any status (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The article.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostDetail"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+    put:
+      tags: [cms]
+      operationId: updateCmsPost
+      summary: Replace an article and all its nested content (requires content.edit)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsPostInput"
+      responses:
+        "200":
+          description: The updated article.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostDetail"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+    delete:
+      tags: [cms]
+      operationId: deleteCmsPost
+      summary: Delete an article and all its nested content (requires content.delete)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsDeleteResult"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/posts/{id}/duplicate:
+    post:
+      tags: [cms]
+      operationId: duplicateCmsPost
+      summary: Duplicate an article as a new draft with SEO flagged for review (requires content.create)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsDuplicateInput"
+      responses:
+        "201":
+          description: The duplicated draft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostDetail"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/authors:
+    post:
+      tags: [cms]
+      operationId: createCmsAuthor
+      summary: Create an author (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsAuthorInput"
+      responses:
+        "201":
+          description: The created author.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Author"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/authors/{id}:
+    put:
+      tags: [cms]
+      operationId: updateCmsAuthor
+      summary: Update an author (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsAuthorInput"
+      responses:
+        "200":
+          description: The updated author.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Author"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+    delete:
+      tags: [cms]
+      operationId: deleteCmsAuthor
+      summary: Delete an author (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsDeleteResult"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/categories:
+    post:
+      tags: [cms]
+      operationId: createCmsCategory
+      summary: Create a category (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsCategoryInput"
+      responses:
+        "201":
+          description: The created category.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/categories/{id}:
+    put:
+      tags: [cms]
+      operationId: updateCmsCategory
+      summary: Update a category (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsCategoryInput"
+      responses:
+        "200":
+          description: The updated category.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+    delete:
+      tags: [cms]
+      operationId: deleteCmsCategory
+      summary: Delete a category (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsDeleteResult"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/tags:
+    post:
+      tags: [cms]
+      operationId: createCmsTag
+      summary: Create a tag (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsTagInput"
+      responses:
+        "201":
+          description: The created tag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/tags/{id}:
+    put:
+      tags: [cms]
+      operationId: updateCmsTag
+      summary: Update a tag (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsTagInput"
+      responses:
+        "200":
+          description: The updated tag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+    delete:
+      tags: [cms]
+      operationId: deleteCmsTag
+      summary: Delete a tag (requires taxonomy.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsDeleteResult"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+
 components:
   parameters:
     SlugParam:
@@ -503,8 +905,585 @@ components:
       description: Browser session cookie.
       schema:
         type: string
+    CmsIdParam:
+      name: id
+      in: path
+      required: true
+      description: The internal resource id (UUID). CMS routes address rows by id, not slug.
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    CmsBadRequest:
+      description: Invalid request body.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    CmsUnauthorized:
+      description: Not authenticated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    CmsForbidden:
+      description: Insufficient permissions.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    CmsNotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
 
   schemas:
+    CmsSeoMeta:
+      type: object
+      properties:
+        metaTitle:
+          type: ["string", "null"]
+        metaDescription:
+          type: ["string", "null"]
+        canonicalUrl:
+          type: ["string", "null"]
+        robots:
+          type: ["string", "null"]
+        focusKeyword:
+          type: ["string", "null"]
+        keywords:
+          type: ["array", "null"]
+          items:
+            type: string
+        ogTitle:
+          type: ["string", "null"]
+        ogDescription:
+          type: ["string", "null"]
+        ogImage:
+          type: ["string", "null"]
+        ogType:
+          type: ["string", "null"]
+        twitterCard:
+          type: ["string", "null"]
+        twitterTitle:
+          type: ["string", "null"]
+        twitterDescription:
+          type: ["string", "null"]
+        twitterImage:
+          type: ["string", "null"]
+        needsReview:
+          type: boolean
+      required:
+        - needsReview
+
+    CmsLink:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        href:
+          type: string
+        anchorText:
+          type: ["string", "null"]
+        rel:
+          type: ["string", "null"]
+        domain:
+          type: ["string", "null"]
+        position:
+          type: integer
+      required:
+        - href
+        - position
+
+    CmsGallery:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: ["string", "null"]
+        layout:
+          type: ["string", "null"]
+        position:
+          type: integer
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageItem"
+      required:
+        - position
+        - images
+
+    CmsPostDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        status:
+          $ref: "#/components/schemas/PageStatus"
+        pageType:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: ["string", "null"]
+        excerpt:
+          type: ["string", "null"]
+        canonicalUrl:
+          type: string
+        pathname:
+          type: string
+        parentPath:
+          type: ["string", "null"]
+        featuredImageUrl:
+          type: ["string", "null"]
+        featuredImageAlt:
+          type: ["string", "null"]
+        readingTimeMinutes:
+          type: ["integer", "null"]
+        wordCount:
+          type: ["integer", "null"]
+        language:
+          type: string
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        modifiedAt:
+          type: ["string", "null"]
+          format: date-time
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+        contentHtml:
+          type: ["string", "null"]
+        richText:
+          type: ["object", "null"]
+          additionalProperties: true
+        componentTree:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
+            - type: "null"
+        author:
+          oneOf:
+            - $ref: "#/components/schemas/AuthorSummary"
+            - type: "null"
+        primaryCategory:
+          oneOf:
+            - $ref: "#/components/schemas/CategorySummary"
+            - type: "null"
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySummary"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagSummary"
+        breadcrumbs:
+          type: array
+          items:
+            $ref: "#/components/schemas/Breadcrumb"
+        faq:
+          type: array
+          items:
+            $ref: "#/components/schemas/FaqItem"
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageItem"
+        galleries:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsGallery"
+        seo:
+          oneOf:
+            - $ref: "#/components/schemas/CmsSeoMeta"
+            - type: "null"
+        jsonld:
+          type: array
+          items:
+            $ref: "#/components/schemas/JsonLdItem"
+        internalLinks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsLink"
+        externalLinks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsLink"
+        latestVersion:
+          type: ["integer", "null"]
+      required:
+        - id
+        - slug
+        - status
+        - pageType
+        - title
+        - canonicalUrl
+        - pathname
+        - language
+        - categories
+        - tags
+        - breadcrumbs
+        - faq
+        - images
+        - galleries
+        - jsonld
+        - internalLinks
+        - externalLinks
+
+    PageStatus:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+
+    CmsImageInput:
+      type: object
+      properties:
+        url:
+          type: string
+        originalUrl:
+          type: ["string", "null"]
+        alt:
+          type: ["string", "null"]
+        title:
+          type: ["string", "null"]
+        caption:
+          type: ["string", "null"]
+        credit:
+          type: ["string", "null"]
+        width:
+          type: ["integer", "null"]
+        height:
+          type: ["integer", "null"]
+        mimeType:
+          type: ["string", "null"]
+        role:
+          type: ["string", "null"]
+        position:
+          type: integer
+          default: 0
+      required:
+        - url
+
+    CmsGalleryInput:
+      type: object
+      properties:
+        title:
+          type: ["string", "null"]
+        layout:
+          type: ["string", "null"]
+        position:
+          type: integer
+          default: 0
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsImageInput"
+      required:
+        - images
+
+    CmsFaqInput:
+      type: object
+      properties:
+        question:
+          type: string
+        answer:
+          type: string
+        position:
+          type: integer
+          default: 0
+      required:
+        - question
+        - answer
+
+    CmsBreadcrumbInput:
+      type: object
+      properties:
+        label:
+          type: string
+        url:
+          type: ["string", "null"]
+        position:
+          type: integer
+          default: 0
+      required:
+        - label
+
+    CmsJsonLdInput:
+      type: object
+      properties:
+        type:
+          type: ["string", "null"]
+        data:
+          type: object
+          additionalProperties: true
+      required:
+        - data
+
+    CmsLinkInput:
+      type: object
+      properties:
+        href:
+          type: string
+        anchorText:
+          type: ["string", "null"]
+        rel:
+          type: ["string", "null"]
+        domain:
+          type: ["string", "null"]
+        position:
+          type: integer
+          default: 0
+      required:
+        - href
+
+    CmsSeoInput:
+      type: object
+      properties:
+        metaTitle:
+          type: ["string", "null"]
+        metaDescription:
+          type: ["string", "null"]
+        canonicalUrl:
+          type: ["string", "null"]
+        robots:
+          type: ["string", "null"]
+        focusKeyword:
+          type: ["string", "null"]
+        keywords:
+          type: ["array", "null"]
+          items:
+            type: string
+        ogTitle:
+          type: ["string", "null"]
+        ogDescription:
+          type: ["string", "null"]
+        ogImage:
+          type: ["string", "null"]
+        ogType:
+          type: ["string", "null"]
+        twitterCard:
+          type: ["string", "null"]
+        twitterTitle:
+          type: ["string", "null"]
+        twitterDescription:
+          type: ["string", "null"]
+        twitterImage:
+          type: ["string", "null"]
+        needsReview:
+          type: boolean
+
+    CmsPostInput:
+      type: object
+      description: >-
+        Full create/replace payload for an article. On update (PUT) all nested
+        collections are rewritten wholesale to match the payload.
+      properties:
+        title:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+          description: Optional; derived from the title when omitted on create.
+        subtitle:
+          type: ["string", "null"]
+        excerpt:
+          type: ["string", "null"]
+        status:
+          $ref: "#/components/schemas/PageStatus"
+        language:
+          type: string
+          default: en
+        canonicalUrl:
+          type: ["string", "null"]
+        pathname:
+          type: ["string", "null"]
+        parentPath:
+          type: ["string", "null"]
+        authorId:
+          type: ["string", "null"]
+          format: uuid
+        primaryCategoryId:
+          type: ["string", "null"]
+          format: uuid
+        categoryIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        tagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        featuredImageUrl:
+          type: ["string", "null"]
+        featuredImageAlt:
+          type: ["string", "null"]
+        contentHtml:
+          type: ["string", "null"]
+        richText:
+          type: ["object", "null"]
+          additionalProperties: true
+        componentTree:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
+            - type: "null"
+        readingTimeMinutes:
+          type: ["integer", "null"]
+        wordCount:
+          type: ["integer", "null"]
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        seo:
+          oneOf:
+            - $ref: "#/components/schemas/CmsSeoInput"
+            - type: "null"
+        faq:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsFaqInput"
+        breadcrumbs:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsBreadcrumbInput"
+        jsonld:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsJsonLdInput"
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsImageInput"
+        galleries:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsGalleryInput"
+        internalLinks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsLinkInput"
+        externalLinks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsLinkInput"
+        changeSummary:
+          type: string
+          description: Optional human note stored on the version snapshot.
+      required:
+        - title
+
+    CmsScaffoldInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+      required:
+        - title
+
+    CmsDuplicateInput:
+      type: object
+      properties:
+        title:
+          type: ["string", "null"]
+          description: Title for the copy; defaults to "<original title> (Copy)".
+        slug:
+          type: ["string", "null"]
+          description: Slug for the copy; auto-generated and uniquified when omitted.
+
+    CmsAuthorInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+        bio:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        role:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        originalUrl:
+          type: ["string", "null"]
+        social:
+          type: ["object", "null"]
+          additionalProperties:
+            type: string
+      required:
+        - name
+
+    CmsCategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        parentId:
+          type: ["string", "null"]
+          format: uuid
+        path:
+          type: ["string", "null"]
+        originalUrl:
+          type: ["string", "null"]
+      required:
+        - name
+
+    CmsTagInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        originalUrl:
+          type: ["string", "null"]
+      required:
+        - name
+
+    CmsDeleteResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+      required:
+        - success
+        - id
+
     HealthStatus:
       type: object
       properties:

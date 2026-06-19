@@ -5,6 +5,416 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface CmsSeoMeta {
+  /** @nullable */
+  metaTitle?: string | null;
+  /** @nullable */
+  metaDescription?: string | null;
+  /** @nullable */
+  canonicalUrl?: string | null;
+  /** @nullable */
+  robots?: string | null;
+  /** @nullable */
+  focusKeyword?: string | null;
+  /** @nullable */
+  keywords?: string[] | null;
+  /** @nullable */
+  ogTitle?: string | null;
+  /** @nullable */
+  ogDescription?: string | null;
+  /** @nullable */
+  ogImage?: string | null;
+  /** @nullable */
+  ogType?: string | null;
+  /** @nullable */
+  twitterCard?: string | null;
+  /** @nullable */
+  twitterTitle?: string | null;
+  /** @nullable */
+  twitterDescription?: string | null;
+  /** @nullable */
+  twitterImage?: string | null;
+  needsReview: boolean;
+}
+
+export interface CmsLink {
+  id?: string;
+  href: string;
+  /** @nullable */
+  anchorText?: string | null;
+  /** @nullable */
+  rel?: string | null;
+  /** @nullable */
+  domain?: string | null;
+  position: number;
+}
+
+export interface ImageItem {
+  id: string;
+  url: string;
+  originalUrl: string;
+  /** @nullable */
+  alt?: string | null;
+  /** @nullable */
+  caption?: string | null;
+  /** @nullable */
+  credit?: string | null;
+  /** @nullable */
+  width?: number | null;
+  /** @nullable */
+  height?: number | null;
+  /** @nullable */
+  role?: string | null;
+  position: number;
+}
+
+export interface CmsGallery {
+  id?: string;
+  /** @nullable */
+  title?: string | null;
+  /** @nullable */
+  layout?: string | null;
+  position: number;
+  images: ImageItem[];
+}
+
+/**
+ * @nullable
+ */
+export type CmsPostDetailRichText = { [key: string]: unknown } | null;
+
+export type CmsPostDetailComponentTree = { [key: string]: unknown } | unknown[] | null;
+
+export type PageStatus = typeof PageStatus[keyof typeof PageStatus];
+
+
+export const PageStatus = {
+  draft: 'draft',
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export interface AuthorSummary {
+  id: string;
+  name: string;
+  slug: string;
+  /** @nullable */
+  avatarUrl?: string | null;
+  /** @nullable */
+  role?: string | null;
+}
+
+export interface CategorySummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface TagSummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface Breadcrumb {
+  label: string;
+  /** @nullable */
+  url?: string | null;
+  position: number;
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  position: number;
+}
+
+export type JsonLdItemData = { [key: string]: unknown };
+
+export interface JsonLdItem {
+  /** @nullable */
+  type?: string | null;
+  data: JsonLdItemData;
+}
+
+export interface CmsPostDetail {
+  id: string;
+  slug: string;
+  status: PageStatus;
+  pageType: string;
+  title: string;
+  /** @nullable */
+  subtitle?: string | null;
+  /** @nullable */
+  excerpt?: string | null;
+  canonicalUrl: string;
+  pathname: string;
+  /** @nullable */
+  parentPath?: string | null;
+  /** @nullable */
+  featuredImageUrl?: string | null;
+  /** @nullable */
+  featuredImageAlt?: string | null;
+  /** @nullable */
+  readingTimeMinutes?: number | null;
+  /** @nullable */
+  wordCount?: number | null;
+  language: string;
+  /** @nullable */
+  publishedAt?: string | null;
+  /** @nullable */
+  modifiedAt?: string | null;
+  /** @nullable */
+  updatedAt?: string | null;
+  /** @nullable */
+  contentHtml?: string | null;
+  /** @nullable */
+  richText?: CmsPostDetailRichText;
+  componentTree?: CmsPostDetailComponentTree;
+  author?: AuthorSummary | null;
+  primaryCategory?: CategorySummary | null;
+  categories: CategorySummary[];
+  tags: TagSummary[];
+  breadcrumbs: Breadcrumb[];
+  faq: FaqItem[];
+  images: ImageItem[];
+  galleries: CmsGallery[];
+  seo?: CmsSeoMeta | null;
+  jsonld: JsonLdItem[];
+  internalLinks: CmsLink[];
+  externalLinks: CmsLink[];
+  /** @nullable */
+  latestVersion?: number | null;
+}
+
+export interface CmsImageInput {
+  url: string;
+  /** @nullable */
+  originalUrl?: string | null;
+  /** @nullable */
+  alt?: string | null;
+  /** @nullable */
+  title?: string | null;
+  /** @nullable */
+  caption?: string | null;
+  /** @nullable */
+  credit?: string | null;
+  /** @nullable */
+  width?: number | null;
+  /** @nullable */
+  height?: number | null;
+  /** @nullable */
+  mimeType?: string | null;
+  /** @nullable */
+  role?: string | null;
+  position?: number;
+}
+
+export interface CmsGalleryInput {
+  /** @nullable */
+  title?: string | null;
+  /** @nullable */
+  layout?: string | null;
+  position?: number;
+  images: CmsImageInput[];
+}
+
+export interface CmsFaqInput {
+  question: string;
+  answer: string;
+  position?: number;
+}
+
+export interface CmsBreadcrumbInput {
+  label: string;
+  /** @nullable */
+  url?: string | null;
+  position?: number;
+}
+
+export type CmsJsonLdInputData = { [key: string]: unknown };
+
+export interface CmsJsonLdInput {
+  /** @nullable */
+  type?: string | null;
+  data: CmsJsonLdInputData;
+}
+
+export interface CmsLinkInput {
+  href: string;
+  /** @nullable */
+  anchorText?: string | null;
+  /** @nullable */
+  rel?: string | null;
+  /** @nullable */
+  domain?: string | null;
+  position?: number;
+}
+
+export interface CmsSeoInput {
+  /** @nullable */
+  metaTitle?: string | null;
+  /** @nullable */
+  metaDescription?: string | null;
+  /** @nullable */
+  canonicalUrl?: string | null;
+  /** @nullable */
+  robots?: string | null;
+  /** @nullable */
+  focusKeyword?: string | null;
+  /** @nullable */
+  keywords?: string[] | null;
+  /** @nullable */
+  ogTitle?: string | null;
+  /** @nullable */
+  ogDescription?: string | null;
+  /** @nullable */
+  ogImage?: string | null;
+  /** @nullable */
+  ogType?: string | null;
+  /** @nullable */
+  twitterCard?: string | null;
+  /** @nullable */
+  twitterTitle?: string | null;
+  /** @nullable */
+  twitterDescription?: string | null;
+  /** @nullable */
+  twitterImage?: string | null;
+  needsReview?: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type CmsPostInputRichText = { [key: string]: unknown } | null;
+
+export type CmsPostInputComponentTree = { [key: string]: unknown } | unknown[] | null;
+
+/**
+ * Full create/replace payload for an article. On update (PUT) all nested collections are rewritten wholesale to match the payload.
+ */
+export interface CmsPostInput {
+  /** @minLength 1 */
+  title: string;
+  /** Optional; derived from the title when omitted on create. */
+  slug?: string;
+  /** @nullable */
+  subtitle?: string | null;
+  /** @nullable */
+  excerpt?: string | null;
+  status?: PageStatus;
+  language?: string;
+  /** @nullable */
+  canonicalUrl?: string | null;
+  /** @nullable */
+  pathname?: string | null;
+  /** @nullable */
+  parentPath?: string | null;
+  /** @nullable */
+  authorId?: string | null;
+  /** @nullable */
+  primaryCategoryId?: string | null;
+  categoryIds?: string[];
+  tagIds?: string[];
+  /** @nullable */
+  featuredImageUrl?: string | null;
+  /** @nullable */
+  featuredImageAlt?: string | null;
+  /** @nullable */
+  contentHtml?: string | null;
+  /** @nullable */
+  richText?: CmsPostInputRichText;
+  componentTree?: CmsPostInputComponentTree;
+  /** @nullable */
+  readingTimeMinutes?: number | null;
+  /** @nullable */
+  wordCount?: number | null;
+  /** @nullable */
+  publishedAt?: string | null;
+  seo?: CmsSeoInput | null;
+  faq?: CmsFaqInput[];
+  breadcrumbs?: CmsBreadcrumbInput[];
+  jsonld?: CmsJsonLdInput[];
+  images?: CmsImageInput[];
+  galleries?: CmsGalleryInput[];
+  internalLinks?: CmsLinkInput[];
+  externalLinks?: CmsLinkInput[];
+  /** Optional human note stored on the version snapshot. */
+  changeSummary?: string;
+}
+
+export interface CmsScaffoldInput {
+  /** @minLength 1 */
+  title: string;
+  slug?: string;
+}
+
+export interface CmsDuplicateInput {
+  /**
+     * Title for the copy; defaults to "<original title> (Copy)".
+     * @nullable
+     */
+  title?: string | null;
+  /**
+     * Slug for the copy; auto-generated and uniquified when omitted.
+     * @nullable
+     */
+  slug?: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type CmsAuthorInputSocial = {[key: string]: string} | null;
+
+export interface CmsAuthorInput {
+  /** @minLength 1 */
+  name: string;
+  slug?: string;
+  /** @nullable */
+  bio?: string | null;
+  /** @nullable */
+  avatarUrl?: string | null;
+  /** @nullable */
+  role?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  originalUrl?: string | null;
+  /** @nullable */
+  social?: CmsAuthorInputSocial;
+}
+
+export interface CmsCategoryInput {
+  /** @minLength 1 */
+  name: string;
+  slug?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  parentId?: string | null;
+  /** @nullable */
+  path?: string | null;
+  /** @nullable */
+  originalUrl?: string | null;
+}
+
+export interface CmsTagInput {
+  /** @minLength 1 */
+  name: string;
+  slug?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  originalUrl?: string | null;
+}
+
+export interface CmsDeleteResult {
+  success: boolean;
+  id: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -18,16 +428,6 @@ export interface Pagination {
   limit: number;
   total: number;
   totalPages: number;
-}
-
-export interface AuthorSummary {
-  id: string;
-  name: string;
-  slug: string;
-  /** @nullable */
-  avatarUrl?: string | null;
-  /** @nullable */
-  role?: string | null;
 }
 
 /**
@@ -53,12 +453,6 @@ export interface Author {
   social?: AuthorSocial;
 }
 
-export interface CategorySummary {
-  id: string;
-  name: string;
-  slug: string;
-}
-
 export interface Category {
   id: string;
   name: string;
@@ -71,50 +465,11 @@ export interface Category {
   path?: string | null;
 }
 
-export interface TagSummary {
-  id: string;
-  name: string;
-  slug: string;
-}
-
 export interface Tag {
   id: string;
   name: string;
   slug: string;
   postCount: number;
-}
-
-export interface Breadcrumb {
-  label: string;
-  /** @nullable */
-  url?: string | null;
-  position: number;
-}
-
-export interface FaqItem {
-  id: string;
-  question: string;
-  answer: string;
-  position: number;
-}
-
-export interface ImageItem {
-  id: string;
-  url: string;
-  originalUrl: string;
-  /** @nullable */
-  alt?: string | null;
-  /** @nullable */
-  caption?: string | null;
-  /** @nullable */
-  credit?: string | null;
-  /** @nullable */
-  width?: number | null;
-  /** @nullable */
-  height?: number | null;
-  /** @nullable */
-  role?: string | null;
-  position: number;
 }
 
 export interface SeoMeta {
@@ -142,14 +497,6 @@ export interface SeoMeta {
   twitterImage?: string | null;
   /** @nullable */
   keywords?: string[] | null;
-}
-
-export type JsonLdItemData = { [key: string]: unknown };
-
-export interface JsonLdItem {
-  /** @nullable */
-  type?: string | null;
-  data: JsonLdItemData;
 }
 
 export interface PostSummary {
@@ -355,6 +702,26 @@ export interface AuditLogListResponse {
   items: AuditLogEntry[];
   pagination: Pagination;
 }
+
+/**
+ * Invalid request body.
+ */
+export type CmsBadRequestResponse = ErrorEnvelope;
+
+/**
+ * Not authenticated.
+ */
+export type CmsUnauthorizedResponse = ErrorEnvelope;
+
+/**
+ * Insufficient permissions.
+ */
+export type CmsForbiddenResponse = ErrorEnvelope;
+
+/**
+ * Resource not found.
+ */
+export type CmsNotFoundResponse = ErrorEnvelope;
 
 /**
  * 1-based page number

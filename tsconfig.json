@@ -19,6 +19,9 @@
       "path": "./lib/cms-auth"
     },
     {
+      "path": "./lib/content"
+    },
+    {
       "path": "./lib/replit-auth-web"
     },
     {

@@ -497,3 +497,768 @@ export const ListCmsAuditLogsResponse = zod.object({
 })
 
 
+/**
+ * @summary Create an article (page) with all nested content (requires content.create)
+ */
+export const CreateCmsPostHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+export const createCmsPostBodyLanguageDefault = `en`;
+export const createCmsPostBodyFaqItemPositionDefault = 0;
+export const createCmsPostBodyBreadcrumbsItemPositionDefault = 0;
+export const createCmsPostBodyImagesItemPositionDefault = 0;
+export const createCmsPostBodyGalleriesItemPositionDefault = 0;
+export const createCmsPostBodyGalleriesItemImagesItemPositionDefault = 0;
+export const createCmsPostBodyInternalLinksItemPositionDefault = 0;
+export const createCmsPostBodyExternalLinksItemPositionDefault = 0;
+
+export const CreateCmsPostBody = zod.object({
+  "title": zod.string().min(1),
+  "slug": zod.string().optional().describe('Optional; derived from the title when omitted on create.'),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']).optional(),
+  "language": zod.string().default(createCmsPostBodyLanguageDefault),
+  "canonicalUrl": zod.string().nullish(),
+  "pathname": zod.string().nullish(),
+  "parentPath": zod.string().nullish(),
+  "authorId": zod.string().uuid().nullish(),
+  "primaryCategoryId": zod.string().uuid().nullish(),
+  "categoryIds": zod.array(zod.string().uuid()).optional(),
+  "tagIds": zod.array(zod.string().uuid()).optional(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "focusKeyword": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "ogType": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "needsReview": zod.boolean().optional()
+}),zod.null()]).optional(),
+  "faq": zod.array(zod.object({
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number().default(createCmsPostBodyFaqItemPositionDefault)
+})).optional(),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number().default(createCmsPostBodyBreadcrumbsItemPositionDefault)
+})).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+})).optional(),
+  "images": zod.array(zod.object({
+  "url": zod.string(),
+  "originalUrl": zod.string().nullish(),
+  "alt": zod.string().nullish(),
+  "title": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "mimeType": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number().default(createCmsPostBodyImagesItemPositionDefault)
+})).optional(),
+  "galleries": zod.array(zod.object({
+  "title": zod.string().nullish(),
+  "layout": zod.string().nullish(),
+  "position": zod.number().default(createCmsPostBodyGalleriesItemPositionDefault),
+  "images": zod.array(zod.object({
+  "url": zod.string(),
+  "originalUrl": zod.string().nullish(),
+  "alt": zod.string().nullish(),
+  "title": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "mimeType": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number().default(createCmsPostBodyGalleriesItemImagesItemPositionDefault)
+}))
+})).optional(),
+  "internalLinks": zod.array(zod.object({
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number().default(createCmsPostBodyInternalLinksItemPositionDefault)
+})).optional(),
+  "externalLinks": zod.array(zod.object({
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number().default(createCmsPostBodyExternalLinksItemPositionDefault)
+})).optional(),
+  "changeSummary": zod.string().optional().describe('Optional human note stored on the version snapshot.')
+}).describe('Full create\/replace payload for an article. On update (PUT) all nested collections are rewritten wholesale to match the payload.')
+
+
+/**
+ * @summary Create a blank draft article scaffold (requires content.create)
+ */
+export const ScaffoldCmsPostHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const ScaffoldCmsPostBody = zod.object({
+  "title": zod.string().min(1),
+  "slug": zod.string().optional()
+})
+
+
+/**
+ * @summary Get a single article by internal id, any status (requires content.view)
+ */
+export const GetCmsPostParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const GetCmsPostHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsPostResponse = zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "pageType": zod.string(),
+  "title": zod.string(),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "canonicalUrl": zod.string(),
+  "pathname": zod.string(),
+  "parentPath": zod.string().nullish(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "language": zod.string(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional(),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "tags": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "faq": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number()
+})),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "galleries": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "title": zod.string().nullish(),
+  "layout": zod.string().nullish(),
+  "position": zod.number(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+}))
+})),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "focusKeyword": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "ogType": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "needsReview": zod.boolean()
+}),zod.null()]).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+})),
+  "internalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "externalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "latestVersion": zod.number().nullish()
+})
+
+
+/**
+ * @summary Replace an article and all its nested content (requires content.edit)
+ */
+export const UpdateCmsPostParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const UpdateCmsPostHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+export const updateCmsPostBodyLanguageDefault = `en`;
+export const updateCmsPostBodyFaqItemPositionDefault = 0;
+export const updateCmsPostBodyBreadcrumbsItemPositionDefault = 0;
+export const updateCmsPostBodyImagesItemPositionDefault = 0;
+export const updateCmsPostBodyGalleriesItemPositionDefault = 0;
+export const updateCmsPostBodyGalleriesItemImagesItemPositionDefault = 0;
+export const updateCmsPostBodyInternalLinksItemPositionDefault = 0;
+export const updateCmsPostBodyExternalLinksItemPositionDefault = 0;
+
+export const UpdateCmsPostBody = zod.object({
+  "title": zod.string().min(1),
+  "slug": zod.string().optional().describe('Optional; derived from the title when omitted on create.'),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "status": zod.enum(['draft', 'published', 'archived']).optional(),
+  "language": zod.string().default(updateCmsPostBodyLanguageDefault),
+  "canonicalUrl": zod.string().nullish(),
+  "pathname": zod.string().nullish(),
+  "parentPath": zod.string().nullish(),
+  "authorId": zod.string().uuid().nullish(),
+  "primaryCategoryId": zod.string().uuid().nullish(),
+  "categoryIds": zod.array(zod.string().uuid()).optional(),
+  "tagIds": zod.array(zod.string().uuid()).optional(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "focusKeyword": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "ogType": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "needsReview": zod.boolean().optional()
+}),zod.null()]).optional(),
+  "faq": zod.array(zod.object({
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number().default(updateCmsPostBodyFaqItemPositionDefault)
+})).optional(),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number().default(updateCmsPostBodyBreadcrumbsItemPositionDefault)
+})).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+})).optional(),
+  "images": zod.array(zod.object({
+  "url": zod.string(),
+  "originalUrl": zod.string().nullish(),
+  "alt": zod.string().nullish(),
+  "title": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "mimeType": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number().default(updateCmsPostBodyImagesItemPositionDefault)
+})).optional(),
+  "galleries": zod.array(zod.object({
+  "title": zod.string().nullish(),
+  "layout": zod.string().nullish(),
+  "position": zod.number().default(updateCmsPostBodyGalleriesItemPositionDefault),
+  "images": zod.array(zod.object({
+  "url": zod.string(),
+  "originalUrl": zod.string().nullish(),
+  "alt": zod.string().nullish(),
+  "title": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "mimeType": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number().default(updateCmsPostBodyGalleriesItemImagesItemPositionDefault)
+}))
+})).optional(),
+  "internalLinks": zod.array(zod.object({
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number().default(updateCmsPostBodyInternalLinksItemPositionDefault)
+})).optional(),
+  "externalLinks": zod.array(zod.object({
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number().default(updateCmsPostBodyExternalLinksItemPositionDefault)
+})).optional(),
+  "changeSummary": zod.string().optional().describe('Optional human note stored on the version snapshot.')
+}).describe('Full create\/replace payload for an article. On update (PUT) all nested collections are rewritten wholesale to match the payload.')
+
+export const UpdateCmsPostResponse = zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "pageType": zod.string(),
+  "title": zod.string(),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "canonicalUrl": zod.string(),
+  "pathname": zod.string(),
+  "parentPath": zod.string().nullish(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "language": zod.string(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional(),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "tags": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "faq": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number()
+})),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "galleries": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "title": zod.string().nullish(),
+  "layout": zod.string().nullish(),
+  "position": zod.number(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+}))
+})),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "focusKeyword": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "ogType": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "needsReview": zod.boolean()
+}),zod.null()]).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+})),
+  "internalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "externalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "latestVersion": zod.number().nullish()
+})
+
+
+/**
+ * @summary Delete an article and all its nested content (requires content.delete)
+ */
+export const DeleteCmsPostParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const DeleteCmsPostHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const DeleteCmsPostResponse = zod.object({
+  "success": zod.boolean(),
+  "id": zod.string().uuid()
+})
+
+
+/**
+ * @summary Duplicate an article as a new draft with SEO flagged for review (requires content.create)
+ */
+export const DuplicateCmsPostParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const DuplicateCmsPostHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const DuplicateCmsPostBody = zod.object({
+  "title": zod.string().nullish().describe('Title for the copy; defaults to \"<original title> (Copy)\".'),
+  "slug": zod.string().nullish().describe('Slug for the copy; auto-generated and uniquified when omitted.')
+})
+
+
+/**
+ * @summary Create an author (requires taxonomy.manage)
+ */
+export const CreateCmsAuthorHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const CreateCmsAuthorBody = zod.object({
+  "name": zod.string().min(1),
+  "slug": zod.string().optional(),
+  "bio": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "originalUrl": zod.string().nullish(),
+  "social": zod.record(zod.string(), zod.string()).nullish()
+})
+
+
+/**
+ * @summary Update an author (requires taxonomy.manage)
+ */
+export const UpdateCmsAuthorParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const UpdateCmsAuthorHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const UpdateCmsAuthorBody = zod.object({
+  "name": zod.string().min(1),
+  "slug": zod.string().optional(),
+  "bio": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "originalUrl": zod.string().nullish(),
+  "social": zod.record(zod.string(), zod.string()).nullish()
+})
+
+export const UpdateCmsAuthorResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "originalUrl": zod.string().nullish(),
+  "social": zod.record(zod.string(), zod.string()).nullish()
+})
+
+
+/**
+ * @summary Delete an author (requires taxonomy.manage)
+ */
+export const DeleteCmsAuthorParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const DeleteCmsAuthorHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const DeleteCmsAuthorResponse = zod.object({
+  "success": zod.boolean(),
+  "id": zod.string().uuid()
+})
+
+
+/**
+ * @summary Create a category (requires taxonomy.manage)
+ */
+export const CreateCmsCategoryHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const CreateCmsCategoryBody = zod.object({
+  "name": zod.string().min(1),
+  "slug": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "parentId": zod.string().uuid().nullish(),
+  "path": zod.string().nullish(),
+  "originalUrl": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a category (requires taxonomy.manage)
+ */
+export const UpdateCmsCategoryParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const UpdateCmsCategoryHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const UpdateCmsCategoryBody = zod.object({
+  "name": zod.string().min(1),
+  "slug": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "parentId": zod.string().uuid().nullish(),
+  "path": zod.string().nullish(),
+  "originalUrl": zod.string().nullish()
+})
+
+export const UpdateCmsCategoryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullish(),
+  "parentId": zod.string().uuid().nullish(),
+  "path": zod.string().nullish()
+})
+
+
+/**
+ * @summary Delete a category (requires taxonomy.manage)
+ */
+export const DeleteCmsCategoryParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const DeleteCmsCategoryHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const DeleteCmsCategoryResponse = zod.object({
+  "success": zod.boolean(),
+  "id": zod.string().uuid()
+})
+
+
+/**
+ * @summary Create a tag (requires taxonomy.manage)
+ */
+export const CreateCmsTagHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const CreateCmsTagBody = zod.object({
+  "name": zod.string().min(1),
+  "slug": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "originalUrl": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a tag (requires taxonomy.manage)
+ */
+export const UpdateCmsTagParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const UpdateCmsTagHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const UpdateCmsTagBody = zod.object({
+  "name": zod.string().min(1),
+  "slug": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "originalUrl": zod.string().nullish()
+})
+
+export const UpdateCmsTagResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "postCount": zod.number()
+})
+
+
+/**
+ * @summary Delete a tag (requires taxonomy.manage)
+ */
+export const DeleteCmsTagParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const DeleteCmsTagHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const DeleteCmsTagResponse = zod.object({
+  "success": zod.boolean(),
+  "id": zod.string().uuid()
+})
+
+

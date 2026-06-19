@@ -177,6 +177,9 @@ importers:
       '@workspace/cms-auth':
         specifier: workspace:*
         version: link:../../lib/cms-auth
+      '@workspace/content':
+        specifier: workspace:*
+        version: link:../../lib/content
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
@@ -1005,6 +1008,8 @@ importers:
 
   lib/cms-auth: {}
 
+  lib/content: {}
+
   lib/db:
     dependencies:
       drizzle-orm:
@@ -1184,6 +1189,9 @@ importers:
       '@workspace/blog-seo':
         specifier: workspace:*
         version: link:../lib/blog-seo
+      '@workspace/content':
+        specifier: workspace:*
+        version: link:../lib/content
       '@workspace/db':
         specifier: workspace:*
         version: link:../lib/db

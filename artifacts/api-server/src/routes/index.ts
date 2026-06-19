@@ -7,6 +7,8 @@ import tagsRouter from "./tags";
 import searchRouter from "./search";
 import authRouter from "./auth";
 import cmsRouter from "./cms";
+import cmsContentRouter from "./cms-content";
+import cmsTaxonomyRouter from "./cms-taxonomy";
 
 const router: IRouter = Router();
 
@@ -18,5 +20,7 @@ router.use(tagsRouter);
 router.use(searchRouter);
 router.use(authRouter);
 router.use(cmsRouter);
+router.use(cmsContentRouter);
+router.use(cmsTaxonomyRouter);
 
 export default router;
