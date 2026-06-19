@@ -4,6 +4,46 @@ import type { DiscoveredUrl } from "./types";
 import { stripNul } from "./util";
 
 /**
+ * The Supabase session pooler occasionally drops connections mid-query
+ * (FATAL XX000 / ECONNRESET / "Connection terminated"). For a long-running
+ * drain these are transient and must NOT abort the whole crawl, so retry the
+ * affected statement a few times with backoff before giving up.
+ */
+function isTransientDbError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | undefined;
+  const code = e?.code;
+  const msg = (e?.message ?? "").toLowerCase();
+  // 25006 = "read-only transaction": the pooler transiently routed a write to
+  // a read-only/standby connection during a failover; it clears on retry.
+  if (code && ["XX000", "08006", "08003", "08000", "57P01", "57P03", "25006", "ECONNRESET", "ETIMEDOUT"].includes(code)) {
+    return true;
+  }
+  return (
+    msg.includes("connection terminated") ||
+    msg.includes("connection closed") ||
+    msg.includes("econnreset") ||
+    msg.includes("terminating connection") ||
+    msg.includes("server closed the connection") ||
+    msg.includes("read-only transaction") ||
+    msg.includes("timeout exceeded")
+  );
+}
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 7): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (!isTransientDbError(err) || i === attempts - 1) throw err;
+      await new Promise((r) => setTimeout(r, 250 * 2 ** i));
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * Idempotently enqueue discovered URLs. Existing rows are left untouched
  * (their status/attempt history is preserved) so re-running discovery never
  * resets progress. Returns how many new rows were inserted.
@@ -37,10 +77,12 @@ export async function enqueueOne(
   discoveredFrom: string,
   priority = 10,
 ): Promise<void> {
-  await db
-    .insert(crawlQueueTable)
-    .values({ url, priority, discoveredFrom, status: "pending" })
-    .onConflictDoNothing({ target: crawlQueueTable.url });
+  await withRetry(() =>
+    db
+      .insert(crawlQueueTable)
+      .values({ url, priority, discoveredFrom, status: "pending" })
+      .onConflictDoNothing({ target: crawlQueueTable.url }),
+  );
 }
 
 /**
@@ -53,14 +95,16 @@ export async function enqueueOne(
  * to the `crawl_status` enum column, so cast it.
  */
 export async function recoverStaleInProgress(maxAttempts: number): Promise<number> {
-  const reset = await db
-    .update(crawlQueueTable)
-    .set({
-      status: sql`(CASE WHEN ${crawlQueueTable.attempts} >= ${maxAttempts} THEN 'failed' ELSE 'pending' END)::crawl_status`,
-      startedAt: null,
-    })
-    .where(eq(crawlQueueTable.status, "in_progress"))
-    .returning({ id: crawlQueueTable.id });
+  const reset = await withRetry(() =>
+    db
+      .update(crawlQueueTable)
+      .set({
+        status: sql`(CASE WHEN ${crawlQueueTable.attempts} >= ${maxAttempts} THEN 'failed' ELSE 'pending' END)::crawl_status`,
+        startedAt: null,
+      })
+      .where(eq(crawlQueueTable.status, "in_progress"))
+      .returning({ id: crawlQueueTable.id }),
+  );
   return reset.length;
 }
 
@@ -70,7 +114,8 @@ export async function recoverStaleInProgress(maxAttempts: number): Promise<numbe
  * grab the same row.
  */
 export async function claimBatch(limit: number, maxAttempts: number): Promise<CrawlQueueItem[]> {
-  const rows = await db.execute<CrawlQueueItem>(sql`
+  const rows = await withRetry(() =>
+    db.execute<CrawlQueueItem>(sql`
     UPDATE ${crawlQueueTable}
     SET status = 'in_progress', started_at = now(), attempts = attempts + 1, updated_at = now()
     WHERE id IN (
@@ -81,15 +126,18 @@ export async function claimBatch(limit: number, maxAttempts: number): Promise<Cr
       FOR UPDATE SKIP LOCKED
     )
     RETURNING *;
-  `);
+  `),
+  );
   return rows.rows as CrawlQueueItem[];
 }
 
 export async function markCompleted(id: string): Promise<void> {
-  await db
-    .update(crawlQueueTable)
-    .set({ status: "completed", completedAt: new Date(), lastError: null })
-    .where(eq(crawlQueueTable.id, id));
+  await withRetry(() =>
+    db
+      .update(crawlQueueTable)
+      .set({ status: "completed", completedAt: new Date(), lastError: null })
+      .where(eq(crawlQueueTable.id, id)),
+  );
 }
 
 export async function markFailed(
@@ -100,20 +148,24 @@ export async function markFailed(
   // Permanently fail once attempts are exhausted; otherwise return to pending.
   // The CASE result is `text`, which Postgres won't implicitly assign to the
   // `crawl_status` enum column (unlike a bare string literal), so cast it.
-  await db
-    .update(crawlQueueTable)
-    .set({
-      status: sql`(CASE WHEN ${crawlQueueTable.attempts} >= ${maxAttempts} THEN 'failed' ELSE 'pending' END)::crawl_status`,
-      lastError: stripNul(error).slice(0, 2000),
-    })
-    .where(eq(crawlQueueTable.id, id));
+  await withRetry(() =>
+    db
+      .update(crawlQueueTable)
+      .set({
+        status: sql`(CASE WHEN ${crawlQueueTable.attempts} >= ${maxAttempts} THEN 'failed' ELSE 'pending' END)::crawl_status`,
+        lastError: stripNul(error).slice(0, 2000),
+      })
+      .where(eq(crawlQueueTable.id, id)),
+  );
 }
 
 export async function markSkipped(id: string, reason: string): Promise<void> {
-  await db
-    .update(crawlQueueTable)
-    .set({ status: "skipped", lastError: stripNul(reason).slice(0, 500), completedAt: new Date() })
-    .where(eq(crawlQueueTable.id, id));
+  await withRetry(() =>
+    db
+      .update(crawlQueueTable)
+      .set({ status: "skipped", lastError: stripNul(reason).slice(0, 500), completedAt: new Date() })
+      .where(eq(crawlQueueTable.id, id)),
+  );
 }
 
 export interface QueueStats {
@@ -126,10 +178,12 @@ export interface QueueStats {
 }
 
 export async function queueStats(): Promise<QueueStats> {
-  const rows = await db
-    .select({ status: crawlQueueTable.status, count: sql<number>`count(*)::int` })
-    .from(crawlQueueTable)
-    .groupBy(crawlQueueTable.status);
+  const rows = await withRetry(() =>
+    db
+      .select({ status: crawlQueueTable.status, count: sql<number>`count(*)::int` })
+      .from(crawlQueueTable)
+      .groupBy(crawlQueueTable.status),
+  );
   const stats: QueueStats = {
     pending: 0,
     in_progress: 0,
@@ -147,15 +201,17 @@ export async function queueStats(): Promise<QueueStats> {
 
 /** True when there is no claimable work left (respecting the attempt ceiling). */
 export async function hasPendingWork(maxAttempts: number): Promise<boolean> {
-  const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(crawlQueueTable)
-    .where(
-      and(
-        eq(crawlQueueTable.status, "pending"),
-        lte(crawlQueueTable.attempts, maxAttempts - 1),
+  const [row] = await withRetry(() =>
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(crawlQueueTable)
+      .where(
+        and(
+          eq(crawlQueueTable.status, "pending"),
+          lte(crawlQueueTable.attempts, maxAttempts - 1),
+        ),
       ),
-    );
+  );
   return (row?.count ?? 0) > 0;
 }
 

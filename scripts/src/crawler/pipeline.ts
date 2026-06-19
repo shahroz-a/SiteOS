@@ -173,8 +173,16 @@ export async function runCrawl(opts: CrawlRunOptions = {}): Promise<QueueStats> 
           else await markFailed(item.id, "processing failed", config.maxAttempts);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          await markFailed(item.id, message, config.maxAttempts);
-          await logCrawl({ url: item.url, level: "error", message });
+          // Never let bookkeeping errors (e.g. a transient pooler drop while
+          // recording the failure) escape and abort the whole crawl run. The
+          // item is left for recovery/retry on a later pass or restart.
+          try {
+            await markFailed(item.id, message, config.maxAttempts);
+            await logCrawl({ url: item.url, level: "error", message });
+          } catch (bookkeepingErr) {
+            const m = bookkeepingErr instanceof Error ? bookkeepingErr.message : String(bookkeepingErr);
+            log(`  failed to record failure for ${item.url}: ${m}`);
+          }
         }
         processed += 1;
         if (limit > 0 && processed >= limit) stop = true;
