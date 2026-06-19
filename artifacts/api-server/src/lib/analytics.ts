@@ -176,8 +176,8 @@ export async function buildAnalytics() {
 }
 
 /** Page-view totals plus a gap-filled daily series for the last 30 days. */
-async function viewsQuery() {
-  const totalsRes = await db.execute<{
+export async function viewsQuery(exec: Executor = db) {
+  const totalsRes = await exec.execute<{
     total: number;
     last7: number;
     last30: number;
@@ -191,7 +191,7 @@ async function viewsQuery() {
   `);
   const totals = totalsRes.rows[0];
 
-  const dailyRes = await db.execute<{ period: string; value: number }>(sql`
+  const dailyRes = await exec.execute<{ period: string; value: number }>(sql`
     with combined as (${COMBINED_VIEWS})
     select to_char(d.day, 'YYYY-MM-DD') as period, coalesce(sum(c.views), 0)::int as value
     from generate_series(
@@ -297,8 +297,10 @@ async function topTagsQuery(): Promise<Leader[]> {
  * decides how to label it. Bounded to the top hosts so the breakdown stays a
  * focused "where readers come from" leaderboard.
  */
-async function topReferrersQuery(): Promise<Referrer[]> {
-  const res = await db.execute<{ host: string; views: number }>(sql`
+export async function topReferrersQuery(
+  exec: Executor = db,
+): Promise<Referrer[]> {
+  const res = await exec.execute<{ host: string; views: number }>(sql`
     with combined as (${COMBINED_REFERRERS})
     select referrer_host as host, sum(views)::int as views
     from combined
