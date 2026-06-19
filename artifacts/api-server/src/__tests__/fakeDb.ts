@@ -466,13 +466,6 @@ export function makeDbMock(tables: Tables) {
       scheduledForColumnPresent: true,
       ready: true,
     }),
-    checkSearchReadiness: async () => ({
-      extensionPresent: true,
-      expectedIndexCount: 0,
-      presentIndexes: [] as string[],
-      missingIndexes: [] as string[],
-      ready: true,
-    }),
     checkAnalyticsReadiness: async () => ({
       presentTables: [] as string[],
       missingTables: [] as string[],

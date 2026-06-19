@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { SqlExecutor } from "./search-indexes";
+import type { SqlExecutor } from "./sql-executor";
 
 export type { SqlExecutor };
 

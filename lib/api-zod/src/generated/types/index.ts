@@ -210,7 +210,6 @@ export * from './searchCmsContentParams';
 export * from './searchCmsContentSort';
 export * from './searchCmsContentStatus';
 export * from './searchPostsParams';
-export * from './searchReadiness';
 export * from './seoCheck';
 export * from './seoCheckCategory';
 export * from './seoCheckSeverity';

@@ -36,11 +36,6 @@ export const internalLinksTable = pgTable(
   (t) => [
     index("internal_links_page_idx").on(t.pageId),
     index("internal_links_target_idx").on(t.targetPageId),
-    index("internal_links_anchor_trgm").using(
-      "gin",
-      t.anchorText.op("gin_trgm_ops"),
-    ),
-    index("internal_links_href_trgm").using("gin", t.href.op("gin_trgm_ops")),
   ],
 );
 
@@ -60,14 +55,7 @@ export const externalLinksTable = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [
-    index("external_links_page_idx").on(t.pageId),
-    index("external_links_anchor_trgm").using(
-      "gin",
-      t.anchorText.op("gin_trgm_ops"),
-    ),
-    index("external_links_href_trgm").using("gin", t.href.op("gin_trgm_ops")),
-  ],
+  (t) => [index("external_links_page_idx").on(t.pageId)],
 );
 
 /** URL redirect map preserved from the source site (e.g. trailing-slash, moved pages). */

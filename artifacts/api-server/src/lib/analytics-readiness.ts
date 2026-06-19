@@ -18,7 +18,7 @@ export type { AnalyticsReadiness };
  * create them leaves page-view recording (`POST /events/page-view`) and the CMS
  * analytics screen (`GET /cms/analytics`) silently broken until they hit a 500.
  * This probe surfaces the problem proactively in the deployment logs (mirrors
- * `probeSearchReadiness` / `probePublishingReadiness`).
+ * `probePublishingReadiness`).
  *
  * It never throws: a connection or query error is logged and reported as `null`
  * so a transient DB hiccup at boot can never crash the server.

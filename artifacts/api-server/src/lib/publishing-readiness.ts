@@ -16,7 +16,7 @@ export type { PublishingReadiness };
  * and the agent cannot run DDL against prod — so a publish that fails to apply
  * them leaves CMS publishing/scheduling silently broken until an editor tries to
  * move a post to review/scheduled and hits a 500. This probe surfaces the
- * problem proactively in the deployment logs (mirrors `probeSearchReadiness`).
+ * problem proactively in the deployment logs (mirrors `probeAnalyticsReadiness`).
  *
  * It never throws: a connection or query error is logged and reported as `null`
  * so a transient DB hiccup at boot can never crash the server.

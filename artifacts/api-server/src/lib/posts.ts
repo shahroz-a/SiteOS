@@ -179,12 +179,11 @@ function escapeLike(value: string): string {
 }
 
 /**
- * Build the multi-field fuzzy match predicate for a search term. Matches the
- * page's own columns plus EXISTS sub-queries into every related content table
- * (SEO, FAQ, breadcrumbs, JSON-LD, internal/external links, body+CTA blocks,
- * author, categories, tags). Substring ILIKE is accelerated by pg_trgm GIN
- * indexes; the trailing `%` operator adds typo-tolerant fuzzy matching on the
- * title/slug.
+ * Build the multi-field substring match predicate for a search term. Matches
+ * the page's own columns plus EXISTS sub-queries into every related content
+ * table (SEO, FAQ, breadcrumbs, JSON-LD, internal/external links, body+CTA
+ * blocks, author, categories, tags) with plain case-insensitive ILIKE — no
+ * Postgres extension required.
  */
 function buildSearchPredicate(q: string): SQL {
   const pattern = `%${escapeLike(q)}%`;
@@ -195,8 +194,6 @@ function buildSearchPredicate(q: string): SQL {
     OR ${pagesTable.excerpt} ILIKE ${pattern}
     OR ${pagesTable.canonicalUrl} ILIKE ${pattern}
     OR ${pagesTable.pathname} ILIKE ${pattern}
-    OR ${pagesTable.title} % ${q}
-    OR ${pagesTable.slug} % ${q}
     OR EXISTS (
       SELECT 1 FROM seo s WHERE s.page_id = ${pagesTable.id} AND (
         s.meta_title ILIKE ${pattern} OR s.meta_description ILIKE ${pattern}
@@ -308,7 +305,6 @@ export async function searchCmsPosts(params: CmsSearchParams) {
         + (CASE WHEN ${pagesTable.slug} ILIKE ${pattern} THEN 2 ELSE 0 END)
         + (CASE WHEN ${pagesTable.excerpt} ILIKE ${pattern} THEN 1 ELSE 0 END)
         + (CASE WHEN ${pagesTable.canonicalUrl} ILIKE ${pattern} THEN 1 ELSE 0 END)
-        + similarity(${pagesTable.title}, ${q}) * 2
       ) DESC`,
     );
     orderBy.push(desc(pagesTable.updatedAt));

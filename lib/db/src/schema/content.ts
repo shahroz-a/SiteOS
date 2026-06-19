@@ -41,9 +41,6 @@ export const blocksTable = pgTable(
   (t) => [
     index("blocks_page_idx").on(t.pageId),
     index("blocks_parent_idx").on(t.parentId),
-    // Block text covers the article body and CTA copy; trigram-indexed for
-    // the CMS global search.
-    index("blocks_text_trgm").using("gin", t.text.op("gin_trgm_ops")),
   ],
 );
 

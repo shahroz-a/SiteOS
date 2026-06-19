@@ -3,8 +3,8 @@
  * / `buildSearchPredicate`). The in-memory fake DB (`cms-search.test.ts`)
  * cannot model the raw-SQL `q` predicate (its `evalCond` treats every `sql`
  * condition as match-all) nor the `relevance` ranking expression, so those two
- * behaviours — multi-field fuzzy matching and relevance ordering — are verified
- * here against the database configured via `DATABASE_URL`.
+ * behaviours — multi-field substring matching and relevance ordering — are
+ * verified here against the database configured via `DATABASE_URL`.
  *
  * It seeds a small, uniquely-tokenised corpus (one page per searchable field,
  * plus author/category/tag rows), asserts that searching each field's token
@@ -12,11 +12,12 @@
  * title hit above a body-only hit. Everything it inserts is removed in
  * `afterAll` (pages cascade to their children; taxonomy rows deleted directly).
  *
+ * Search uses plain case-insensitive ILIKE substring matching — no Postgres
+ * extension or special index is required, so this test needs no DB
+ * prerequisites beyond the schema itself.
+ *
  * Because it mutates a real database it only runs when `VERIFY_CMS_SEARCH=1`
- * is set, so the normal suite skips it. It self-provisions its prerequisites
- * (the `pg_trgm` extension + the schema's trigram GIN indexes) idempotently in
- * `beforeAll`, so it works on a freshly-provisioned database; without those
- * indexes the `%` operator is unavailable and the full-corpus scans are too slow.
+ * is set, so the normal suite skips it.
  *
  * Run with: `VERIFY_CMS_SEARCH=1 pnpm exec vitest run \
  *   artifacts/api-server/src/lib/__tests__/cms-search.integration.test.ts`
@@ -31,44 +32,12 @@ const schema = RUN ? await import("@workspace/db") : ({} as never);
 const { searchCmsPosts } = RUN
   ? await import("../posts")
   : ({} as never);
-const { eq, inArray, sql } = RUN ? await import("drizzle-orm") : ({} as never);
+const { eq, inArray } = RUN ? await import("drizzle-orm") : ({} as never);
 
-// The `q` predicate relies on `pg_trgm` + the schema's trigram GIN indexes for
-// the `%` operator and acceptable latency over the full corpus. The normal app
-// expects these to exist already; we ensure them here (idempotently) so the
-// opt-in test is self-sufficient on a freshly-provisioned database too.
-const PREREQ_DDL = [
-  "CREATE EXTENSION IF NOT EXISTS pg_trgm",
-  "CREATE INDEX IF NOT EXISTS pages_title_trgm ON pages USING gin (title gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS pages_slug_trgm ON pages USING gin (slug gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS pages_canonical_url_trgm ON pages USING gin (canonical_url gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS pages_excerpt_trgm ON pages USING gin (excerpt gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS seo_meta_title_trgm ON seo USING gin (meta_title gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS seo_meta_description_trgm ON seo USING gin (meta_description gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS faq_question_trgm ON faq USING gin (question gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS faq_answer_trgm ON faq USING gin (answer gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS breadcrumbs_label_trgm ON breadcrumbs USING gin (label gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS jsonld_data_trgm ON jsonld USING gin (((data)::text) gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS internal_links_anchor_trgm ON internal_links USING gin (anchor_text gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS internal_links_href_trgm ON internal_links USING gin (href gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS external_links_anchor_trgm ON external_links USING gin (anchor_text gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS external_links_href_trgm ON external_links USING gin (href gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS authors_name_trgm ON authors USING gin (name gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS categories_name_trgm ON categories USING gin (name gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS tags_name_trgm ON tags USING gin (name gin_trgm_ops)",
-  "CREATE INDEX IF NOT EXISTS blocks_text_trgm ON blocks USING gin (text gin_trgm_ops)",
-];
-
-async function ensurePrereqs() {
-  for (const stmt of PREREQ_DDL) {
-    await db.execute(sql.raw(stmt));
-  }
-}
-
-// Per-field tokens must be unique vs the real corpus AND mutually dissimilar:
-// the `%` (pg_trgm) operator fuzzy-matches `pages.title`/`slug`, so tokens that
-// shared a common prefix would cross-match each other. Independent random hex
-// strings have ~zero trigram similarity, keeping each field's match isolated.
+// Per-field tokens must be unique vs the real corpus so each field's match is
+// isolated. ILIKE substring matching means a token only matches a field that
+// literally contains it; independent random hex strings never substring-match
+// each other.
 const uniq = () => `q${randomUUID().replace(/-/g, "")}`;
 
 // A run marker just for collision-free taxonomy slugs (slugs aren't searched).
@@ -135,9 +104,6 @@ const ids = {} as Record<Field, string>;
 
 beforeAll(async () => {
   if (!RUN) return;
-
-  // Build the extension + trigram indexes on first run (no-op thereafter).
-  await ensurePrereqs();
 
   // Taxonomy rows, each carrying a name token (slugs use RUN_ID, not searched).
   [{ id: authorId }] = await db
@@ -260,8 +226,8 @@ describe.skipIf(!RUN)("searchCmsPosts — live multi-field q matching", () => {
 
 describe.skipIf(!RUN)("searchCmsPosts — relevance ranking", () => {
   it("ranks a title match above a body-only match", async () => {
-    // Both pages contain rankToken; one in the title (weight 4 + similarity),
-    // the other only in a block body (matches via EXISTS, score 0).
+    // Both pages contain rankToken; one in the title (weight 4), the other
+    // only in a block body (matches via EXISTS, score 0).
     const rankToken = uniq();
     const titleHit = await insertPage({ title: `Spotlight ${rankToken}` });
     const bodyHit = await insertPage();

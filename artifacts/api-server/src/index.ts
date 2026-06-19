@@ -1,6 +1,5 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { probeSearchReadiness } from "./lib/search-readiness";
 import { probePublishingReadiness } from "./lib/publishing-readiness";
 import { probeAnalyticsReadiness } from "./lib/analytics-readiness";
 import { publishDueScheduledPosts } from "./lib/cms-publishing";
@@ -35,10 +34,9 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
 
   // Fire-and-forget readiness probes: surface a clear warning in the
-  // deployment logs when the CMS-search, publishing/scheduling, or page-view
-  // analytics prerequisites are missing, without blocking startup or ever
-  // crashing the server.
-  void probeSearchReadiness();
+  // deployment logs when the publishing/scheduling or page-view analytics
+  // prerequisites are missing, without blocking startup or ever crashing the
+  // server.
   void probePublishingReadiness();
   void probeAnalyticsReadiness();
 

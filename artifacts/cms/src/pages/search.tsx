@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  AlertTriangle,
   Bookmark,
   BookmarkPlus,
   Mail,
@@ -13,15 +12,12 @@ import {
 } from "lucide-react";
 import {
   useSearchCmsContent,
-  useSearchReadiness,
-  getSearchReadinessQueryKey,
   useListSavedViews,
   useCreateSavedView,
   useUpdateSavedView,
   useDeleteSavedView,
   getListSavedViewsQueryKey,
   type SavedView,
-  type SearchReadiness,
   type SearchCmsContentParams,
   type SearchCmsContentStatus,
   type SearchCmsContentPageType,
@@ -204,24 +200,6 @@ export default function SearchPage() {
   const { data, isLoading, isError, isFetching } = useSearchCmsContent(params);
   const savedViews = useListSavedViews();
 
-  // Readiness of the CMS-search prerequisites (`pg_trgm` extension + trigram
-  // indexes). The endpoint returns 200 with `ready: true` when search works
-  // and 503 (which the fetch layer surfaces as an error carrying the same
-  // payload) when prerequisites are missing.
-  const readinessQuery = useSearchReadiness({
-    query: {
-      queryKey: getSearchReadinessQueryKey(),
-      retry: false,
-      refetchOnWindowFocus: false,
-    },
-  });
-  const readiness: SearchReadiness | undefined =
-    readinessQuery.data ??
-    (readinessQuery.error?.status === 503
-      ? (readinessQuery.error.data ?? undefined)
-      : undefined);
-  const searchUnavailable = readiness ? !readiness.ready : false;
-
   const createView = useCreateSavedView({
     mutation: {
       onSuccess: () => {
@@ -367,27 +345,6 @@ export default function SearchPage() {
           links and more. Save filter combinations as views to reuse later.
         </p>
       </div>
-
-      {searchUnavailable ? (
-        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <div className="flex-1 space-y-1">
-            <p className="font-medium">Search is currently unavailable</p>
-            <p>
-              The database isn’t fully set up for search
-              {readiness && !readiness.extensionPresent
-                ? " (the pg_trgm extension is missing)"
-                : readiness && readiness.missingIndexes.length > 0
-                  ? ` (${readiness.missingIndexes.length} of ${readiness.expectedIndexCount} search ${
-                      readiness.missingIndexes.length === 1 ? "index is" : "indexes are"
-                    } missing)`
-                  : ""}
-              , so results may be incomplete or fail. Re-publishing the app
-              usually restores it; if it persists, contact an administrator.
-            </p>
-          </div>
-        </div>
-      ) : null}
 
       <div className="space-y-4 rounded-lg border border-border/60 p-4">
         <div className="flex gap-2">
@@ -680,9 +637,7 @@ export default function SearchPage() {
                   colSpan={5}
                   className="py-8 text-center text-muted-foreground"
                 >
-                  {searchUnavailable
-                    ? "Search is unavailable — see the notice above."
-                    : "Search failed. Please try again."}
+                  Search failed. Please try again.
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (

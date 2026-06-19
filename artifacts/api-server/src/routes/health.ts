@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import {
   db,
-  checkSearchReadiness,
   checkPublishingReadiness,
   checkAnalyticsReadiness,
 } from "@workspace/db";
@@ -13,19 +12,6 @@ const router: IRouter = Router();
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
   res.json(data);
-});
-
-// On-demand readiness check for the CMS-search prerequisites (`pg_trgm`
-// extension + trigram GIN indexes). Operators can hit this after a publish to
-// confirm prod is fully set up. Returns 200 when ready, 503 when prerequisites
-// are missing, 500 only when the probe itself can't run.
-router.get("/healthz/search", async (_req, res, next) => {
-  try {
-    const readiness = await checkSearchReadiness(db);
-    res.status(readiness.ready ? 200 : 503).json(readiness);
-  } catch (err) {
-    next(err);
-  }
 });
 
 // On-demand readiness check for the CMS publishing/scheduling prerequisites
@@ -70,7 +56,7 @@ router.get("/healthz/scheduler", async (_req, res, next) => {
 });
 
 // Aggregate readiness check that rolls up every non-migration-tracked prod
-// prerequisite (search + publishing + analytics) into a single ready/not-ready
+// prerequisite (publishing + analytics) into a single ready/not-ready
 // summary, so post-publish verification is one call instead of polling each
 // subsystem individually. Reuses the same `check*Readiness` functions as the
 // per-subsystem routes (no duplicated DB queries). Returns 200 only when ALL
@@ -78,13 +64,12 @@ router.get("/healthz/scheduler", async (_req, res, next) => {
 // when any prerequisite is missing, and 500 only when a probe itself can't run.
 router.get("/healthz/ready", async (_req, res, next) => {
   try {
-    const [search, publishing, analytics] = await Promise.all([
-      checkSearchReadiness(db),
+    const [publishing, analytics] = await Promise.all([
       checkPublishingReadiness(db),
       checkAnalyticsReadiness(db),
     ]);
 
-    const subsystems = { search, publishing, analytics };
+    const subsystems = { publishing, analytics };
     const notReady = (
       Object.keys(subsystems) as (keyof typeof subsystems)[]
     ).filter((name) => !subsystems[name].ready);

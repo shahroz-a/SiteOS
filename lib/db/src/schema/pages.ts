@@ -92,16 +92,6 @@ export const pagesTable = pgTable(
     index("pages_author_idx").on(t.authorId),
     index("pages_primary_category_idx").on(t.primaryCategoryId),
     index("pages_published_at_idx").on(t.publishedAt),
-    // Trigram GIN indexes accelerate the CMS global search (fuzzy ILIKE +
-    // pg_trgm similarity) across the page's own text fields. Requires the
-    // `pg_trgm` extension (created in the migration).
-    index("pages_title_trgm").using("gin", t.title.op("gin_trgm_ops")),
-    index("pages_slug_trgm").using("gin", t.slug.op("gin_trgm_ops")),
-    index("pages_canonical_url_trgm").using(
-      "gin",
-      t.canonicalUrl.op("gin_trgm_ops"),
-    ),
-    index("pages_excerpt_trgm").using("gin", t.excerpt.op("gin_trgm_ops")),
     index("pages_scheduled_for_idx").on(t.scheduledFor),
   ],
 );

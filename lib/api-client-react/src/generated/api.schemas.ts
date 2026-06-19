@@ -764,19 +764,6 @@ export interface HealthStatus {
   status: string;
 }
 
-export interface SearchReadiness {
-  /** Whether the `pg_trgm` extension is installed. */
-  extensionPresent: boolean;
-  /** Total number of trigram indexes expected to exist. */
-  expectedIndexCount: number;
-  /** Names of the trigram indexes that are present. */
-  presentIndexes: string[];
-  /** Names of the trigram indexes that are missing. */
-  missingIndexes: string[];
-  /** True only when the extension and every trigram index are present. */
-  ready: boolean;
-}
-
 export interface Error {
   error: string;
 }

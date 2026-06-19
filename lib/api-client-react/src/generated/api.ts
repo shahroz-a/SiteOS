@@ -110,7 +110,6 @@ import type {
   SavedViewUpdate,
   SearchCmsContentParams,
   SearchPostsParams,
-  SearchReadiness,
   SeoValidationResult,
   SuggestMediaAltBatchInput,
   SuggestMediaAltBatchResponse,
@@ -515,84 +514,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-
-
-
-
-
-
-export const getSearchReadinessUrl = () => {
-
-
-
-
-  return `/api/healthz/search`
-}
-
-/**
- * Reports whether the CMS-search prerequisites (the `pg_trgm` extension and the trigram GIN indexes) are present. Returns 200 when search is ready and 503 with the missing prerequisites otherwise. The response body has the same shape in both cases.
- * @summary CMS search readiness check
- */
-export const searchReadiness = async ( options?: RequestInit): Promise<SearchReadiness> => {
-
-  return customFetch<SearchReadiness>(getSearchReadinessUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getSearchReadinessQueryKey = () => {
-    return [
-    `/api/healthz/search`
-    ] as const;
-    }
-
-
-export const getSearchReadinessQueryOptions = <TData = Awaited<ReturnType<typeof searchReadiness>>, TError = ErrorType<SearchReadiness>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchReadiness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getSearchReadinessQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchReadiness>>> = ({ signal }) => searchReadiness({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchReadiness>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type SearchReadinessQueryResult = NonNullable<Awaited<ReturnType<typeof searchReadiness>>>
-export type SearchReadinessQueryError = ErrorType<SearchReadiness>
-
-
-/**
- * @summary CMS search readiness check
- */
-
-export function useSearchReadiness<TData = Awaited<ReturnType<typeof searchReadiness>>, TError = ErrorType<SearchReadiness>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchReadiness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getSearchReadinessQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

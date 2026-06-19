@@ -31,7 +31,6 @@ export const authorsTable = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("authors_name_trgm").using("gin", t.name.op("gin_trgm_ops"))],
 );
 
 export const categoriesTable = pgTable(
@@ -55,10 +54,7 @@ export const categoriesTable = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [
-    index("categories_parent_idx").on(t.parentId),
-    index("categories_name_trgm").using("gin", t.name.op("gin_trgm_ops")),
-  ],
+  (t) => [index("categories_parent_idx").on(t.parentId)],
 );
 
 export const tagsTable = pgTable(
@@ -74,7 +70,6 @@ export const tagsTable = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("tags_name_trgm").using("gin", t.name.op("gin_trgm_ops"))],
 );
 
 export const insertAuthorSchema = createInsertSchema(authorsTable).omit({

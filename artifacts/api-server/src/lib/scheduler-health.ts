@@ -201,7 +201,7 @@ export async function checkSchedulerHealth(
 }
 
 /**
- * Fire-and-forget log probe, mirroring `probeSearchReadiness`. Emits a clear
+ * Fire-and-forget log probe, mirroring `probePublishingReadiness`. Emits a clear
  * WARN in the deployment logs when the scheduler looks unhealthy (stalled tick,
  * last tick errored, or scheduled posts overdue) so a silent failure is visible
  * without anyone polling the route. Never throws.

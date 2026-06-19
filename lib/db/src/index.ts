@@ -31,6 +31,6 @@ export const pool = new Pool({
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
-export * from "./search-indexes";
+export * from "./sql-executor";
 export * from "./publishing-shapes";
 export * from "./analytics-shapes";

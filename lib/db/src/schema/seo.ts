@@ -5,7 +5,6 @@ import {
   timestamp,
   jsonb,
   boolean,
-  index,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -45,13 +44,7 @@ export const seoTable = pgTable("seo", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-}, (t) => [
-  index("seo_meta_title_trgm").using("gin", t.metaTitle.op("gin_trgm_ops")),
-  index("seo_meta_description_trgm").using(
-    "gin",
-    t.metaDescription.op("gin_trgm_ops"),
-  ),
-]);
+});
 
 /**
  * Raw page metadata captured verbatim: all <meta> tags, HTTP response headers
