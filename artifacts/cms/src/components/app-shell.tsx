@@ -11,6 +11,7 @@ import {
   ScrollText,
   Search,
   Signpost,
+  Table2,
   Tag,
   UserPen,
   Users,
@@ -53,6 +54,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Content",
     href: "/content",
     icon: FileText,
+    permission: "content.view",
+  },
+  {
+    label: "Explorer",
+    href: "/explorer",
+    icon: Table2,
     permission: "content.view",
   },
   {

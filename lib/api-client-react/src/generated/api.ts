@@ -29,6 +29,12 @@ import type {
   AuthUserEnvelope,
   Author,
   BeginBrowserLoginParams,
+  BulkActionResult,
+  BulkAuthorInput,
+  BulkCategoryInput,
+  BulkExportInput,
+  BulkSeoInput,
+  BulkTransitionInput,
   Category,
   CmsAnalytics,
   CmsArchiveInput,
@@ -58,6 +64,8 @@ import type {
   CmsUnauthorizedResponse,
   CmsUrlChangeInput,
   CmsUser,
+  ContentExplorerExportResponse,
+  ContentExplorerResponse,
   ContentExportBundle,
   ContentExportFile,
   ContentImportInput,
@@ -76,6 +84,7 @@ import type {
   ListCmsHeldBackArticlesParams,
   ListCmsMediaParams,
   ListCmsPostParams,
+  ListContentExplorerParams,
   ListPostsParams,
   ListUploadedImagesParams,
   LogoutSuccess,
@@ -6505,6 +6514,448 @@ export const useDeleteSavedView = <TError = ErrorType<CmsUnauthorizedResponse | 
         TContext
       > => {
       return useMutation(getDeleteSavedViewMutationOptions(options));
+    }
+
+export const getListContentExplorerUrl = (params?: ListContentExplorerParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/cms/content-explorer?${stringifiedParams}` : `/api/cms/content-explorer`
+}
+
+/**
+ * Backs the Airtable-style content explorer. Returns one row per article (page_type=post) across every status with the explorer columns — author, primary category, status, last-modified, published, SEO completeness score and the latest validation score/status — plus server-side filtering, sorting and pagination so the table stays fast with tens of thousands of rows.
+ * @summary Server-side paginated/sortable/filterable article list for the content explorer (requires content.view)
+ */
+export const listContentExplorer = async (params?: ListContentExplorerParams, options?: RequestInit): Promise<ContentExplorerResponse> => {
+
+  return customFetch<ContentExplorerResponse>(getListContentExplorerUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListContentExplorerQueryKey = (params?: ListContentExplorerParams,) => {
+    return [
+    `/api/cms/content-explorer`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListContentExplorerQueryOptions = <TData = Awaited<ReturnType<typeof listContentExplorer>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(params?: ListContentExplorerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listContentExplorer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListContentExplorerQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listContentExplorer>>> = ({ signal }) => listContentExplorer(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listContentExplorer>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListContentExplorerQueryResult = NonNullable<Awaited<ReturnType<typeof listContentExplorer>>>
+export type ListContentExplorerQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary Server-side paginated/sortable/filterable article list for the content explorer (requires content.view)
+ */
+
+export function useListContentExplorer<TData = Awaited<ReturnType<typeof listContentExplorer>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+ params?: ListContentExplorerParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listContentExplorer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListContentExplorerQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getBulkTransitionContentUrl = () => {
+
+
+
+
+  return `/api/cms/content-explorer/bulk/transition`
+}
+
+/**
+ * Applies one lifecycle transition to many articles at once, reusing the single-article publish workflow (state machine + scheduling invariants) for every id. Publishing, scheduling or leaving published needs content.publish; other moves need content.edit — each id is checked individually and every successful transition is audited.
+ * @summary Bulk publish/schedule/archive/move selected articles through the publish workflow (requires content.view; per-item content.edit or content.publish)
+ */
+export const bulkTransitionContent = async (bulkTransitionInput: BulkTransitionInput, options?: RequestInit): Promise<BulkActionResult> => {
+
+  return customFetch<BulkActionResult>(getBulkTransitionContentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkTransitionInput,)
+  }
+);}
+
+
+
+
+export const getBulkTransitionContentMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkTransitionContent>>, TError,{data: BodyType<BulkTransitionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkTransitionContent>>, TError,{data: BodyType<BulkTransitionInput>}, TContext> => {
+
+const mutationKey = ['bulkTransitionContent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkTransitionContent>>, {data: BodyType<BulkTransitionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkTransitionContent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkTransitionContentMutationResult = NonNullable<Awaited<ReturnType<typeof bulkTransitionContent>>>
+    export type BulkTransitionContentMutationBody = BodyType<BulkTransitionInput>
+    export type BulkTransitionContentMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Bulk publish/schedule/archive/move selected articles through the publish workflow (requires content.view; per-item content.edit or content.publish)
+ */
+export const useBulkTransitionContent = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkTransitionContent>>, TError,{data: BodyType<BulkTransitionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkTransitionContent>>,
+        TError,
+        {data: BodyType<BulkTransitionInput>},
+        TContext
+      > => {
+      return useMutation(getBulkTransitionContentMutationOptions(options));
+    }
+
+export const getBulkUpdateContentCategoryUrl = () => {
+
+
+
+
+  return `/api/cms/content-explorer/bulk/category`
+}
+
+/**
+ * @summary Bulk set the primary category of selected articles (requires content.edit)
+ */
+export const bulkUpdateContentCategory = async (bulkCategoryInput: BulkCategoryInput, options?: RequestInit): Promise<BulkActionResult> => {
+
+  return customFetch<BulkActionResult>(getBulkUpdateContentCategoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkCategoryInput,)
+  }
+);}
+
+
+
+
+export const getBulkUpdateContentCategoryMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentCategory>>, TError,{data: BodyType<BulkCategoryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentCategory>>, TError,{data: BodyType<BulkCategoryInput>}, TContext> => {
+
+const mutationKey = ['bulkUpdateContentCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateContentCategory>>, {data: BodyType<BulkCategoryInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateContentCategory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateContentCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateContentCategory>>>
+    export type BulkUpdateContentCategoryMutationBody = BodyType<BulkCategoryInput>
+    export type BulkUpdateContentCategoryMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Bulk set the primary category of selected articles (requires content.edit)
+ */
+export const useBulkUpdateContentCategory = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentCategory>>, TError,{data: BodyType<BulkCategoryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateContentCategory>>,
+        TError,
+        {data: BodyType<BulkCategoryInput>},
+        TContext
+      > => {
+      return useMutation(getBulkUpdateContentCategoryMutationOptions(options));
+    }
+
+export const getBulkUpdateContentAuthorUrl = () => {
+
+
+
+
+  return `/api/cms/content-explorer/bulk/author`
+}
+
+/**
+ * @summary Bulk set the author of selected articles (requires content.edit)
+ */
+export const bulkUpdateContentAuthor = async (bulkAuthorInput: BulkAuthorInput, options?: RequestInit): Promise<BulkActionResult> => {
+
+  return customFetch<BulkActionResult>(getBulkUpdateContentAuthorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkAuthorInput,)
+  }
+);}
+
+
+
+
+export const getBulkUpdateContentAuthorMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentAuthor>>, TError,{data: BodyType<BulkAuthorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentAuthor>>, TError,{data: BodyType<BulkAuthorInput>}, TContext> => {
+
+const mutationKey = ['bulkUpdateContentAuthor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateContentAuthor>>, {data: BodyType<BulkAuthorInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateContentAuthor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateContentAuthorMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateContentAuthor>>>
+    export type BulkUpdateContentAuthorMutationBody = BodyType<BulkAuthorInput>
+    export type BulkUpdateContentAuthorMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Bulk set the author of selected articles (requires content.edit)
+ */
+export const useBulkUpdateContentAuthor = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentAuthor>>, TError,{data: BodyType<BulkAuthorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateContentAuthor>>,
+        TError,
+        {data: BodyType<BulkAuthorInput>},
+        TContext
+      > => {
+      return useMutation(getBulkUpdateContentAuthorMutationOptions(options));
+    }
+
+export const getBulkUpdateContentSeoUrl = () => {
+
+
+
+
+  return `/api/cms/content-explorer/bulk/seo`
+}
+
+/**
+ * Applies the provided SEO fields to every selected article's seo record (creating one if absent). Only fields present in the request are written; omitted fields are left untouched.
+ * @summary Bulk update SEO metadata fields on selected articles (requires seo.edit)
+ */
+export const bulkUpdateContentSeo = async (bulkSeoInput: BulkSeoInput, options?: RequestInit): Promise<BulkActionResult> => {
+
+  return customFetch<BulkActionResult>(getBulkUpdateContentSeoUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkSeoInput,)
+  }
+);}
+
+
+
+
+export const getBulkUpdateContentSeoMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentSeo>>, TError,{data: BodyType<BulkSeoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentSeo>>, TError,{data: BodyType<BulkSeoInput>}, TContext> => {
+
+const mutationKey = ['bulkUpdateContentSeo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateContentSeo>>, {data: BodyType<BulkSeoInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateContentSeo(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateContentSeoMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateContentSeo>>>
+    export type BulkUpdateContentSeoMutationBody = BodyType<BulkSeoInput>
+    export type BulkUpdateContentSeoMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Bulk update SEO metadata fields on selected articles (requires seo.edit)
+ */
+export const useBulkUpdateContentSeo = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateContentSeo>>, TError,{data: BodyType<BulkSeoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateContentSeo>>,
+        TError,
+        {data: BodyType<BulkSeoInput>},
+        TContext
+      > => {
+      return useMutation(getBulkUpdateContentSeoMutationOptions(options));
+    }
+
+export const getBulkExportContentUrl = () => {
+
+
+
+
+  return `/api/cms/content-explorer/bulk/export`
+}
+
+/**
+ * @summary Export selected articles as a downloadable JSON file (requires content.view)
+ */
+export const bulkExportContent = async (bulkExportInput: BulkExportInput, options?: RequestInit): Promise<ContentExplorerExportResponse> => {
+
+  return customFetch<ContentExplorerExportResponse>(getBulkExportContentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkExportInput,)
+  }
+);}
+
+
+
+
+export const getBulkExportContentMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkExportContent>>, TError,{data: BodyType<BulkExportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkExportContent>>, TError,{data: BodyType<BulkExportInput>}, TContext> => {
+
+const mutationKey = ['bulkExportContent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkExportContent>>, {data: BodyType<BulkExportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkExportContent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkExportContentMutationResult = NonNullable<Awaited<ReturnType<typeof bulkExportContent>>>
+    export type BulkExportContentMutationBody = BodyType<BulkExportInput>
+    export type BulkExportContentMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Export selected articles as a downloadable JSON file (requires content.view)
+ */
+export const useBulkExportContent = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkExportContent>>, TError,{data: BodyType<BulkExportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkExportContent>>,
+        TError,
+        {data: BodyType<BulkExportInput>},
+        TContext
+      > => {
+      return useMutation(getBulkExportContentMutationOptions(options));
     }
 
 export const getArchiveCmsAuthorUrl = (id: string,) => {

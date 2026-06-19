@@ -3376,6 +3376,200 @@ export const DeleteSavedViewResponse = zod.object({
 
 
 /**
+ * Backs the Airtable-style content explorer. Returns one row per article (page_type=post) across every status with the explorer columns — author, primary category, status, last-modified, published, SEO completeness score and the latest validation score/status — plus server-side filtering, sorting and pagination so the table stays fast with tens of thousands of rows.
+ * @summary Server-side paginated/sortable/filterable article list for the content explorer (requires content.view)
+ */
+export const listContentExplorerQueryPageDefault = 1;
+
+export const listContentExplorerQueryLimitDefault = 12;
+export const listContentExplorerQueryLimitMax = 100;
+
+
+
+export const ListContentExplorerQueryParams = zod.object({
+  "q": zod.string().optional().describe('Case-insensitive match on title or slug.'),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']).optional(),
+  "author": zod.string().optional().describe('Author slug filter.'),
+  "category": zod.string().optional().describe('Primary-category slug filter.'),
+  "sort": zod.enum(['title', 'slug', 'status', 'modified', 'published', 'updated', 'seo', 'validation']).optional(),
+  "order": zod.enum(['asc', 'desc']).optional(),
+  "page": zod.coerce.number().min(1).default(listContentExplorerQueryPageDefault).describe('1-based page number'),
+  "limit": zod.coerce.number().min(1).max(listContentExplorerQueryLimitMax).default(listContentExplorerQueryLimitDefault).describe('Number of items per page')
+})
+
+export const ListContentExplorerHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListContentExplorerResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "canonicalUrl": zod.string(),
+  "pathname": zod.string(),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "seoScore": zod.number().describe('SEO completeness, 0-100 (20 points per present SEO field).'),
+  "validationScore": zod.number().nullish().describe('Latest validation score (0-100), or null if never validated.'),
+  "validationStatus": zod.union([zod.enum(['pass', 'warn', 'fail']),zod.null()]).optional()
+}).describe('One article row for the Airtable-style content explorer, including the derived SEO completeness score (0-100) and the latest validation score and status.')),
+  "pagination": zod.object({
+  "page": zod.number(),
+  "limit": zod.number(),
+  "total": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+/**
+ * Applies one lifecycle transition to many articles at once, reusing the single-article publish workflow (state machine + scheduling invariants) for every id. Publishing, scheduling or leaving published needs content.publish; other moves need content.edit — each id is checked individually and every successful transition is audited.
+ * @summary Bulk publish/schedule/archive/move selected articles through the publish workflow (requires content.view; per-item content.edit or content.publish)
+ */
+export const BulkTransitionContentHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const BulkTransitionContentBody = zod.object({
+  "ids": zod.array(zod.string().uuid()).min(1),
+  "to": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
+  "scheduledFor": zod.coerce.date().nullish(),
+  "note": zod.string().nullish()
+})
+
+export const BulkTransitionContentResponse = zod.object({
+  "requested": zod.number(),
+  "succeeded": zod.array(zod.string().uuid()),
+  "failed": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "error": zod.string()
+}))
+}).describe('Per-id outcome of a bulk action.')
+
+
+/**
+ * @summary Bulk set the primary category of selected articles (requires content.edit)
+ */
+export const BulkUpdateContentCategoryHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const BulkUpdateContentCategoryBody = zod.object({
+  "ids": zod.array(zod.string().uuid()).min(1),
+  "categoryId": zod.string().uuid().nullish().describe('Target primary category id, or null to clear it.')
+})
+
+export const BulkUpdateContentCategoryResponse = zod.object({
+  "requested": zod.number(),
+  "succeeded": zod.array(zod.string().uuid()),
+  "failed": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "error": zod.string()
+}))
+}).describe('Per-id outcome of a bulk action.')
+
+
+/**
+ * @summary Bulk set the author of selected articles (requires content.edit)
+ */
+export const BulkUpdateContentAuthorHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const BulkUpdateContentAuthorBody = zod.object({
+  "ids": zod.array(zod.string().uuid()).min(1),
+  "authorId": zod.string().uuid().nullish().describe('Target author id, or null to clear it.')
+})
+
+export const BulkUpdateContentAuthorResponse = zod.object({
+  "requested": zod.number(),
+  "succeeded": zod.array(zod.string().uuid()),
+  "failed": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "error": zod.string()
+}))
+}).describe('Per-id outcome of a bulk action.')
+
+
+/**
+ * Applies the provided SEO fields to every selected article's seo record (creating one if absent). Only fields present in the request are written; omitted fields are left untouched.
+ * @summary Bulk update SEO metadata fields on selected articles (requires seo.edit)
+ */
+export const BulkUpdateContentSeoHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const BulkUpdateContentSeoBody = zod.object({
+  "ids": zod.array(zod.string().uuid()).min(1),
+  "metaTitle": zod.string().optional(),
+  "metaDescription": zod.string().optional(),
+  "focusKeyword": zod.string().optional(),
+  "canonicalUrl": zod.string().optional(),
+  "ogImage": zod.string().optional(),
+  "robots": zod.string().optional()
+}).describe('Bulk SEO field update. Only the fields present here are written to each selected article\'s seo record; omitted fields are left untouched.')
+
+export const BulkUpdateContentSeoResponse = zod.object({
+  "requested": zod.number(),
+  "succeeded": zod.array(zod.string().uuid()),
+  "failed": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "error": zod.string()
+}))
+}).describe('Per-id outcome of a bulk action.')
+
+
+/**
+ * @summary Export selected articles as a downloadable JSON file (requires content.view)
+ */
+export const BulkExportContentHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+
+
+export const BulkExportContentBody = zod.object({
+  "ids": zod.array(zod.string().uuid()).min(1),
+  "format": zod.enum(['json', 'csv']).optional()
+})
+
+export const BulkExportContentResponse = zod.object({
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "content": zod.string()
+}).describe('A download envelope for the selected explorer rows.')
+
+
+/**
  * @summary Archive or restore an author (requires taxonomy.manage)
  */
 export const ArchiveCmsAuthorParams = zod.object({

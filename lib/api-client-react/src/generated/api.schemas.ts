@@ -1095,6 +1095,122 @@ export interface CmsPostListResponse {
   pagination: Pagination;
 }
 
+/**
+ * One article row for the Airtable-style content explorer, including the derived SEO completeness score (0-100) and the latest validation score and status.
+ */
+export interface ContentExplorerItem {
+  id: string;
+  slug: string;
+  title: string;
+  canonicalUrl: string;
+  pathname: string;
+  status: PageStatus;
+  author?: AuthorSummary | null;
+  primaryCategory?: CategorySummary | null;
+  /** @nullable */
+  modifiedAt?: string | null;
+  /** @nullable */
+  publishedAt?: string | null;
+  /** @nullable */
+  scheduledFor?: string | null;
+  /** @nullable */
+  updatedAt?: string | null;
+  /** SEO completeness, 0-100 (20 points per present SEO field). */
+  seoScore: number;
+  /**
+     * Latest validation score (0-100), or null if never validated.
+     * @nullable
+     */
+  validationScore?: number | null;
+  validationStatus?: 'pass' | 'warn' | 'fail' | null;
+}
+
+export interface ContentExplorerResponse {
+  items: ContentExplorerItem[];
+  pagination: Pagination;
+}
+
+export type BulkActionResultFailedItem = {
+  id: string;
+  error: string;
+};
+
+/**
+ * Per-id outcome of a bulk action.
+ */
+export interface BulkActionResult {
+  requested: number;
+  succeeded: string[];
+  failed: BulkActionResultFailedItem[];
+}
+
+export interface BulkTransitionInput {
+  /** @minItems 1 */
+  ids: string[];
+  to: PageStatus;
+  /** @nullable */
+  scheduledFor?: string | null;
+  /** @nullable */
+  note?: string | null;
+}
+
+export interface BulkCategoryInput {
+  /** @minItems 1 */
+  ids: string[];
+  /**
+     * Target primary category id, or null to clear it.
+     * @nullable
+     */
+  categoryId?: string | null;
+}
+
+export interface BulkAuthorInput {
+  /** @minItems 1 */
+  ids: string[];
+  /**
+     * Target author id, or null to clear it.
+     * @nullable
+     */
+  authorId?: string | null;
+}
+
+/**
+ * Bulk SEO field update. Only the fields present here are written to each selected article's seo record; omitted fields are left untouched.
+ */
+export interface BulkSeoInput {
+  /** @minItems 1 */
+  ids: string[];
+  metaTitle?: string;
+  metaDescription?: string;
+  focusKeyword?: string;
+  canonicalUrl?: string;
+  ogImage?: string;
+  robots?: string;
+}
+
+export type BulkExportInputFormat = typeof BulkExportInputFormat[keyof typeof BulkExportInputFormat];
+
+
+export const BulkExportInputFormat = {
+  json: 'json',
+  csv: 'csv',
+} as const;
+
+export interface BulkExportInput {
+  /** @minItems 1 */
+  ids: string[];
+  format?: BulkExportInputFormat;
+}
+
+/**
+ * A download envelope for the selected explorer rows.
+ */
+export interface ContentExplorerExportResponse {
+  filename: string;
+  contentType: string;
+  content: string;
+}
+
 export interface AuthUser {
   id: string;
   /** @nullable */
@@ -2437,5 +2553,56 @@ export const SearchCmsContentSort = {
   published: 'published',
   updated: 'updated',
   created: 'created',
+} as const;
+
+export type ListContentExplorerParams = {
+/**
+ * Case-insensitive match on title or slug.
+ */
+q?: string;
+status?: PageStatus;
+/**
+ * Author slug filter.
+ */
+author?: string;
+/**
+ * Primary-category slug filter.
+ */
+category?: string;
+sort?: ListContentExplorerSort;
+order?: ListContentExplorerOrder;
+/**
+ * 1-based page number
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * Number of items per page
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
+};
+
+export type ListContentExplorerSort = typeof ListContentExplorerSort[keyof typeof ListContentExplorerSort];
+
+
+export const ListContentExplorerSort = {
+  title: 'title',
+  slug: 'slug',
+  status: 'status',
+  modified: 'modified',
+  published: 'published',
+  updated: 'updated',
+  seo: 'seo',
+  validation: 'validation',
+} as const;
+
+export type ListContentExplorerOrder = typeof ListContentExplorerOrder[keyof typeof ListContentExplorerOrder];
+
+
+export const ListContentExplorerOrder = {
+  asc: 'asc',
+  desc: 'desc',
 } as const;
 

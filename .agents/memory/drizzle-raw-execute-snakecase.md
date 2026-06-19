@@ -26,3 +26,12 @@ TypeScript could not catch it — the unsound cast suppresses the type error.
 map the rows snake→camel before casting, or alias every column in `RETURNING`.
 Prefer the query builder's `.returning()` (which maps for you) whenever the query
 shape allows it.
+
+# `db.execute<T>` row type must be a `type` alias, not an `interface`
+
+`db.execute<T>(sql\`…\`)` constrains `T extends Record<string, unknown>`. A named
+`interface Row { … }` does NOT satisfy that constraint (TS2344: "Index signature
+for type 'string' is missing") because interfaces don't get an implicit index
+signature. A `type Row = { … }` object-type-literal alias DOES satisfy it. So
+typed raw-execute row shapes must be declared as `type`, not `interface` — an
+inline `{count:number}` works for the same reason.

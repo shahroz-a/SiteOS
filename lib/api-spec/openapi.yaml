@@ -2576,6 +2576,220 @@ paths:
         "404":
           $ref: "#/components/responses/CmsNotFound"
 
+  /cms/content-explorer:
+    get:
+      tags: [cms]
+      operationId: listContentExplorer
+      summary: Server-side paginated/sortable/filterable article list for the content explorer (requires content.view)
+      description: >-
+        Backs the Airtable-style content explorer. Returns one row per article
+        (page_type=post) across every status with the explorer columns —
+        author, primary category, status, last-modified, published, SEO
+        completeness score and the latest validation score/status — plus
+        server-side filtering, sorting and pagination so the table stays fast
+        with tens of thousands of rows.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Case-insensitive match on title or slug.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/PageStatus"
+        - name: author
+          in: query
+          required: false
+          description: Author slug filter.
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          description: Primary-category slug filter.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [title, slug, status, modified, published, updated, seo, validation]
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: A paginated list of explorer rows.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentExplorerResponse"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/content-explorer/bulk/transition:
+    post:
+      tags: [cms]
+      operationId: bulkTransitionContent
+      summary: Bulk publish/schedule/archive/move selected articles through the publish workflow (requires content.view; per-item content.edit or content.publish)
+      description: >-
+        Applies one lifecycle transition to many articles at once, reusing the
+        single-article publish workflow (state machine + scheduling invariants)
+        for every id. Publishing, scheduling or leaving published needs
+        content.publish; other moves need content.edit — each id is checked
+        individually and every successful transition is audited.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkTransitionInput"
+      responses:
+        "200":
+          description: Per-id bulk result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkActionResult"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/content-explorer/bulk/category:
+    post:
+      tags: [cms]
+      operationId: bulkUpdateContentCategory
+      summary: Bulk set the primary category of selected articles (requires content.edit)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkCategoryInput"
+      responses:
+        "200":
+          description: Per-id bulk result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkActionResult"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/content-explorer/bulk/author:
+    post:
+      tags: [cms]
+      operationId: bulkUpdateContentAuthor
+      summary: Bulk set the author of selected articles (requires content.edit)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkAuthorInput"
+      responses:
+        "200":
+          description: Per-id bulk result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkActionResult"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/content-explorer/bulk/seo:
+    post:
+      tags: [cms]
+      operationId: bulkUpdateContentSeo
+      summary: Bulk update SEO metadata fields on selected articles (requires seo.edit)
+      description: >-
+        Applies the provided SEO fields to every selected article's seo record
+        (creating one if absent). Only fields present in the request are written;
+        omitted fields are left untouched.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkSeoInput"
+      responses:
+        "200":
+          description: Per-id bulk result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkActionResult"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/content-explorer/bulk/export:
+    post:
+      tags: [cms]
+      operationId: bulkExportContent
+      summary: Export selected articles as a downloadable JSON file (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkExportInput"
+      responses:
+        "200":
+          description: A JSON download envelope of the selected rows.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentExplorerExportResponse"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
   /cms/authors/{id}/archive:
     post:
       tags: [cms]
@@ -4530,6 +4744,217 @@ components:
       required:
         - items
         - pagination
+
+    ContentExplorerItem:
+      type: object
+      description: >-
+        One article row for the Airtable-style content explorer, including the
+        derived SEO completeness score (0-100) and the latest validation score
+        and status.
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        title:
+          type: string
+        canonicalUrl:
+          type: string
+        pathname:
+          type: string
+        status:
+          $ref: "#/components/schemas/PageStatus"
+        author:
+          oneOf:
+            - $ref: "#/components/schemas/AuthorSummary"
+            - type: "null"
+        primaryCategory:
+          oneOf:
+            - $ref: "#/components/schemas/CategorySummary"
+            - type: "null"
+        modifiedAt:
+          type: ["string", "null"]
+          format: date-time
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        scheduledFor:
+          type: ["string", "null"]
+          format: date-time
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+        seoScore:
+          type: integer
+          description: SEO completeness, 0-100 (20 points per present SEO field).
+        validationScore:
+          type: ["integer", "null"]
+          description: Latest validation score (0-100), or null if never validated.
+        validationStatus:
+          oneOf:
+            - type: string
+              enum: [pass, warn, fail]
+            - type: "null"
+      required:
+        - id
+        - slug
+        - title
+        - canonicalUrl
+        - pathname
+        - status
+        - seoScore
+
+    ContentExplorerResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentExplorerItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - items
+        - pagination
+
+    BulkActionResult:
+      type: object
+      description: Per-id outcome of a bulk action.
+      properties:
+        requested:
+          type: integer
+        succeeded:
+          type: array
+          items:
+            type: string
+            format: uuid
+        failed:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              error:
+                type: string
+            required:
+              - id
+              - error
+      required:
+        - requested
+        - succeeded
+        - failed
+
+    BulkTransitionInput:
+      type: object
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        to:
+          $ref: "#/components/schemas/PageStatus"
+        scheduledFor:
+          type: ["string", "null"]
+          format: date-time
+        note:
+          type: ["string", "null"]
+      required:
+        - ids
+        - to
+
+    BulkCategoryInput:
+      type: object
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        categoryId:
+          type: ["string", "null"]
+          format: uuid
+          description: Target primary category id, or null to clear it.
+      required:
+        - ids
+
+    BulkAuthorInput:
+      type: object
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        authorId:
+          type: ["string", "null"]
+          format: uuid
+          description: Target author id, or null to clear it.
+      required:
+        - ids
+
+    BulkSeoInput:
+      type: object
+      description: >-
+        Bulk SEO field update. Only the fields present here are written to each
+        selected article's seo record; omitted fields are left untouched.
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        metaTitle:
+          type: string
+        metaDescription:
+          type: string
+        focusKeyword:
+          type: string
+        canonicalUrl:
+          type: string
+        ogImage:
+          type: string
+        robots:
+          type: string
+      required:
+        - ids
+
+    BulkExportInput:
+      type: object
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        format:
+          type: string
+          enum: [json, csv]
+      required:
+        - ids
+
+    ContentExplorerExportResponse:
+      type: object
+      description: A download envelope for the selected explorer rows.
+      properties:
+        filename:
+          type: string
+        contentType:
+          type: string
+        content:
+          type: string
+      required:
+        - filename
+        - contentType
+        - content
 
     AuthUser:
       type: object

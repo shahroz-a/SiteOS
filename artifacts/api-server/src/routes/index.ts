@@ -20,6 +20,7 @@ import cmsRedirectsRouter from "./cms-redirects";
 import cmsPublishingRouter from "./cms-publishing";
 import cmsValidationRouter from "./cms-validation";
 import cmsAiRouter from "./cms-ai";
+import contentExplorerRouter from "./content-explorer";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(cmsRedirectsRouter);
 router.use(cmsPublishingRouter);
 router.use(cmsValidationRouter);
 router.use(cmsAiRouter);
+router.use(contentExplorerRouter);
 
 export default router;

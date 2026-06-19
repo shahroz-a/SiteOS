@@ -10,6 +10,7 @@ import AnalyticsPage from "@/pages/analytics";
 import SearchPage from "@/pages/search";
 import UsersPage from "@/pages/users";
 import ContentPage from "@/pages/content";
+import ContentExplorerPage from "@/pages/content-explorer";
 import EditorPage from "@/pages/editor";
 import AuthorsPage from "@/pages/authors";
 import CategoriesPage from "@/pages/categories";
@@ -59,6 +60,11 @@ function AuthenticatedApp() {
         <Route path="/content">
           <RequirePermission permission="content.view">
             <ContentPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/explorer">
+          <RequirePermission permission="content.view">
+            <ContentExplorerPage />
           </RequirePermission>
         </Route>
         <Route path="/content/:id">
