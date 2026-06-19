@@ -19,6 +19,7 @@ import {
 } from "@workspace/ui/select";
 import { RichTextEditor } from "./rich-text-editor";
 import { MediaPicker } from "@/components/media-picker";
+import { UploadedImagePicker } from "@/components/uploaded-image-picker";
 import { useImageUpload } from "../lib/use-image-upload";
 import type { BlockData, BlockEntry, EditorBlock, GalleryImage } from "./model";
 
@@ -61,6 +62,42 @@ export function LibraryButton({
         open={open}
         onOpenChange={setOpen}
         onSelect={(item) => onPick({ url: item.url, alt: item.alt ?? "" })}
+      />
+    </>
+  );
+}
+
+/**
+ * Opens the uploaded-image picker (previously uploaded object-storage images)
+ * and hands the chosen serving URL back so an editor can reuse an earlier
+ * upload without re-uploading or pasting the URL.
+ */
+function UploadedButton({
+  onPick,
+  label = "Choose uploaded",
+  size = "sm",
+}: {
+  onPick: (url: string) => void;
+  label?: string;
+  size?: "sm" | "icon";
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size={size === "icon" ? "icon" : "sm"}
+        onClick={() => setOpen(true)}
+        title={label}
+      >
+        <ImageIcon className={size === "icon" ? "h-4 w-4" : "mr-1 h-4 w-4"} />
+        {size === "icon" ? null : label}
+      </Button>
+      <UploadedImagePicker
+        open={open}
+        onOpenChange={setOpen}
+        onSelect={(image) => onPick(image.url)}
       />
     </>
   );
@@ -214,6 +251,7 @@ function ImageEditor({ block, onChange }: BlockEditorProps) {
             placeholder="Paste a URL or upload a file"
           />
           <ImageUploadButton onUploaded={(url) => patchData(block, onChange, { src: url })} label="Upload" />
+          <UploadedButton onPick={(url) => patchData(block, onChange, { src: url })} />
           <LibraryButton
             onPick={({ url, alt }) =>
               patchData(block, onChange, { src: url, alt: d.alt || alt })
@@ -260,6 +298,11 @@ function GalleryEditor({ block, onChange }: BlockEditorProps) {
             size="icon"
             label="Upload image"
             onUploaded={(url) => setImages(images.map((x, j) => (j === i ? { ...x, src: url } : x)))}
+          />
+          <UploadedButton
+            size="icon"
+            label="Choose uploaded"
+            onPick={(url) => setImages(images.map((x, j) => (j === i ? { ...x, src: url } : x)))}
           />
           <Button variant="ghost" size="icon" onClick={() => setImages(images.filter((_, j) => j !== i))}>
             <Trash2 className="h-4 w-4" />

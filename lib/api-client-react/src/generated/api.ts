@@ -64,6 +64,7 @@ import type {
   ListCmsMediaParams,
   ListCmsPostParams,
   ListPostsParams,
+  ListUploadedImagesParams,
   LogoutSuccess,
   MediaListResponse,
   MobileTokenExchangeRequest,
@@ -90,6 +91,7 @@ import type {
   UpdateUserRoleRequest,
   UploadUrlRequest,
   UploadUrlResponse,
+  UploadedImageListResponse,
   VersionDiff
 } from './api.schemas';
 
@@ -176,6 +178,91 @@ export const useRequestUploadUrl = <TError = ErrorType<CmsBadRequestResponse | C
       > => {
       return useMutation(getRequestUploadUrlMutationOptions(options));
     }
+
+export const getListUploadedImagesUrl = (params?: ListUploadedImagesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/storage/uploads?${stringifiedParams}` : `/api/storage/uploads`
+}
+
+/**
+ * Lists images an editor has previously uploaded to object storage via the presigned-URL flow, newest first, so they can be reused in a block without re-uploading. Each item's `url` is the app-relative serving URL (`/api/storage/objects/...`). Gated on the CMS session: the acting user must hold content.create or content.edit.
+ * @summary List previously uploaded images (requires content.create or content.edit)
+ */
+export const listUploadedImages = async (params?: ListUploadedImagesParams, options?: RequestInit): Promise<UploadedImageListResponse> => {
+
+  return customFetch<UploadedImageListResponse>(getListUploadedImagesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListUploadedImagesQueryKey = (params?: ListUploadedImagesParams,) => {
+    return [
+    `/api/storage/uploads`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListUploadedImagesQueryOptions = <TData = Awaited<ReturnType<typeof listUploadedImages>>, TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>>(params?: ListUploadedImagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUploadedImages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListUploadedImagesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listUploadedImages>>> = ({ signal }) => listUploadedImages(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listUploadedImages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListUploadedImagesQueryResult = NonNullable<Awaited<ReturnType<typeof listUploadedImages>>>
+export type ListUploadedImagesQueryError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>
+
+
+/**
+ * @summary List previously uploaded images (requires content.create or content.edit)
+ */
+
+export function useListUploadedImages<TData = Awaited<ReturnType<typeof listUploadedImages>>, TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>>(
+ params?: ListUploadedImagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUploadedImages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListUploadedImagesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetStorageObjectUrl = (objectPath: string,) => {
 

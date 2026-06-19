@@ -1,0 +1,111 @@
+process.env.NODE_ENV = "production";
+process.env.LOG_LEVEL = "silent";
+
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import request from "supertest";
+import { makeDbMock, makeDrizzleMock, type Tables } from "../../__tests__/fakeDb";
+import { ROLES, hasPermission, type Role } from "@workspace/cms-auth";
+
+/**
+ * RBAC gating tests for GET /storage/uploads. The handler lists object-storage
+ * uploads (not implemented in this unit context), so these tests only exercise
+ * the auth/permission middleware chain, which short-circuits (401/403) before
+ * the handler does any storage work. The endpoint requires content.create OR
+ * content.edit.
+ */
+
+const USER_IDS: Record<Role, string> = {
+  admin: "u-admin",
+  editor: "u-editor",
+  writer: "u-writer",
+  seo: "u-seo",
+  reviewer: "u-reviewer",
+  translator: "u-translator",
+  viewer: "u-viewer",
+};
+
+const FUTURE = new Date(Date.now() + 60 * 60 * 1000);
+const CREATED = new Date("2025-01-01T00:00:00Z");
+
+function seedAuthTables(): Tables {
+  const users = ROLES.map((role) => ({
+    id: USER_IDS[role],
+    email: `${role}@example.com`,
+    firstName: role,
+    lastName: "User",
+    profileImageUrl: null,
+    role,
+    createdAt: CREATED,
+    updatedAt: CREATED,
+  }));
+
+  const sessions = ROLES.map((role) => ({
+    sid: `sid-${role}`,
+    sess: {
+      user: {
+        id: USER_IDS[role],
+        email: `${role}@example.com`,
+        firstName: role,
+        lastName: "User",
+        profileImageUrl: null,
+      },
+      access_token: "tok",
+    },
+    expire: FUTURE,
+  }));
+
+  return { users, sessions, audit_logs: [] };
+}
+
+const tables: Tables = seedAuthTables();
+
+vi.mock("@workspace/db", () => makeDbMock(tables));
+vi.mock("drizzle-orm", () => makeDrizzleMock());
+
+const app = (await import("../../app")).default;
+
+beforeEach(() => {
+  const fresh = seedAuthTables();
+  for (const k of Object.keys(tables)) delete tables[k];
+  for (const [k, v] of Object.entries(fresh)) tables[k] = v;
+});
+
+const bearer = (role: Role) => `Bearer sid-${role}`;
+
+const canList = (r: Role) =>
+  hasPermission(r, "content.create") || hasPermission(r, "content.edit");
+
+describe("GET /api/storage/uploads (RBAC)", () => {
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app).get("/api/storage/uploads");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 401 for an unknown session token", async () => {
+    const res = await request(app)
+      .get("/api/storage/uploads")
+      .set("Authorization", "Bearer sid-nope");
+    expect(res.status).toBe(401);
+  });
+
+  for (const role of ROLES.filter((r) => !canList(r))) {
+    it(`returns 403 for ${role} (lacks content.create/content.edit)`, async () => {
+      const res = await request(app)
+        .get("/api/storage/uploads")
+        .set("Authorization", bearer(role));
+      expect(res.status).toBe(403);
+    });
+  }
+
+  it("passes the permission gate for content.create/content.edit roles (reaches the handler)", async () => {
+    const permitted = ROLES.filter(canList);
+    expect(permitted.length).toBeGreaterThan(0);
+    for (const role of permitted) {
+      const res = await request(app)
+        .get("/api/storage/uploads")
+        .set("Authorization", bearer(role));
+      expect(res.status).not.toBe(401);
+      expect(res.status).not.toBe(403);
+    }
+  });
+});

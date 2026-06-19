@@ -1,6 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
-import { RequestUploadUrlBody, RequestUploadUrlResponse } from "@workspace/api-zod";
+import {
+  RequestUploadUrlBody,
+  RequestUploadUrlResponse,
+  ListUploadedImagesQueryParams,
+  ListUploadedImagesResponse,
+} from "@workspace/api-zod";
 import { requireAuth, requireAnyPermission } from "../middlewares/rbac";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 
@@ -45,6 +50,51 @@ router.post(
     } catch (error) {
       req.log.error({ err: error }, "Error generating upload URL");
       res.status(500).json({ error: "Failed to generate upload URL" });
+    }
+  },
+);
+
+/**
+ * GET /storage/uploads
+ *
+ * List images the editor has previously uploaded to object storage (newest
+ * first) so they can be reused in a block without re-uploading. Returns
+ * app-relative serving URLs (`/api/storage/objects/...`). Paginated in-memory
+ * over the bucket listing.
+ *
+ * Gated on the CMS session: the acting user must hold content.create or
+ * content.edit.
+ */
+router.get(
+  "/storage/uploads",
+  requireAuth,
+  requireAnyPermission(["content.create", "content.edit"]),
+  async (req: Request, res: Response) => {
+    const parsed = ListUploadedImagesQueryParams.safeParse(req.query);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Invalid query", details: parsed.error.issues });
+      return;
+    }
+    const { page, limit } = parsed.data;
+
+    try {
+      const all = await objectStorageService.listUploadedObjects();
+      const total = all.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const offset = (page - 1) * limit;
+      const items = all.slice(offset, offset + limit);
+
+      res.json(
+        ListUploadedImagesResponse.parse({
+          items,
+          pagination: { page, limit, total, totalPages },
+        }),
+      );
+    } catch (error) {
+      req.log.error({ err: error }, "Error listing uploaded images");
+      res.status(500).json({ error: "Failed to list uploaded images" });
     }
   },
 );

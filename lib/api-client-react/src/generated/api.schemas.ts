@@ -1138,6 +1138,36 @@ export interface MediaListResponse {
   summary: MediaSummary;
 }
 
+/**
+ * An image previously uploaded to object storage via the presigned-URL flow, reusable in a block without re-uploading.
+ */
+export interface UploadedImage {
+  /** App-relative serving URL (`/api/storage/objects/...`) — the value to store as a block image `src`. */
+  url: string;
+  /** The object entity path within storage (e.g. `uploads/<uuid>`); used as a stable key and fallback label. */
+  name: string;
+  /**
+     * File size in bytes, when known.
+     * @nullable
+     */
+  size: number | null;
+  /**
+     * The stored MIME type, when known.
+     * @nullable
+     */
+  contentType: string | null;
+  /**
+     * ISO timestamp the object was last updated/created, when known.
+     * @nullable
+     */
+  updatedAt: string | null;
+}
+
+export interface UploadedImageListResponse {
+  items: UploadedImage[];
+  pagination: Pagination;
+}
+
 export type HeldBackValidationIssueSeverity = typeof HeldBackValidationIssueSeverity[keyof typeof HeldBackValidationIssueSeverity];
 
 
@@ -1529,6 +1559,20 @@ export type LimitParamParameter = number;
  * Opaque session token — `Bearer <sid>`.
  */
 export type AuthorizationSessionHeaderParameter = string;
+
+export type ListUploadedImagesParams = {
+/**
+ * 1-based page number
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * Number of items per page
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
+};
 
 export type ListPostsParams = {
 /**

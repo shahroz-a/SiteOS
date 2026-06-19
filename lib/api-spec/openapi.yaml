@@ -63,6 +63,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads:
+    get:
+      tags: [Storage]
+      operationId: listUploadedImages
+      summary: List previously uploaded images (requires content.create or content.edit)
+      description: >-
+        Lists images an editor has previously uploaded to object storage via the
+        presigned-URL flow, newest first, so they can be reused in a block
+        without re-uploading. Each item's `url` is the app-relative serving URL
+        (`/api/storage/objects/...`). Gated on the CMS session: the acting user
+        must hold content.create or content.edit.
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: A paginated list of previously uploaded images (newest first).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadedImageListResponse"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "500":
+          description: Failed to list uploaded images.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /storage/objects/{objectPath}:
     get:
       tags: [Storage]
@@ -4005,6 +4040,51 @@ components:
           $ref: '#/components/schemas/Pagination'
         summary:
           $ref: '#/components/schemas/MediaSummary'
+
+    UploadedImage:
+      type: object
+      description: An image previously uploaded to object storage via the presigned-URL flow, reusable in a block without re-uploading.
+      required:
+        - url
+        - name
+        - size
+        - contentType
+        - updatedAt
+      properties:
+        url:
+          type: string
+          description: App-relative serving URL (`/api/storage/objects/...`) — the value to store as a block image `src`.
+        name:
+          type: string
+          description: The object entity path within storage (e.g. `uploads/<uuid>`); used as a stable key and fallback label.
+        size:
+          type:
+            - integer
+            - 'null'
+          description: File size in bytes, when known.
+        contentType:
+          type:
+            - string
+            - 'null'
+          description: The stored MIME type, when known.
+        updatedAt:
+          type:
+            - string
+            - 'null'
+          description: ISO timestamp the object was last updated/created, when known.
+
+    UploadedImageListResponse:
+      type: object
+      required:
+        - items
+        - pagination
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadedImage'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
 
     HeldBackValidationIssue:
       type: object

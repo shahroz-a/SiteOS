@@ -44,6 +44,43 @@ export const RequestUploadUrlResponse = zod.object({
 
 
 /**
+ * Lists images an editor has previously uploaded to object storage via the presigned-URL flow, newest first, so they can be reused in a block without re-uploading. Each item's `url` is the app-relative serving URL (`/api/storage/objects/...`). Gated on the CMS session: the acting user must hold content.create or content.edit.
+ * @summary List previously uploaded images (requires content.create or content.edit)
+ */
+export const listUploadedImagesQueryPageDefault = 1;
+
+export const listUploadedImagesQueryLimitDefault = 12;
+export const listUploadedImagesQueryLimitMax = 100;
+
+
+
+export const ListUploadedImagesQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listUploadedImagesQueryPageDefault).describe('1-based page number'),
+  "limit": zod.coerce.number().min(1).max(listUploadedImagesQueryLimitMax).default(listUploadedImagesQueryLimitDefault).describe('Number of items per page')
+})
+
+export const ListUploadedImagesHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListUploadedImagesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "url": zod.string().describe('App-relative serving URL (`\/api\/storage\/objects\/...`) — the value to store as a block image `src`.'),
+  "name": zod.string().describe('The object entity path within storage (e.g. `uploads\/<uuid>`); used as a stable key and fallback label.'),
+  "size": zod.number().nullable().describe('File size in bytes, when known.'),
+  "contentType": zod.string().nullable().describe('The stored MIME type, when known.'),
+  "updatedAt": zod.string().nullable().describe('ISO timestamp the object was last updated\/created, when known.')
+}).describe('An image previously uploaded to object storage via the presigned-URL flow, reusable in a block without re-uploading.')),
+  "pagination": zod.object({
+  "page": zod.number(),
+  "limit": zod.number(),
+  "total": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+/**
  * Streams an object uploaded via the presigned-URL flow. Uploaded blog images are public content, so this endpoint is unauthenticated. The generated client is not used for it — reference the URL directly from an `<img src>`.
  * @summary Serve an uploaded image from object storage
  */

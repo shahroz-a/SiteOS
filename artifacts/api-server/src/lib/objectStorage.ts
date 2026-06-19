@@ -29,6 +29,16 @@ export const objectStorageClient = new Storage({
   projectId: "",
 });
 
+export interface UploadedObject {
+  /** App-relative serving URL (`/api/storage/objects/...`). */
+  url: string;
+  /** Object entity path (e.g. `uploads/<uuid>`). */
+  name: string;
+  size: number | null;
+  contentType: string | null;
+  updatedAt: string | null;
+}
+
 export class ObjectNotFoundError extends Error {
   constructor() {
     super("Object not found");
@@ -126,6 +136,53 @@ export class ObjectStorageService {
       method: "PUT",
       ttlSec: 900,
     });
+  }
+
+  /**
+   * List the images an editor has previously uploaded (via the presigned-URL
+   * flow under `<privateDir>/uploads/`), newest first. Returns app-relative
+   * serving URLs (`/api/storage/objects/...`) so they can be reused in a block
+   * without re-uploading. Metadata comes straight from the list response — no
+   * per-object metadata fetch.
+   */
+  async listUploadedObjects(): Promise<UploadedObject[]> {
+    let entityDir = this.getPrivateObjectDir();
+    if (!entityDir.endsWith("/")) {
+      entityDir = `${entityDir}/`;
+    }
+    const { bucketName, objectName } = parseObjectPath(entityDir);
+    const base = objectName.endsWith("/") ? objectName : `${objectName}/`;
+    const prefix = `${base}uploads/`;
+
+    const bucket = objectStorageClient.bucket(bucketName);
+    const [files] = await bucket.getFiles({ prefix });
+
+    const objects: UploadedObject[] = [];
+    for (const file of files) {
+      // Skip the directory placeholder object some clients create.
+      if (file.name.endsWith("/")) continue;
+      const entityId = file.name.slice(base.length);
+      if (!entityId) continue;
+      const sizeRaw = file.metadata.size;
+      const size =
+        sizeRaw == null || Number.isNaN(Number(sizeRaw))
+          ? null
+          : Number(sizeRaw);
+      objects.push({
+        url: `/api/storage/objects/${entityId}`,
+        name: entityId,
+        size,
+        contentType: (file.metadata.contentType as string) ?? null,
+        updatedAt:
+          (file.metadata.updated as string) ??
+          (file.metadata.timeCreated as string) ??
+          null,
+      });
+    }
+
+    // Newest first (ISO timestamps sort lexicographically).
+    objects.sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+    return objects;
   }
 
   async getObjectEntityFile(objectPath: string): Promise<File> {
