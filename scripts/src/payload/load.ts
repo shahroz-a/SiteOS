@@ -50,6 +50,13 @@ export interface PayloadLike {
 export interface LoadOptions {
   /** Override the fetch used to download media assets (e.g. in tests). */
   fetchImpl?: typeof fetch;
+  /**
+   * Preview mode: perform every natural-key lookup to project the
+   * create/update split, but skip all create/update calls (and the media
+   * re-fetch + upload) so the Payload instance is left untouched. The returned
+   * `counts` / `updated` still report what *would* happen.
+   */
+  dryRun?: boolean;
 }
 
 export interface LoadResult {
@@ -100,6 +107,7 @@ export async function loadPayloadExport(
   opts: LoadOptions = {},
 ): Promise<LoadResult> {
   const doFetch = opts.fetchImpl ?? globalThis.fetch;
+  const dryRun = opts.dryRun ?? false;
 
   // old migration UUID -> new Payload id
   const idMap = new Map<string, string | number>();
@@ -116,9 +124,15 @@ export async function loadPayloadExport(
     const data = { alt: m.alt, caption: m.caption, credit: m.credit };
     const existing = await findByKey(payload, "media", "filename", m.filename);
     if (existing) {
-      await payload.update({ collection: "media", id: existing.id, data });
+      if (!dryRun) {
+        await payload.update({ collection: "media", id: existing.id, data });
+      }
       idMap.set(m.id, existing.id);
       updated.media++;
+      continue;
+    }
+    if (dryRun) {
+      counts.media++;
       continue;
     }
     const res = await doFetch(m.sourceUrl || m.url);
@@ -156,9 +170,15 @@ export async function loadPayloadExport(
     };
     const existing = await findByKey(payload, "authors", "slug", a.slug);
     if (existing) {
-      await payload.update({ collection: "authors", id: existing.id, data });
+      if (!dryRun) {
+        await payload.update({ collection: "authors", id: existing.id, data });
+      }
       idMap.set(a.id, existing.id);
       updated.authors++;
+      continue;
+    }
+    if (dryRun) {
+      counts.authors++;
       continue;
     }
     const created = await payload.create({ collection: "authors", data });
@@ -172,22 +192,34 @@ export async function loadPayloadExport(
     const data = { title: c.title, slug: c.slug, description: c.description };
     const existing = await findByKey(payload, "categories", "slug", c.slug);
     if (existing) {
-      await payload.update({ collection: "categories", id: existing.id, data });
+      if (!dryRun) {
+        await payload.update({
+          collection: "categories",
+          id: existing.id,
+          data,
+        });
+      }
       idMap.set(c.id, existing.id);
       updated.categories++;
+      continue;
+    }
+    if (dryRun) {
+      counts.categories++;
       continue;
     }
     const created = await payload.create({ collection: "categories", data });
     idMap.set(c.id, created.id);
     counts.categories++;
   }
-  for (const c of collections.categories) {
-    if (!c.parent) continue;
-    await payload.update({
-      collection: "categories",
-      id: idMap.get(c.id)!,
-      data: { parent: remap(c.parent) },
-    });
+  if (!dryRun) {
+    for (const c of collections.categories) {
+      if (!c.parent) continue;
+      await payload.update({
+        collection: "categories",
+        id: idMap.get(c.id)!,
+        data: { parent: remap(c.parent) },
+      });
+    }
   }
 
   // 4) Tags — natural key: slug.
@@ -195,9 +227,15 @@ export async function loadPayloadExport(
     const data = { title: t.title, slug: t.slug, description: t.description };
     const existing = await findByKey(payload, "tags", "slug", t.slug);
     if (existing) {
-      await payload.update({ collection: "tags", id: existing.id, data });
+      if (!dryRun) {
+        await payload.update({ collection: "tags", id: existing.id, data });
+      }
       idMap.set(t.id, existing.id);
       updated.tags++;
+      continue;
+    }
+    if (dryRun) {
+      counts.tags++;
       continue;
     }
     const created = await payload.create({ collection: "tags", data });
@@ -228,9 +266,20 @@ export async function loadPayloadExport(
     const draft = p._status !== "published";
     const existing = await findByKey(payload, "posts", "slug", p.slug);
     if (existing) {
-      await payload.update({ collection: "posts", id: existing.id, data, draft });
+      if (!dryRun) {
+        await payload.update({
+          collection: "posts",
+          id: existing.id,
+          data,
+          draft,
+        });
+      }
       idMap.set(p.id, existing.id);
       updated.posts++;
+      continue;
+    }
+    if (dryRun) {
+      counts.posts++;
       continue;
     }
     const created = await payload.create({ collection: "posts", draft, data });

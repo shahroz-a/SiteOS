@@ -29,6 +29,11 @@ export function parseFlag(argv: string[], flag: string): string | undefined {
   return undefined;
 }
 
+/** A boolean (value-less) flag like `--dry-run`. */
+export function parseBoolFlag(argv: string[], flag: string): boolean {
+  return argv.includes(flag);
+}
+
 export function parseInPath(argv: string[]): string {
   const v = parseFlag(argv, "--in");
   if (v) return resolve(process.cwd(), v);
@@ -80,13 +85,15 @@ async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const inPath = parseInPath(argv);
   const configPath = parseConfigPath(argv);
+  const dryRun = parseBoolFlag(argv, "--dry-run");
 
   console.log(`Reading Payload export from ${inPath}...`);
   const raw = JSON.parse(await readFile(inPath, "utf8")) as unknown;
   const collections = loadCollections(raw);
 
   console.log(
-    `Loading into Payload (config: ${configPath}): ` +
+    `${dryRun ? "[dry run] Previewing load into" : "Loading into"} ` +
+      `Payload (config: ${configPath}): ` +
       `${collections.media.length} media, ` +
       `${collections.authors.length} author(s), ` +
       `${collections.categories.length} categor(ies), ` +
@@ -95,10 +102,17 @@ async function main(): Promise<void> {
   );
 
   const payload = await bootPayload(configPath);
-  const { idMap, counts, updated } = await loadPayloadExport(payload, collections);
+  const { idMap, counts, updated } = await loadPayloadExport(
+    payload,
+    collections,
+    { dryRun },
+  );
 
+  const header = dryRun
+    ? "Payload dry run complete — nothing was written (would create / would update):"
+    : "Payload load complete (created / updated):";
   console.log(
-    `\nPayload load complete (created / updated):\n` +
+    `\n${header}\n` +
       `  media:       ${counts.media} / ${updated.media}\n` +
       `  authors:     ${counts.authors} / ${updated.authors}\n` +
       `  categories:  ${counts.categories} / ${updated.categories}\n` +

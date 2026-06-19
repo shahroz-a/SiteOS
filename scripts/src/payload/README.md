@@ -145,6 +145,23 @@ Requirements:
 The CLI prints the per-collection create counts and the size of the
 old-UUID → new-Payload-id map on success, and exits non-zero on failure.
 
+#### Preview a load with `--dry-run`
+
+To see what a load *would* do against a populated Payload instance without
+writing anything, pass `--dry-run`. The loader performs every natural-key
+lookup but skips all create/update calls (and the media re-fetch + upload), then
+prints the projected create-vs-update split per collection:
+
+```bash
+pnpm --filter @workspace/scripts run load:payload -- \
+  --config ./payload.config.ts --dry-run
+```
+
+This is handy before a real load — especially after a partial failure — to
+confirm how many documents would be created vs. updated. Programmatically,
+`loadPayloadExport(payload, collections, { dryRun: true })` returns the same
+`{ counts, updated }` breakdown while leaving the instance untouched.
+
 ### One-command migration (export + load)
 
 For a fresh migration into Payload you don't need to run the export and load

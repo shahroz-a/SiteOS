@@ -312,4 +312,57 @@ describe("Payload export → real Payload load (integration)", () => {
       expect(second.idMap.get(uuid)).toBe(result.idMap.get(uuid));
     }
   });
+
+  it("dry run projects the update split and writes nothing", async () => {
+    const collectionsToCheck = [
+      "media",
+      "authors",
+      "categories",
+      "tags",
+      "posts",
+    ] as const;
+
+    // Snapshot document totals before the dry run.
+    const before: Record<string, number> = {};
+    for (const collection of collectionsToCheck) {
+      before[collection] = (
+        await instance.payload.find({ collection, limit: 100 })
+      ).totalDocs;
+    }
+
+    // The instance is already populated (from beforeAll), so a dry run should
+    // project every document as an update with zero creates.
+    const preview = await loadPayloadExport(
+      instance.payload as unknown as PayloadLike,
+      data.collections,
+      { dryRun: true, fetchImpl },
+    );
+
+    expect(preview.counts).toEqual({
+      media: 0,
+      authors: 0,
+      categories: 0,
+      tags: 0,
+      posts: 0,
+    });
+    expect(preview.updated).toEqual({
+      media: 2,
+      authors: 1,
+      categories: 2,
+      tags: 2,
+      posts: 1,
+    });
+
+    // Document totals are unchanged — the dry run wrote nothing.
+    for (const collection of collectionsToCheck) {
+      const after = (await instance.payload.find({ collection, limit: 100 }))
+        .totalDocs;
+      expect(after).toBe(before[collection]);
+    }
+
+    // Existing documents are still resolved by natural key into the idMap.
+    for (const uuid of Object.values(IDS)) {
+      expect(preview.idMap.get(uuid)).toBe(result.idMap.get(uuid));
+    }
+  });
 });
