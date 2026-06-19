@@ -19,10 +19,22 @@
  *
  * Defaults to a dry run; pass `--apply` to write.
  *
+ * Every `--apply` run records exactly which ids it deactivated/repaired to
+ * `reports/redirect-cleanup.json`, so an operator who later realises a row was
+ * fine can undo it — either a single id (`--reactivate=<id>`) or the whole last
+ * run (`--restore-last`, which reactivates every deactivated row and reverts
+ * every repaired `from_path` back to its original value). Both undo modes are
+ * themselves dry-run by default and require `--apply` to write.
+ *
  * Usage:
  *   pnpm --filter @workspace/scripts run cleanup:redirects            # dry run
  *   pnpm --filter @workspace/scripts run cleanup:redirects -- --apply # write
+ *   pnpm --filter @workspace/scripts run cleanup:redirects -- --restore-last --apply
+ *   pnpm --filter @workspace/scripts run cleanup:redirects -- --reactivate=<id> --apply
  */
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { eq, inArray } from "drizzle-orm";
 import { db, pool, redirectsTable } from "@workspace/db";
 import {
@@ -32,6 +44,19 @@ import {
 } from "./prerender/redirects";
 
 const APPLY = process.argv.includes("--apply");
+const RESTORE_LAST = process.argv.includes("--restore-last");
+const reactivateArg = process.argv.find((a) => a.startsWith("--reactivate="));
+const REACTIVATE_ID = reactivateArg
+  ? reactivateArg.slice("--reactivate=".length)
+  : null;
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, "..", "..");
+export const CLEANUP_REPORT_PATH = path.resolve(
+  repoRoot,
+  "reports",
+  "redirect-cleanup.json",
+);
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -92,7 +117,214 @@ export function planRedirectCleanup(
   return actions;
 }
 
+/**
+ * Persisted record of one `--apply` cleanup run, written to
+ * `reports/redirect-cleanup.json`. It captures exactly which ids changed and
+ * how, so the change can be undone later (`--restore-last`).
+ */
+export interface CleanupRunRecord {
+  ranAt: string;
+  repaired: Array<{
+    id: string;
+    originalFromPath: string;
+    newFromPath: string;
+    toPath: string;
+    reason: RedirectSkipReason;
+  }>;
+  deactivated: Array<{
+    id: string;
+    fromPath: string;
+    toPath: string;
+    reason: RedirectSkipReason;
+  }>;
+}
+
+/** Build the persisted run record from the actions actually applied. Pure. */
+export function buildCleanupRecord(
+  actions: Action[],
+  ranAt: string,
+): CleanupRunRecord {
+  const repaired: CleanupRunRecord["repaired"] = [];
+  const deactivated: CleanupRunRecord["deactivated"] = [];
+  for (const a of actions) {
+    if (a.kind === "repair") {
+      repaired.push({
+        id: a.id,
+        originalFromPath: a.fromPath,
+        newFromPath: a.newFromPath,
+        toPath: a.toPath,
+        reason: a.reason,
+      });
+    } else {
+      deactivated.push({
+        id: a.id,
+        fromPath: a.fromPath,
+        toPath: a.toPath,
+        reason: a.reason,
+      });
+    }
+  }
+  return { ranAt, repaired, deactivated };
+}
+
+/** One undo step against a single redirect row. */
+export type RestoreAction =
+  | { kind: "reactivate"; id: string; fromPath: string }
+  | {
+      kind: "revert-path";
+      id: string;
+      fromPath: string;
+      currentFromPath: string;
+    };
+
+/**
+ * Turn a persisted cleanup record into the steps that undo it. Pure (no DB):
+ * every deactivated row is re-activated, and every repaired row has its
+ * `from_path` reverted to the original value the cleanup changed it from.
+ */
+export function planRedirectRestore(record: CleanupRunRecord): RestoreAction[] {
+  const actions: RestoreAction[] = [];
+  for (const r of record.repaired) {
+    actions.push({
+      kind: "revert-path",
+      id: r.id,
+      fromPath: r.originalFromPath,
+      currentFromPath: r.newFromPath,
+    });
+  }
+  for (const d of record.deactivated) {
+    actions.push({ kind: "reactivate", id: d.id, fromPath: d.fromPath });
+  }
+  return actions;
+}
+
+async function writeCleanupRecord(record: CleanupRunRecord): Promise<void> {
+  await mkdir(path.dirname(CLEANUP_REPORT_PATH), { recursive: true });
+  await writeFile(
+    CLEANUP_REPORT_PATH,
+    JSON.stringify(record, null, 2) + "\n",
+    "utf8",
+  );
+}
+
+async function readCleanupRecord(): Promise<CleanupRunRecord | null> {
+  try {
+    const raw = await readFile(CLEANUP_REPORT_PATH, "utf8");
+    return JSON.parse(raw) as CleanupRunRecord;
+  } catch {
+    return null;
+  }
+}
+
+/** `--reactivate=<id>`: flip a single redirect back to active. */
+async function runReactivate(id: string): Promise<void> {
+  console.log(`\n=== reactivate redirect (${APPLY ? "APPLY" : "DRY RUN"}) ===`);
+  const [row] = await db
+    .select({
+      id: redirectsTable.id,
+      fromPath: redirectsTable.fromPath,
+      toPath: redirectsTable.toPath,
+      isActive: redirectsTable.isActive,
+    })
+    .from(redirectsTable)
+    .where(eq(redirectsTable.id, id));
+
+  if (!row) {
+    console.error(`No redirect with id ${id}.`);
+    await pool.end();
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`  ${row.fromPath}  →  ${row.toPath}`);
+  if (row.isActive) {
+    console.log(`\nAlready active — nothing to do.\n`);
+    await pool.end();
+    return;
+  }
+  if (!APPLY) {
+    console.log(`\nDry run only. Re-run with --apply to write.\n`);
+    await pool.end();
+    return;
+  }
+  await db
+    .update(redirectsTable)
+    .set({ isActive: true })
+    .where(eq(redirectsTable.id, id));
+  console.log(`\nReactivated ${id}.\n`);
+  await pool.end();
+}
+
+/** `--restore-last`: undo the whole last `--apply` cleanup run. */
+async function runRestoreLast(): Promise<void> {
+  console.log(
+    `\n=== restore last cleanup (${APPLY ? "APPLY" : "DRY RUN"}) ===`,
+  );
+  const record = await readCleanupRecord();
+  if (!record) {
+    console.error(
+      `No cleanup record found at ${CLEANUP_REPORT_PATH}. Nothing to restore.`,
+    );
+    await pool.end();
+    process.exitCode = 1;
+    return;
+  }
+
+  const actions = planRedirectRestore(record);
+  const reactivations = actions.filter((a) => a.kind === "reactivate");
+  const reverts = actions.filter((a) => a.kind === "revert-path");
+
+  console.log(`last run:               ${record.ranAt}`);
+  console.log(`reactivate:             ${reactivations.length}`);
+  console.log(`revert from_path:       ${reverts.length}`);
+  for (const a of actions.slice(0, 20)) {
+    if (a.kind === "revert-path") {
+      console.log(`  [revert] ${a.currentFromPath}  →  ${a.fromPath}`);
+    } else {
+      console.log(`  [reactivate] ${a.fromPath}`);
+    }
+  }
+
+  if (!APPLY) {
+    console.log(`\nDry run only. Re-run with --apply to write.\n`);
+    await pool.end();
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    // Reverting from_path first frees each clean path before any reactivation
+    // touches the table, keeping the unique constraint happy.
+    for (const a of reverts) {
+      if (a.kind !== "revert-path") continue;
+      await tx
+        .update(redirectsTable)
+        .set({ fromPath: a.fromPath })
+        .where(eq(redirectsTable.id, a.id));
+    }
+    const reactivateIds = reactivations.map((a) => a.id);
+    for (const ids of chunk(reactivateIds, 500)) {
+      await tx
+        .update(redirectsTable)
+        .set({ isActive: true })
+        .where(inArray(redirectsTable.id, ids));
+    }
+  });
+
+  console.log(
+    `\nRestored. Reactivated ${reactivations.length}, reverted ${reverts.length}.\n`,
+  );
+  await pool.end();
+}
+
 async function main(): Promise<void> {
+  if (REACTIVATE_ID !== null) {
+    await runReactivate(REACTIVATE_ID);
+    return;
+  }
+  if (RESTORE_LAST) {
+    await runRestoreLast();
+    return;
+  }
+
   const all = await db
     .select({
       id: redirectsTable.id,
@@ -172,9 +404,14 @@ async function main(): Promise<void> {
     }
   });
 
+  // Record exactly what changed so an operator can undo it later.
+  const record = buildCleanupRecord(actions, new Date().toISOString());
+  await writeCleanupRecord(record);
+
   console.log(
-    `\nApplied. Repaired ${repairs.length}, deactivated ${deactivations.length}.\n`,
+    `\nApplied. Repaired ${repairs.length}, deactivated ${deactivations.length}.`,
   );
+  console.log(`Run recorded to ${CLEANUP_REPORT_PATH} (undo with --restore-last).\n`);
   await pool.end();
 }
 
