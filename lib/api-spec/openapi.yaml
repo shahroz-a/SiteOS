@@ -586,6 +586,79 @@ paths:
         "403":
           $ref: "#/components/responses/CmsForbidden"
 
+  /cms/media/suggest-alt:
+    post:
+      tags: [cms]
+      operationId: suggestCmsMediaAlt
+      summary: >-
+        Suggest an accessible alt-text description for an image using an AI
+        vision model (requires media.manage). The suggestion is returned for an
+        editor to review and edit — it is never saved automatically.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuggestMediaAltInput"
+      responses:
+        "200":
+          description: An AI-generated alt-text suggestion for the image.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestMediaAltResponse"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "502":
+          description: The AI vision model could not produce a suggestion.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /cms/media/alt:
+    patch:
+      tags: [cms]
+      operationId: updateCmsMediaAlt
+      summary: >-
+        Save reviewed alt text for a media item, updating every usage of the
+        image (keyed by CDN URL) across all pages (requires media.manage).
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMediaAltInput"
+      responses:
+        "200":
+          description: The updated alt text and how many usages were changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateMediaAltResponse"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          description: No image with the given URL exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /cms/held-back-articles:
     get:
       tags: [cms]
@@ -3476,6 +3549,55 @@ components:
         - ok
         - missing
         - poor
+
+    SuggestMediaAltInput:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The CDN URL of the image to describe.
+
+    SuggestMediaAltResponse:
+      type: object
+      required:
+        - suggestion
+      properties:
+        suggestion:
+          type: string
+          description: An AI-generated alt-text description for the editor to review.
+
+    UpdateMediaAltInput:
+      type: object
+      required:
+        - url
+        - alt
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The CDN URL identifying the media item to update.
+        alt:
+          type: string
+          maxLength: 500
+          description: The reviewed alt text to apply to every usage of this image.
+
+    UpdateMediaAltResponse:
+      type: object
+      required:
+        - url
+        - alt
+        - updatedUsages
+      properties:
+        url:
+          type: string
+        alt:
+          type: string
+        updatedUsages:
+          type: integer
+          description: How many image usages (rows) were updated across all pages.
 
     MediaUsagePage:
       type: object

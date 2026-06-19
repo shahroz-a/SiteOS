@@ -1,5 +1,6 @@
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { db, imagesTable } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
+import { openai } from "@workspace/integrations-openai-ai-server";
 
 /**
  * Media library logic. A "media item" is a unique CDN image keyed by its
@@ -85,6 +86,90 @@ export function altIssueMessages(
     return issues;
   }
   return [];
+}
+
+/** Vision model used to describe images for alt-text suggestions. */
+const ALT_SUGGEST_MODEL = "gpt-5-mini";
+
+/** Upper bound on a suggested alt description (chars). */
+const MAX_SUGGESTED_ALT_LENGTH = 250;
+
+/**
+ * Ask a vision model to describe an image for use as accessibility alt text.
+ * Returns a single concise, descriptive sentence with no surrounding quotes or
+ * boilerplate prefixes. Throws if the model returns nothing usable.
+ */
+export async function suggestAltText(url: string): Promise<string> {
+  const completion = await openai.chat.completions.create({
+    model: ALT_SUGGEST_MODEL,
+    max_completion_tokens: 8192,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You write concise, accurate alt text for images on a travel blog. " +
+          "Describe what is visually in the image in one factual sentence " +
+          "(roughly 5-20 words) that helps a screen-reader user understand it. " +
+          "Do not start with phrases like 'image of' or 'a picture of'. Do not " +
+          "add quotes, markdown, or commentary — return only the description.",
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Suggest alt text for this image.",
+          },
+          {
+            type: "image_url",
+            image_url: { url },
+          },
+        ],
+      },
+    ],
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  const suggestion = cleanSuggestion(raw);
+  if (!suggestion) {
+    throw new Error("The vision model returned an empty description.");
+  }
+  return suggestion;
+}
+
+/** Strip wrapping quotes/whitespace and clamp the length of a raw suggestion. */
+function cleanSuggestion(raw: string): string {
+  let text = raw.trim();
+  // Drop a single layer of wrapping quotes the model sometimes adds.
+  if (
+    text.length >= 2 &&
+    ((text.startsWith('"') && text.endsWith('"')) ||
+      (text.startsWith("'") && text.endsWith("'")))
+  ) {
+    text = text.slice(1, -1).trim();
+  }
+  if (text.length > MAX_SUGGESTED_ALT_LENGTH) {
+    text = text.slice(0, MAX_SUGGESTED_ALT_LENGTH).trimEnd();
+  }
+  return text;
+}
+
+/**
+ * Persist reviewed alt text for a media item: every `images` row sharing the
+ * given CDN `url` is updated (the library aggregates by URL, so a single edit
+ * applies to every page that uses the image). Returns how many rows changed;
+ * 0 means no image with that URL exists.
+ */
+export async function updateAltByUrl(
+  url: string,
+  alt: string,
+): Promise<number> {
+  const updated = await db
+    .update(imagesTable)
+    .set({ alt })
+    .where(eq(imagesTable.url, url))
+    .returning({ id: imagesTable.id });
+  return updated.length;
 }
 
 export interface ListMediaParams {

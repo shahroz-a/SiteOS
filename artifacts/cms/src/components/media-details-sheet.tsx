@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import type { MediaItem } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useSuggestCmsMediaAlt,
+  useUpdateCmsMediaAlt,
+  type MediaItem,
+} from "@workspace/api-client-react";
 import {
   Sheet,
   SheetContent,
@@ -11,8 +16,11 @@ import {
 import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
 import { Separator } from "@workspace/ui/separator";
-import { cn } from "@workspace/ui";
+import { Textarea } from "@workspace/ui/textarea";
+import { Label } from "@workspace/ui/label";
+import { Spinner } from "@workspace/ui/spinner";
 import { useToast } from "@workspace/ui";
+import { cn } from "@workspace/ui";
 import {
   ALT_STATUS_META,
   formatDimensions,
@@ -24,6 +32,8 @@ import {
   Copy,
   ExternalLink,
   ImageOff,
+  Save,
+  Sparkles,
 } from "lucide-react";
 
 interface MediaDetailsSheetProps {
@@ -40,7 +50,7 @@ export function MediaDetailsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        {item ? <DetailsBody item={item} /> : null}
+        {item ? <DetailsBody key={item.url} item={item} /> : null}
       </SheetContent>
     </Sheet>
   );
@@ -48,10 +58,18 @@ export function MediaDetailsSheet({
 
 function DetailsBody({ item }: { item: MediaItem }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [failed, setFailed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [alt, setAlt] = useState(item.alt ?? "");
   const altMeta = ALT_STATUS_META[item.altStatus];
   const dimensions = formatDimensions(item.width, item.height);
+
+  const suggestMutation = useSuggestCmsMediaAlt();
+  const updateMutation = useUpdateCmsMediaAlt();
+
+  const trimmedAlt = alt.trim();
+  const isDirty = trimmedAlt !== (item.alt ?? "").trim();
 
   const copyUrl = async () => {
     try {
@@ -63,6 +81,55 @@ function DetailsBody({ item }: { item: MediaItem }) {
       toast({ title: "Couldn't copy URL", variant: "destructive" });
     }
   };
+
+  const suggestDescription = () => {
+    suggestMutation.mutate(
+      { data: { url: item.url } },
+      {
+        onSuccess: (res) => {
+          setAlt(res.suggestion);
+          toast({
+            title: "Suggestion ready",
+            description: "Review and edit it before saving.",
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Couldn't generate a suggestion",
+            description: "The AI service is unavailable. Please try again.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
+
+  const saveAlt = () => {
+    updateMutation.mutate(
+      { data: { url: item.url, alt: trimmedAlt } },
+      {
+        onSuccess: (res) => {
+          queryClient.invalidateQueries({ queryKey: ["/api/cms/media"] });
+          toast({
+            title: "Alt text saved",
+            description: `Updated ${res.updatedUsages} image${
+              res.updatedUsages === 1 ? "" : "s"
+            }.`,
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Couldn't save alt text",
+            description: "Please try again.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
+
+  const isSuggesting = suggestMutation.isPending;
+  const isSaving = updateMutation.isPending;
 
   return (
     <>
@@ -115,6 +182,55 @@ function DetailsBody({ item }: { item: MediaItem }) {
         </div>
 
         <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="alt-text" className="text-sm font-medium">
+              Alt text
+            </Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={suggestDescription}
+              disabled={isSuggesting || isSaving}
+            >
+              {isSuggesting ? (
+                <Spinner className="size-4" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Suggest description
+            </Button>
+          </div>
+          <Textarea
+            id="alt-text"
+            value={alt}
+            onChange={(e) => setAlt(e.target.value)}
+            rows={3}
+            placeholder="Describe this image for screen readers and SEO…"
+            disabled={isSaving}
+          />
+          <p className="text-xs text-muted-foreground">
+            AI suggestions are drafts — review and edit before saving. Nothing is
+            saved until you choose to.
+          </p>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              onClick={saveAlt}
+              disabled={!isDirty || isSaving || isSuggesting}
+            >
+              {isSaving ? (
+                <Spinner className="size-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             CDN URL
           </p>
@@ -140,7 +256,6 @@ function DetailsBody({ item }: { item: MediaItem }) {
         <Separator />
 
         <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          <Field label="Alt text" value={item.alt} />
           <Field label="Title" value={item.title} />
           <Field label="Caption" value={item.caption} />
           <Field label="Credit" value={item.credit} />

@@ -1045,6 +1045,33 @@ export const MediaAltStatus = {
   poor: 'poor',
 } as const;
 
+export interface SuggestMediaAltInput {
+  /** The CDN URL of the image to describe. */
+  url: string;
+}
+
+export interface SuggestMediaAltResponse {
+  /** An AI-generated alt-text description for the editor to review. */
+  suggestion: string;
+}
+
+export interface UpdateMediaAltInput {
+  /** The CDN URL identifying the media item to update. */
+  url: string;
+  /**
+     * The reviewed alt text to apply to every usage of this image.
+     * @maxLength 500
+     */
+  alt: string;
+}
+
+export interface UpdateMediaAltResponse {
+  url: string;
+  alt: string;
+  /** How many image usages (rows) were updated across all pages. */
+  updatedUsages: number;
+}
+
 /**
  * A page that references a media item, with the alt text used there.
  */

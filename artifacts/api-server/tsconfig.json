@@ -20,6 +20,9 @@
     },
     {
       "path": "../../lib/content-validation"
+    },
+    {
+      "path": "../../lib/integrations-openai-ai-server"
     }
   ]
 }

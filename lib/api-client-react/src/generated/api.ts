@@ -77,7 +77,11 @@ import type {
   SavedViewUpdate,
   SearchCmsContentParams,
   SearchPostsParams,
+  SuggestMediaAltInput,
+  SuggestMediaAltResponse,
   Tag,
+  UpdateMediaAltInput,
+  UpdateMediaAltResponse,
   UpdateUserRoleRequest,
   UploadUrlRequest,
   UploadUrlResponse
@@ -1815,6 +1819,148 @@ export function useListCmsMedia<TData = Awaited<ReturnType<typeof listCmsMedia>>
 
 
 
+
+export const getSuggestCmsMediaAltUrl = () => {
+
+
+
+
+  return `/api/cms/media/suggest-alt`
+}
+
+/**
+ * @summary Suggest an accessible alt-text description for an image using an AI vision model (requires media.manage). The suggestion is returned for an editor to review and edit — it is never saved automatically.
+ */
+export const suggestCmsMediaAlt = async (suggestMediaAltInput: SuggestMediaAltInput, options?: RequestInit): Promise<SuggestMediaAltResponse> => {
+
+  return customFetch<SuggestMediaAltResponse>(getSuggestCmsMediaAltUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      suggestMediaAltInput,)
+  }
+);}
+
+
+
+
+export const getSuggestCmsMediaAltMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestCmsMediaAlt>>, TError,{data: BodyType<SuggestMediaAltInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestCmsMediaAlt>>, TError,{data: BodyType<SuggestMediaAltInput>}, TContext> => {
+
+const mutationKey = ['suggestCmsMediaAlt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestCmsMediaAlt>>, {data: BodyType<SuggestMediaAltInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  suggestCmsMediaAlt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestCmsMediaAltMutationResult = NonNullable<Awaited<ReturnType<typeof suggestCmsMediaAlt>>>
+    export type SuggestCmsMediaAltMutationBody = BodyType<SuggestMediaAltInput>
+    export type SuggestCmsMediaAltMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>
+
+    /**
+ * @summary Suggest an accessible alt-text description for an image using an AI vision model (requires media.manage). The suggestion is returned for an editor to review and edit — it is never saved automatically.
+ */
+export const useSuggestCmsMediaAlt = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestCmsMediaAlt>>, TError,{data: BodyType<SuggestMediaAltInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestCmsMediaAlt>>,
+        TError,
+        {data: BodyType<SuggestMediaAltInput>},
+        TContext
+      > => {
+      return useMutation(getSuggestCmsMediaAltMutationOptions(options));
+    }
+
+export const getUpdateCmsMediaAltUrl = () => {
+
+
+
+
+  return `/api/cms/media/alt`
+}
+
+/**
+ * @summary Save reviewed alt text for a media item, updating every usage of the image (keyed by CDN URL) across all pages (requires media.manage).
+ */
+export const updateCmsMediaAlt = async (updateMediaAltInput: UpdateMediaAltInput, options?: RequestInit): Promise<UpdateMediaAltResponse> => {
+
+  return customFetch<UpdateMediaAltResponse>(getUpdateCmsMediaAltUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateMediaAltInput,)
+  }
+);}
+
+
+
+
+export const getUpdateCmsMediaAltMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsMediaAlt>>, TError,{data: BodyType<UpdateMediaAltInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCmsMediaAlt>>, TError,{data: BodyType<UpdateMediaAltInput>}, TContext> => {
+
+const mutationKey = ['updateCmsMediaAlt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCmsMediaAlt>>, {data: BodyType<UpdateMediaAltInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCmsMediaAlt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCmsMediaAltMutationResult = NonNullable<Awaited<ReturnType<typeof updateCmsMediaAlt>>>
+    export type UpdateCmsMediaAltMutationBody = BodyType<UpdateMediaAltInput>
+    export type UpdateCmsMediaAltMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>
+
+    /**
+ * @summary Save reviewed alt text for a media item, updating every usage of the image (keyed by CDN URL) across all pages (requires media.manage).
+ */
+export const useUpdateCmsMediaAlt = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCmsMediaAlt>>, TError,{data: BodyType<UpdateMediaAltInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCmsMediaAlt>>,
+        TError,
+        {data: BodyType<UpdateMediaAltInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCmsMediaAltMutationOptions(options));
+    }
 
 export const getListCmsHeldBackArticlesUrl = () => {
 

@@ -604,6 +604,45 @@ export const ListCmsMediaResponse = zod.object({
 
 
 /**
+ * @summary Suggest an accessible alt-text description for an image using an AI vision model (requires media.manage). The suggestion is returned for an editor to review and edit — it is never saved automatically.
+ */
+export const SuggestCmsMediaAltHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const SuggestCmsMediaAltBody = zod.object({
+  "url": zod.string().url().describe('The CDN URL of the image to describe.')
+})
+
+export const SuggestCmsMediaAltResponse = zod.object({
+  "suggestion": zod.string().describe('An AI-generated alt-text description for the editor to review.')
+})
+
+
+/**
+ * @summary Save reviewed alt text for a media item, updating every usage of the image (keyed by CDN URL) across all pages (requires media.manage).
+ */
+export const UpdateCmsMediaAltHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const updateCmsMediaAltBodyAltMax = 500;
+
+
+
+export const UpdateCmsMediaAltBody = zod.object({
+  "url": zod.string().url().describe('The CDN URL identifying the media item to update.'),
+  "alt": zod.string().max(updateCmsMediaAltBodyAltMax).describe('The reviewed alt text to apply to every usage of this image.')
+})
+
+export const UpdateCmsMediaAltResponse = zod.object({
+  "url": zod.string(),
+  "alt": zod.string(),
+  "updatedUsages": zod.number().describe('How many image usages (rows) were updated across all pages.')
+})
+
+
+/**
  * The review queue of articles kept out of the public read API because content-fidelity validation failed (pages.status="draft"). Each entry's verdict is re-scored at request time through the current validator, so the displayed status/score/issues always reflect the live rules — never a stale verdict from an older validator.
  * @summary List articles held back from the public API for editor review (requires review.approve)
  */
