@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -26,7 +27,11 @@ export const faqTable = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("faq_page_idx").on(t.pageId)],
+  (t) => [
+    index("faq_page_idx").on(t.pageId),
+    index("faq_question_trgm").using("gin", t.question.op("gin_trgm_ops")),
+    index("faq_answer_trgm").using("gin", t.answer.op("gin_trgm_ops")),
+  ],
 );
 
 export const accordionsTable = pgTable(
@@ -62,7 +67,10 @@ export const breadcrumbsTable = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("breadcrumbs_page_idx").on(t.pageId)],
+  (t) => [
+    index("breadcrumbs_page_idx").on(t.pageId),
+    index("breadcrumbs_label_trgm").using("gin", t.label.op("gin_trgm_ops")),
+  ],
 );
 
 /** Raw JSON-LD structured-data blocks extracted from a page. */
@@ -80,7 +88,12 @@ export const jsonldTable = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("jsonld_page_idx").on(t.pageId)],
+  (t) => [
+    index("jsonld_page_idx").on(t.pageId),
+    // Expression trigram index over the JSON-LD serialized as text so the CMS
+    // search can fuzzy-match inside structured data.
+    index("jsonld_data_trgm").using("gin", sql`((${t.data})::text) gin_trgm_ops`),
+  ],
 );
 
 export const insertFaqSchema = createInsertSchema(faqTable).omit({

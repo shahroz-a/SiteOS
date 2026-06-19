@@ -37,6 +37,7 @@ import type {
   CmsPostInput,
   CmsPostListResponse,
   CmsScaffoldInput,
+  CmsSearchResponse,
   CmsTagInput,
   CmsUnauthorizedResponse,
   CmsUser,
@@ -62,6 +63,11 @@ import type {
   PayloadMappingResponse,
   PostDetail,
   PostListResponse,
+  SavedView,
+  SavedViewInput,
+  SavedViewListResponse,
+  SavedViewUpdate,
+  SearchCmsContentParams,
   SearchPostsParams,
   Tag,
   UpdateUserRoleRequest
@@ -3341,4 +3347,379 @@ export function useGetCmsPayloadMapping<TData = Awaited<ReturnType<typeof getCms
 
 
 
+
+export const getSearchCmsContentUrl = (params?: SearchCmsContentParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/cms/search?${stringifiedParams}` : `/api/cms/search`
+}
+
+/**
+ * Fuzzy search across every content field (title, slug, URL, author, category, tags, body, CTA, SEO, FAQ, breadcrumbs, JSON-LD, internal and external links) with filters, sort and pagination. Unlike the public `/search`, this spans drafts and non-post pages for staff.
+ * @summary Global multi-field content search across all statuses (requires content.view)
+ */
+export const searchCmsContent = async (params?: SearchCmsContentParams, options?: RequestInit): Promise<CmsSearchResponse> => {
+
+  return customFetch<CmsSearchResponse>(getSearchCmsContentUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchCmsContentQueryKey = (params?: SearchCmsContentParams,) => {
+    return [
+    `/api/cms/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchCmsContentQueryOptions = <TData = Awaited<ReturnType<typeof searchCmsContent>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(params?: SearchCmsContentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchCmsContent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchCmsContentQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchCmsContent>>> = ({ signal }) => searchCmsContent(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchCmsContent>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchCmsContentQueryResult = NonNullable<Awaited<ReturnType<typeof searchCmsContent>>>
+export type SearchCmsContentQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary Global multi-field content search across all statuses (requires content.view)
+ */
+
+export function useSearchCmsContent<TData = Awaited<ReturnType<typeof searchCmsContent>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+ params?: SearchCmsContentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchCmsContent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchCmsContentQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListSavedViewsUrl = () => {
+
+
+
+
+  return `/api/cms/saved-views`
+}
+
+/**
+ * @summary List the current user's saved search views (requires content.view)
+ */
+export const listSavedViews = async ( options?: RequestInit): Promise<SavedViewListResponse> => {
+
+  return customFetch<SavedViewListResponse>(getListSavedViewsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSavedViewsQueryKey = () => {
+    return [
+    `/api/cms/saved-views`
+    ] as const;
+    }
+
+
+export const getListSavedViewsQueryOptions = <TData = Awaited<ReturnType<typeof listSavedViews>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSavedViews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSavedViewsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSavedViews>>> = ({ signal }) => listSavedViews({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSavedViews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSavedViewsQueryResult = NonNullable<Awaited<ReturnType<typeof listSavedViews>>>
+export type ListSavedViewsQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary List the current user's saved search views (requires content.view)
+ */
+
+export function useListSavedViews<TData = Awaited<ReturnType<typeof listSavedViews>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSavedViews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSavedViewsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateSavedViewUrl = () => {
+
+
+
+
+  return `/api/cms/saved-views`
+}
+
+/**
+ * @summary Create a saved search view for the current user (requires content.view)
+ */
+export const createSavedView = async (savedViewInput: SavedViewInput, options?: RequestInit): Promise<SavedView> => {
+
+  return customFetch<SavedView>(getCreateSavedViewUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      savedViewInput,)
+  }
+);}
+
+
+
+
+export const getCreateSavedViewMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSavedView>>, TError,{data: BodyType<SavedViewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSavedView>>, TError,{data: BodyType<SavedViewInput>}, TContext> => {
+
+const mutationKey = ['createSavedView'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSavedView>>, {data: BodyType<SavedViewInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSavedView(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSavedViewMutationResult = NonNullable<Awaited<ReturnType<typeof createSavedView>>>
+    export type CreateSavedViewMutationBody = BodyType<SavedViewInput>
+    export type CreateSavedViewMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Create a saved search view for the current user (requires content.view)
+ */
+export const useCreateSavedView = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSavedView>>, TError,{data: BodyType<SavedViewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSavedView>>,
+        TError,
+        {data: BodyType<SavedViewInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSavedViewMutationOptions(options));
+    }
+
+export const getUpdateSavedViewUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/saved-views/${id}`
+}
+
+/**
+ * @summary Update one of the current user's saved views (requires content.view)
+ */
+export const updateSavedView = async (id: string,
+    savedViewUpdate: SavedViewUpdate, options?: RequestInit): Promise<SavedView> => {
+
+  return customFetch<SavedView>(getUpdateSavedViewUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      savedViewUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateSavedViewMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSavedView>>, TError,{id: string;data: BodyType<SavedViewUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSavedView>>, TError,{id: string;data: BodyType<SavedViewUpdate>}, TContext> => {
+
+const mutationKey = ['updateSavedView'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSavedView>>, {id: string;data: BodyType<SavedViewUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSavedView(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSavedViewMutationResult = NonNullable<Awaited<ReturnType<typeof updateSavedView>>>
+    export type UpdateSavedViewMutationBody = BodyType<SavedViewUpdate>
+    export type UpdateSavedViewMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Update one of the current user's saved views (requires content.view)
+ */
+export const useUpdateSavedView = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSavedView>>, TError,{id: string;data: BodyType<SavedViewUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSavedView>>,
+        TError,
+        {id: string;data: BodyType<SavedViewUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateSavedViewMutationOptions(options));
+    }
+
+export const getDeleteSavedViewUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/saved-views/${id}`
+}
+
+/**
+ * @summary Delete one of the current user's saved views (requires content.view)
+ */
+export const deleteSavedView = async (id: string, options?: RequestInit): Promise<CmsDeleteResult> => {
+
+  return customFetch<CmsDeleteResult>(getDeleteSavedViewUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSavedViewMutationOptions = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSavedView>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSavedView>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteSavedView'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSavedView>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSavedView(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSavedViewMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSavedView>>>
+
+    export type DeleteSavedViewMutationError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Delete one of the current user's saved views (requires content.view)
+ */
+export const useDeleteSavedView = <TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSavedView>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSavedView>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteSavedViewMutationOptions(options));
+    }
 

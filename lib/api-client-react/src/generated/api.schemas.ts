@@ -465,6 +465,110 @@ export interface Category {
   path?: string | null;
 }
 
+export type CmsSearchItemStatus = typeof CmsSearchItemStatus[keyof typeof CmsSearchItemStatus];
+
+
+export const CmsSearchItemStatus = {
+  draft: 'draft',
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export type CmsSearchItemPageType = typeof CmsSearchItemPageType[keyof typeof CmsSearchItemPageType];
+
+
+export const CmsSearchItemPageType = {
+  post: 'post',
+  page: 'page',
+  category: 'category',
+  author: 'author',
+  tag: 'tag',
+  landing: 'landing',
+  'web-story': 'web-story',
+} as const;
+
+export interface CmsSearchItem {
+  id: string;
+  slug: string;
+  title: string;
+  /** @nullable */
+  subtitle?: string | null;
+  /** @nullable */
+  excerpt?: string | null;
+  canonicalUrl: string;
+  pathname: string;
+  status: CmsSearchItemStatus;
+  pageType: CmsSearchItemPageType;
+  language: string;
+  /** @nullable */
+  featuredImageUrl?: string | null;
+  /** @nullable */
+  featuredImageAlt?: string | null;
+  /** @nullable */
+  readingTimeMinutes?: number | null;
+  /** @nullable */
+  wordCount?: number | null;
+  /** @nullable */
+  publishedAt?: string | null;
+  /** @nullable */
+  modifiedAt?: string | null;
+  updatedAt: string;
+  author?: AuthorSummary | null;
+  primaryCategory?: CategorySummary | null;
+  tags: TagSummary[];
+}
+
+export interface CmsSearchResponse {
+  items: CmsSearchItem[];
+  pagination: Pagination;
+}
+
+/**
+ * Opaque persisted search/filter/sort state.
+ */
+export type SavedViewQuery = { [key: string]: unknown };
+
+export interface SavedView {
+  id: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /** Opaque persisted search/filter/sort state. */
+  query: SavedViewQuery;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedViewListResponse {
+  items: SavedView[];
+}
+
+export type SavedViewInputQuery = { [key: string]: unknown };
+
+export interface SavedViewInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  query: SavedViewInputQuery;
+}
+
+export type SavedViewUpdateQuery = { [key: string]: unknown };
+
+export interface SavedViewUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  query?: SavedViewUpdateQuery;
+}
+
 export interface Tag {
   id: string;
   name: string;
@@ -1145,5 +1249,72 @@ export const ExportCmsContentFormat = {
   markdown: 'markdown',
   sql: 'sql',
   payload: 'payload',
+} as const;
+
+export type SearchCmsContentParams = {
+/**
+ * Search query (omit to browse with filters only).
+ */
+q?: string;
+status?: SearchCmsContentStatus;
+pageType?: SearchCmsContentPageType;
+language?: string;
+/**
+ * Category slug filter.
+ */
+category?: string;
+/**
+ * Author slug filter.
+ */
+author?: string;
+/**
+ * Tag slug filter (repeatable).
+ */
+tag?: string[];
+sort?: SearchCmsContentSort;
+/**
+ * 1-based page number
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * Number of items per page
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
+};
+
+export type SearchCmsContentStatus = typeof SearchCmsContentStatus[keyof typeof SearchCmsContentStatus];
+
+
+export const SearchCmsContentStatus = {
+  draft: 'draft',
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export type SearchCmsContentPageType = typeof SearchCmsContentPageType[keyof typeof SearchCmsContentPageType];
+
+
+export const SearchCmsContentPageType = {
+  post: 'post',
+  page: 'page',
+  category: 'category',
+  author: 'author',
+  tag: 'tag',
+  landing: 'landing',
+  'web-story': 'web-story',
+} as const;
+
+export type SearchCmsContentSort = typeof SearchCmsContentSort[keyof typeof SearchCmsContentSort];
+
+
+export const SearchCmsContentSort = {
+  relevance: 'relevance',
+  title: 'title',
+  published: 'published',
+  updated: 'updated',
+  created: 'created',
 } as const;
 

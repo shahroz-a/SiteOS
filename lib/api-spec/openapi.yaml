@@ -1117,6 +1117,180 @@ paths:
         "403":
           $ref: "#/components/responses/CmsForbidden"
 
+  /cms/search:
+    get:
+      tags: [cms]
+      operationId: searchCmsContent
+      summary: Global multi-field content search across all statuses (requires content.view)
+      description: >-
+        Fuzzy search across every content field (title, slug, URL, author,
+        category, tags, body, CTA, SEO, FAQ, breadcrumbs, JSON-LD, internal and
+        external links) with filters, sort and pagination. Unlike the public
+        `/search`, this spans drafts and non-post pages for staff.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Search query (omit to browse with filters only).
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, published, archived]
+        - name: pageType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [post, page, category, author, tag, landing, web-story]
+        - name: language
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          description: Category slug filter.
+          schema:
+            type: string
+        - name: author
+          in: query
+          required: false
+          description: Author slug filter.
+          schema:
+            type: string
+        - name: tag
+          in: query
+          required: false
+          description: Tag slug filter (repeatable).
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [relevance, title, published, updated, created]
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: A paginated list of matching content.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsSearchResponse"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/saved-views:
+    get:
+      tags: [cms]
+      operationId: listSavedViews
+      summary: List the current user's saved search views (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The user's saved views.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedViewListResponse"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+    post:
+      tags: [cms]
+      operationId: createSavedView
+      summary: Create a saved search view for the current user (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedViewInput"
+      responses:
+        "201":
+          description: The created saved view.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedView"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/saved-views/{id}:
+    patch:
+      tags: [cms]
+      operationId: updateSavedView
+      summary: Update one of the current user's saved views (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedViewUpdate"
+      responses:
+        "200":
+          description: The updated saved view.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedView"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+    delete:
+      tags: [cms]
+      operationId: deleteSavedView
+      summary: Delete one of the current user's saved views (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsDeleteResult"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
 
 components:
   parameters:
@@ -1871,6 +2045,152 @@ components:
         - id
         - name
         - slug
+
+    CmsSearchItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: ["string", "null"]
+        excerpt:
+          type: ["string", "null"]
+        canonicalUrl:
+          type: string
+        pathname:
+          type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        pageType:
+          type: string
+          enum: [post, page, category, author, tag, landing, web-story]
+        language:
+          type: string
+        featuredImageUrl:
+          type: ["string", "null"]
+        featuredImageAlt:
+          type: ["string", "null"]
+        readingTimeMinutes:
+          type: ["integer", "null"]
+        wordCount:
+          type: ["integer", "null"]
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        modifiedAt:
+          type: ["string", "null"]
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        author:
+          oneOf:
+            - $ref: "#/components/schemas/AuthorSummary"
+            - type: "null"
+        primaryCategory:
+          oneOf:
+            - $ref: "#/components/schemas/CategorySummary"
+            - type: "null"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagSummary"
+      required:
+        - id
+        - slug
+        - title
+        - canonicalUrl
+        - pathname
+        - status
+        - pageType
+        - language
+        - updatedAt
+        - tags
+
+    CmsSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsSearchItem"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - items
+        - pagination
+
+    SavedView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        query:
+          type: object
+          additionalProperties: true
+          description: Opaque persisted search/filter/sort state.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - query
+        - createdAt
+        - updatedAt
+
+    SavedViewListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SavedView"
+      required:
+        - items
+
+    SavedViewInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: ["string", "null"]
+        query:
+          type: object
+          additionalProperties: true
+      required:
+        - name
+        - query
+
+    SavedViewUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: ["string", "null"]
+        query:
+          type: object
+          additionalProperties: true
 
     Tag:
       type: object

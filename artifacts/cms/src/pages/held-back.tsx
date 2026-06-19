@@ -3,7 +3,7 @@ import {
   type HeldBackArticle,
   type HeldBackValidationIssue,
 } from "@workspace/api-client-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@workspace/ui/badge";
 import {
   Table,
   TableBody,
@@ -11,8 +11,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@workspace/ui/table";
+import { Skeleton } from "@workspace/ui/skeleton";
 
 function statusBadge(status: HeldBackArticle["validationStatus"]) {
   if (status === "fail") {

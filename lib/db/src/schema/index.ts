@@ -9,3 +9,4 @@ export * from "./links";
 export * from "./crawl";
 export * from "./auth";
 export * from "./audit";
+export * from "./saved-views";

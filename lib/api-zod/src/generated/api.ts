@@ -1566,3 +1566,162 @@ export const GetCmsPayloadMappingResponse = zod.object({
 })
 
 
+/**
+ * Fuzzy search across every content field (title, slug, URL, author, category, tags, body, CTA, SEO, FAQ, breadcrumbs, JSON-LD, internal and external links) with filters, sort and pagination. Unlike the public `/search`, this spans drafts and non-post pages for staff.
+ * @summary Global multi-field content search across all statuses (requires content.view)
+ */
+export const searchCmsContentQueryPageDefault = 1;
+
+export const searchCmsContentQueryLimitDefault = 12;
+export const searchCmsContentQueryLimitMax = 100;
+
+
+
+export const SearchCmsContentQueryParams = zod.object({
+  "q": zod.string().optional().describe('Search query (omit to browse with filters only).'),
+  "status": zod.enum(['draft', 'published', 'archived']).optional(),
+  "pageType": zod.enum(['post', 'page', 'category', 'author', 'tag', 'landing', 'web-story']).optional(),
+  "language": zod.string().optional(),
+  "category": zod.string().optional().describe('Category slug filter.'),
+  "author": zod.string().optional().describe('Author slug filter.'),
+  "tag": zod.array(zod.string()).optional().describe('Tag slug filter (repeatable).'),
+  "sort": zod.enum(['relevance', 'title', 'published', 'updated', 'created']).optional(),
+  "page": zod.coerce.number().min(1).default(searchCmsContentQueryPageDefault).describe('1-based page number'),
+  "limit": zod.coerce.number().min(1).max(searchCmsContentQueryLimitMax).default(searchCmsContentQueryLimitDefault).describe('Number of items per page')
+})
+
+export const SearchCmsContentHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const SearchCmsContentResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "canonicalUrl": zod.string(),
+  "pathname": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "pageType": zod.enum(['post', 'page', 'category', 'author', 'tag', 'landing', 'web-story']),
+  "language": zod.string(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date(),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "tags": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}))
+})),
+  "pagination": zod.object({
+  "page": zod.number(),
+  "limit": zod.number(),
+  "total": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+/**
+ * @summary List the current user's saved search views (requires content.view)
+ */
+export const ListSavedViewsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListSavedViewsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "query": zod.record(zod.string(), zod.unknown()).describe('Opaque persisted search\/filter\/sort state.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create a saved search view for the current user (requires content.view)
+ */
+export const CreateSavedViewHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const createSavedViewBodyNameMax = 120;
+
+
+
+export const CreateSavedViewBody = zod.object({
+  "name": zod.string().min(1).max(createSavedViewBodyNameMax),
+  "description": zod.string().nullish(),
+  "query": zod.record(zod.string(), zod.unknown())
+})
+
+
+/**
+ * @summary Update one of the current user's saved views (requires content.view)
+ */
+export const UpdateSavedViewParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const UpdateSavedViewHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const updateSavedViewBodyNameMax = 120;
+
+
+
+export const UpdateSavedViewBody = zod.object({
+  "name": zod.string().min(1).max(updateSavedViewBodyNameMax).optional(),
+  "description": zod.string().nullish(),
+  "query": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const UpdateSavedViewResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "query": zod.record(zod.string(), zod.unknown()).describe('Opaque persisted search\/filter\/sort state.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete one of the current user's saved views (requires content.view)
+ */
+export const DeleteSavedViewParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const DeleteSavedViewHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const DeleteSavedViewResponse = zod.object({
+  "success": zod.boolean(),
+  "id": zod.string().uuid()
+})
+
+

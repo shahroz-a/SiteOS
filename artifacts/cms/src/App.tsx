@@ -6,6 +6,7 @@ import { Spinner } from "@workspace/ui/spinner";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import HomePage from "@/pages/home";
+import SearchPage from "@/pages/search";
 import UsersPage from "@/pages/users";
 import ContentPage from "@/pages/content";
 import EditorPage from "@/pages/editor";
@@ -69,6 +70,11 @@ function AuthenticatedApp() {
         <Route path="/review-queue">
           <RequirePermission permission="review.approve">
             <HeldBackPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/search">
+          <RequirePermission permission="content.view">
+            <SearchPage />
           </RequirePermission>
         </Route>
         <Route path="/users">

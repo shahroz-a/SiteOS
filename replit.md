@@ -42,6 +42,12 @@ All under `/api`. Slugs are the public identifier — internal UUIDs never appea
 - `GET /posts/{slug}` — full post: original/cleaned HTML, richText JSON, Payload-style componentTree, breadcrumbs, faq, images, seo, jsonld, categories, tags, author.
 - `GET /categories`, `GET /categories/{slug}`, `GET /authors`, `GET /authors/{slug}`, `GET /search?q=`.
 
+### CMS search & saved views (staff-gated)
+
+- `GET /cms/search` — multi-field fuzzy search (ILIKE + `pg_trgm` `%`) over ALL content fields (title/slug/url, body blocks/CTA, seo title+desc, faq, breadcrumbs, jsonld, internal/external links, author, category, tags). Includes ALL statuses (draft/published/archived). Filters `?q=`, `?status=`, `?pageType=`, `?language=`, `?category=`, `?author=`, `?tag=` (repeatable), `?sort=relevance|title|published|updated|created`, `?page=`, `?limit=`. Requires auth + `content.view`. Logic in `searchCmsPosts`/`buildSearchPredicate` (`artifacts/api-server/src/lib/posts.ts`), route in `routes/search.ts`.
+- `GET/POST /cms/saved-views`, `PATCH/DELETE /cms/saved-views/{id}` — per-user persisted views (name, description, opaque `query` jsonb), scoped to `req.user.id`. Table `saved_views` (`lib/db/src/schema/saved-views.ts`); routes in `routes/cms-views.ts`. CMS UI: `artifacts/cms/src/pages/search.tsx` (nav-gated on `content.view`).
+- **PROD requirement**: `CREATE EXTENSION pg_trgm`, the `saved_views` table, and the trigram GIN indexes (added across pages/seo/structured/links/content/taxonomy schema files) were applied to the DEV DB via `executeSql`. They MUST be applied to production before `/cms/search` works there — `drizzle-kit push` is broken on Helium (see Architecture decisions → Schema push for the generate-SQL workaround).
+
 ## Architecture decisions
 
 - **Crawl mode = HTTP (no browser).** Headout's blog is server-rendered WordPress, so plain HTTP returns the full article HTML. An HTTP-vs-Playwright comparison over representative pages (`scripts/src/crawl-compare.ts`) found identical *editorial* content (text, headings, FAQs, links, images, component tree) at ~100–600× the speed, while a real browser was slow and fragile here (`networkidle` never settles; some pages stall). The only browser-only images are JS-injected commerce/recommendation widgets and social-share icons — not article content — so the full crawl runs with `config.useBrowser=false`. (Bundled Playwright Chromium can't download in this env; a Nix `chromium` via `executablePath` is required for any browser work.)

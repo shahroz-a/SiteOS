@@ -10,24 +10,28 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const authorsTable = pgTable("authors", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  bio: text("bio"),
-  avatarUrl: text("avatar_url"),
-  role: text("role"),
-  email: text("email"),
-  originalUrl: text("original_url"),
-  social: jsonb("social").$type<Record<string, string>>(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+export const authorsTable = pgTable(
+  "authors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    bio: text("bio"),
+    avatarUrl: text("avatar_url"),
+    role: text("role"),
+    email: text("email"),
+    originalUrl: text("original_url"),
+    social: jsonb("social").$type<Record<string, string>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index("authors_name_trgm").using("gin", t.name.op("gin_trgm_ops"))],
+);
 
 export const categoriesTable = pgTable(
   "categories",
@@ -49,19 +53,26 @@ export const categoriesTable = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("categories_parent_idx").on(t.parentId)],
+  (t) => [
+    index("categories_parent_idx").on(t.parentId),
+    index("categories_name_trgm").using("gin", t.name.op("gin_trgm_ops")),
+  ],
 );
 
-export const tagsTable = pgTable("tags", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  description: text("description"),
-  originalUrl: text("original_url"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const tagsTable = pgTable(
+  "tags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    description: text("description"),
+    originalUrl: text("original_url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("tags_name_trgm").using("gin", t.name.op("gin_trgm_ops"))],
+);
 
 export const insertAuthorSchema = createInsertSchema(authorsTable).omit({
   id: true,
