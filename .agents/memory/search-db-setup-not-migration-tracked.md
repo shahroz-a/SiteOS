@@ -17,3 +17,5 @@ The CMS `/cms/search` feature depends on three DB objects: the `pg_trgm` extensi
   Header-only `executeSql` output (e.g. `extname\n` with no row) means ABSENT — don't misread it as present.
 - Production schema is publish-managed: the agent must NOT run DDL against prod (`executeSql` prod is read-only). Apply to dev, then have the user **re-publish**.
 - Open risk: Replit's publish dev→prod diff may not create the `pg_trgm` extension on prod. If it doesn't, the GIN trigram indexes and the `%` similarity operator fail on prod. Verify the extension exists on prod after a publish.
+
+**Same failure mode applies to the `page_views` analytics table.** It and its 3 indexes (`lib/db/src/schema/analytics.ts`) were applied to dev via raw executeSql, are NOT migration-tracked, and were found absent in dev after a rollback. Self-healing step: `pnpm --filter @workspace/scripts run ensure:analytics` (`scripts/src/ensure-analytics.ts`, idempotent CREATE TABLE/INDEX IF NOT EXISTS, wired into `scripts/post-merge.sh`). Match drizzle's FK name `page_views_page_id_pages_id_fk` in the raw DDL so the publish diff stays clean. Prod still needs a re-publish.

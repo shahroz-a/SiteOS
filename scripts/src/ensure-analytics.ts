@@ -1,0 +1,116 @@
+/**
+ * Self-healing setup for the page-view analytics storage.
+ *
+ * The `page_views` table (`lib/db/src/schema/analytics.ts`) and its three
+ * indexes are NOT part of any drizzle migration journal. `drizzle-kit push` is
+ * broken on Helium (it silently dies during the introspection step), so the
+ * table was originally applied to the dev DB as one-off raw SQL. That means a
+ * dev DB rollback / checkpoint restore — or a fresh DB — wipes it while leaving
+ * the rest of the schema intact, and both `POST /events/page-view` and
+ * `GET /cms/analytics` start failing with no obvious cause.
+ *
+ * This script re-creates the table and its indexes idempotently
+ * (`CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`) so a rollback or
+ * fresh DB self-heals. The DDL is kept in lockstep with the drizzle schema in
+ * `lib/db/src/schema/analytics.ts` — including the foreign-key constraint name
+ * drizzle generates (`page_views_page_id_pages_id_fk`) so the publish-time
+ * dev→prod schema diff stays clean.
+ *
+ * Run with: pnpm --filter @workspace/scripts run ensure:analytics
+ * It also runs automatically via the post-merge setup script.
+ *
+ * NOTE: this only ensures the DEVELOPMENT database. Production schema is applied
+ * by Replit's Publish flow, which diffs the dev DB against prod and applies the
+ * difference — so re-publish after this runs to get `page_views` into prod.
+ */
+import { sql } from "drizzle-orm";
+import { db, pool } from "@workspace/db";
+
+const INDEXES: Array<{ name: string; ddl: string }> = [
+  {
+    name: "page_views_page_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS page_views_page_idx ON page_views (page_id)",
+  },
+  {
+    name: "page_views_viewed_at_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS page_views_viewed_at_idx ON page_views (viewed_at)",
+  },
+  {
+    name: "page_views_slug_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS page_views_slug_idx ON page_views (slug)",
+  },
+];
+
+export async function ensureAnalytics(
+  log: (m: string) => void = console.log,
+): Promise<void> {
+  log("Ensuring page_views table exists…");
+  const tableExisted = await tableExists("page_views");
+  // Static DDL from this source file — never user input. Column types, defaults
+  // and the FK constraint name match lib/db/src/schema/analytics.ts so the
+  // publish-time dev→prod diff is a no-op once prod has the table.
+  await db.execute(
+    sql.raw(`
+      CREATE TABLE IF NOT EXISTS page_views (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        page_id uuid,
+        slug text NOT NULL,
+        referrer_host text,
+        viewed_at timestamp with time zone NOT NULL DEFAULT now(),
+        created_at timestamp with time zone NOT NULL DEFAULT now(),
+        CONSTRAINT page_views_page_id_pages_id_fk
+          FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE SET NULL
+      )
+    `),
+  );
+  log(tableExisted ? "  page_views already present." : "  + created page_views");
+
+  log(`Ensuring ${INDEXES.length} analytics indexes exist…`);
+  let created = 0;
+  let present = 0;
+  for (const idx of INDEXES) {
+    const existed = await indexExists(idx.name);
+    await db.execute(sql.raw(idx.ddl));
+    if (existed) {
+      present += 1;
+    } else {
+      created += 1;
+      log(`  + created ${idx.name}`);
+    }
+  }
+
+  log(
+    `Analytics storage ready: ${created} indexes created, ${present} already present (${INDEXES.length} total).`,
+  );
+}
+
+async function tableExists(name: string): Promise<boolean> {
+  const result = await db.execute(
+    sql`SELECT 1 FROM pg_class WHERE relkind = 'r' AND relname = ${name} LIMIT 1`,
+  );
+  return result.rows.length > 0;
+}
+
+async function indexExists(name: string): Promise<boolean> {
+  const result = await db.execute(
+    sql`SELECT 1 FROM pg_class WHERE relkind = 'i' AND relname = ${name} LIMIT 1`,
+  );
+  return result.rows.length > 0;
+}
+
+const isMain =
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith("ensure-analytics.ts");
+
+if (isMain) {
+  ensureAnalytics()
+    .then(async () => {
+      await pool.end();
+      process.exit(0);
+    })
+    .catch(async (err) => {
+      console.error("Failed to ensure analytics storage:", err);
+      await pool.end();
+      process.exit(1);
+    });
+}
