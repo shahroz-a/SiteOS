@@ -32,6 +32,14 @@ they won't fix this. Verify the code statically instead (below), document the bl
 and tell the user to try the preview pane / publish (the platform may route the preview
 differently than the strict restart probe).
 
+**Update — the probe is intermittent, not permanent.** A later session restarted the
+same `thanksgiving-mobile` expo workflow with no config change and the probe passed;
+the app then rendered live in the preview pane (browse list + category chips, article
+detail with hero/gallery, search screen) against the running `/api` backend. So when
+this blocks you, just retry `restart_workflow` (give it ~90s) and/or screenshot the
+Expo dev domain directly via the `app_preview` screenshot — a transient failure clears
+on its own. Start the `api-server` workflow first so the mobile data calls resolve.
+
 # Verifying Expo code without a running dev server
 
 The bash tool **kills any backgrounded/long-running process when the call returns**
