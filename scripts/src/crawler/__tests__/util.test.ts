@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collapseSlashes, isMalformedBlogUrl } from "../util";
+import { classifyUrl, collapseSlashes, isMalformedBlogUrl } from "../util";
 
 const BASE = "https://www.headout.com/blog";
 
@@ -59,5 +59,28 @@ describe("isMalformedBlogUrl", () => {
 
   it("returns true for an unparseable URL", () => {
     expect(isMalformedBlogUrl("http://")).toBe(true);
+  });
+});
+
+describe("classifyUrl", () => {
+  it("classifies web-story URLs as their own type, not 'page'", () => {
+    expect(classifyUrl(`${BASE}/web-stories/top-experiences-in-paris/`)).toBe("web-story");
+    expect(classifyUrl(`${BASE}/web-stories/page/6/`)).toBe("web-story");
+  });
+
+  it("classifies web-story URLs from the web-story sitemap source", () => {
+    expect(
+      classifyUrl(
+        "https://www.headout.com/blog/some-slug/",
+        "https://www.headout.com/blog/web-story-sitemap.xml",
+      ),
+    ).toBe("web-story");
+  });
+
+  it("still classifies authors, categories, tags, and posts", () => {
+    expect(classifyUrl(`${BASE}/author/jane-traveler/`)).toBe("author");
+    expect(classifyUrl(`${BASE}/category/things-to-do/`)).toBe("category");
+    expect(classifyUrl(`${BASE}/tag/family/`)).toBe("tag");
+    expect(classifyUrl(`${BASE}/thanksgiving-vacation-ideas-for-families/`)).toBe("post");
   });
 });

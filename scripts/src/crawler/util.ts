@@ -150,11 +150,11 @@ export function classifyUrl(url: string, sitemapSource?: string | null): PageTyp
   if (/\/blog\/author\//.test(path)) return "author";
   if (/\/blog\/category\//.test(path)) return "category";
   if (/\/blog\/tag\//.test(path)) return "tag";
-  if (/\/blog\/web-stories?\//.test(path)) return "page";
+  if (/\/blog\/web-stories?\//.test(path)) return "web-story";
   if (sitemapSource) {
     if (sitemapSource.includes("author-sitemap")) return "author";
     if (sitemapSource.includes("category-sitemap")) return "category";
-    if (sitemapSource.includes("web-story-sitemap")) return "page";
+    if (sitemapSource.includes("web-story-sitemap")) return "web-story";
     if (sitemapSource.includes("page-sitemap")) return "page";
     if (sitemapSource.includes("post-sitemap")) return "post";
   }
@@ -176,6 +176,8 @@ export function priorityForType(type: PageType): number {
       return 50;
     case "tag":
       return 40;
+    case "web-story":
+      return 30;
     default:
       return 20;
   }

@@ -104,7 +104,7 @@ export interface ParsedPage {
   hreflang: Array<{ lang: string; href: string }>;
   language: string;
   status: "draft" | "published" | "archived";
-  pageType: "post" | "page" | "category" | "author" | "tag" | "landing";
+  pageType: "post" | "page" | "category" | "author" | "tag" | "landing" | "web-story";
 
   // Editorial
   title: string;

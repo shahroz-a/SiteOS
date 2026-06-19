@@ -13,6 +13,7 @@ export const pageTypeEnum = pgEnum("page_type", [
   "author",
   "tag",
   "landing",
+  "web-story",
 ]);
 
 export const crawlStatusEnum = pgEnum("crawl_status", [
