@@ -44,6 +44,7 @@ import {
 import { Skeleton } from "@workspace/ui/skeleton";
 import { useToast } from "@workspace/ui";
 import { useCmsAuth } from "@/lib/cms-auth-context";
+import { diffWords } from "@/lib/word-diff";
 
 const STATUS_VARIANTS: Record<PageStatus, "default" | "secondary" | "outline"> =
   {
@@ -63,28 +64,108 @@ function formatFieldValue(value: unknown): string {
   return String(value);
 }
 
+function isTextValue(value: unknown): value is string | null | undefined {
+  return value === null || value === undefined || typeof value === "string";
+}
+
+function DiffLegend() {
+  return (
+    <div className="flex items-center gap-3 text-[10px] uppercase tracking-wide text-muted-foreground">
+      <span className="inline-flex items-center gap-1">
+        <span className="h-2 w-2 rounded-sm bg-emerald-500/40" />
+        Added
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <span className="h-2 w-2 rounded-sm bg-rose-500/40" />
+        Removed
+      </span>
+    </div>
+  );
+}
+
+function InlineWordDiff({
+  before,
+  after,
+}: {
+  before: string;
+  after: string;
+}) {
+  const segments = useMemo(() => diffWords(before, after), [before, after]);
+  return (
+    <div className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded border border-border/60 bg-muted/30 px-2 py-1.5 text-xs leading-relaxed text-foreground">
+      {segments.map((seg, i) => {
+        if (seg.op === "insert") {
+          return (
+            <ins
+              key={i}
+              className="rounded-sm bg-emerald-500/15 text-emerald-700 no-underline dark:text-emerald-300"
+            >
+              {seg.text}
+            </ins>
+          );
+        }
+        if (seg.op === "delete") {
+          return (
+            <del
+              key={i}
+              className="rounded-sm bg-rose-500/15 text-rose-700 line-through dark:text-rose-300"
+            >
+              {seg.text}
+            </del>
+          );
+        }
+        return <span key={i}>{seg.text}</span>;
+      })}
+    </div>
+  );
+}
+
+function ValueSwap({ change }: { change: VersionFieldChange }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <div className="space-y-1">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          Before
+        </div>
+        <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-destructive/5 px-2 py-1 text-xs text-foreground">
+          {formatFieldValue(change.before)}
+        </pre>
+      </div>
+      <div className="space-y-1">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          After
+        </div>
+        <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-primary/5 px-2 py-1 text-xs text-foreground">
+          {formatFieldValue(change.after)}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 function ChangeRow({ change }: { change: VersionFieldChange }) {
+  // Inline word diffs read far better for text fields (article body, excerpt,
+  // subtitle, SEO copy, etc.). Non-text fields (numbers, arrays, objects) fall
+  // back to the side-by-side value swap.
+  const useInlineDiff =
+    (typeof change.before === "string" || typeof change.after === "string") &&
+    isTextValue(change.before) &&
+    isTextValue(change.after);
+
   return (
     <div className="space-y-1.5 rounded-md border border-border/60 p-3">
-      <div className="text-sm font-medium">{change.label}</div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div className="space-y-1">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            Before
-          </div>
-          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-destructive/5 px-2 py-1 text-xs text-foreground">
-            {formatFieldValue(change.before)}
-          </pre>
-        </div>
-        <div className="space-y-1">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            After
-          </div>
-          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-primary/5 px-2 py-1 text-xs text-foreground">
-            {formatFieldValue(change.after)}
-          </pre>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm font-medium">{change.label}</div>
+        {useInlineDiff ? <DiffLegend /> : null}
       </div>
+      {useInlineDiff ? (
+        <InlineWordDiff
+          before={(change.before as string | null | undefined) ?? ""}
+          after={(change.after as string | null | undefined) ?? ""}
+        />
+      ) : (
+        <ValueSwap change={change} />
+      )}
     </div>
   );
 }
