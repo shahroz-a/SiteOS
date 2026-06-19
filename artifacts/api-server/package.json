@@ -8,6 +8,7 @@
     "build": "node ./build.mjs && pnpm --filter @workspace/scripts run build:jobs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "verify:media": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/lib/__tests__/media-real-data.test.ts",
+    "verify:media-audit": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/routes/__tests__/cms-media-audit-real-data.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify:cms-io": "cd ../.. && VERIFY_CMS_IO=1 vitest run artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts"
   },
