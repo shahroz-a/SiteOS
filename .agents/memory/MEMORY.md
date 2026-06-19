@@ -7,3 +7,4 @@
 - [Drizzle silent unknown keys](drizzle-silent-unknown-keys.md) — wrong-table column in .values()/.set() neither type-errors (via intermediate var) nor throws; it's silently dropped. Verify with SELECT.
 - [Crawler content-hash idempotency](crawler-content-hash-idempotency.md) — re-crawl shows "changed" only vs older-code rows; prove idempotency via current-code double-store, not pre-existing rows.
 - [Navigational page types load via HTTP](crawler-page-types-http.md) — category/author/web-story pages don't need a browser; they're server-rendered. Classify crawl failures as dead-404 / junk-URL / transient before assuming JS-rendering.
+- [db.execute raw rows are snake_case](drizzle-raw-execute-snakecase.md) — `db.execute(sql\`…RETURNING *\`)` yields driver snake_case keys; casting to a camelCase row type silently nulls the differing fields (broke claimBatch's discoveredFrom).

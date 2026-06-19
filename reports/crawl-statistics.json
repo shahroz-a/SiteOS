@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-06-19T12:24:21.755Z",
+  "generatedAt": "2026-06-19T12:58:58.959Z",
   "queue": {
     "pending": 0,
     "in_progress": 0,
-    "completed": 3987,
-    "failed": 137,
-    "skipped": 2,
+    "completed": 4010,
+    "failed": 0,
+    "skipped": 116,
     "total": 4126
   },
   "pages": 3710,
@@ -24,7 +24,7 @@
   },
   "webStories": 136,
   "authors": 97,
-  "categories": 2216,
+  "categories": 2212,
   "tags": 0,
   "images": 65889
 }

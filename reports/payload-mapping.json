@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T12:24:28.643Z",
+  "generatedAt": "2026-06-19T12:59:06.014Z",
   "collections": {
     "pages": {
       "source": "pages + page_versions",
@@ -106,7 +106,7 @@
   "richText": "Stored as structured JSON (Lexical-compatible) in pages.rich_text",
   "urlPreservation": {
     "strategy": "canonical_url is the public identifier; slug derived from URL; redirects preserved",
-    "redirectsPreserved": 221
+    "redirectsPreserved": 231
   },
   "blockingIssues": []
 }

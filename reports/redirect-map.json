@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-19T12:24:25.829Z",
-  "total": 221,
+  "generatedAt": "2026-06-19T12:59:03.743Z",
+  "total": 231,
   "redirects": [
     {
       "id": "c3d0b936-0037-41ee-a26e-21d0460d7943",
@@ -1739,36 +1739,116 @@
       "createdAt": "2026-06-19T07:20:59.139Z"
     },
     {
-      "id": "1ada04af-ff38-4a47-a115-aac1eeb6b46f",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-to-loire-valley/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "id": "de3cff5b-2b93-4278-b230-107318aa3f2f",
+      "fromPath": "/blog/barcelona-in-march/LINK",
+      "toPath": "/blog/barcelona-in-march/",
       "statusCode": 301,
       "isActive": true,
-      "createdAt": "2026-06-19T12:23:01.814Z"
+      "createdAt": "2026-06-19T12:48:35.152Z"
     },
     {
-      "id": "80bbde19-919e-47ba-998d-8c9eff2a9f50",
-      "fromPath": "/blog/web-stories/paris-in-1-day-itinerary/",
-      "toPath": "/blog/web-stories/",
+      "id": "cc2e174b-db23-4571-9ab8-e75cf3bcc450",
+      "fromPath": "/blog/shinkansen-bullet-train-to-mount-fuji/",
+      "toPath": "/blog/shinkansen-bullet-train-guide/",
       "statusCode": 301,
       "isActive": true,
-      "createdAt": "2026-06-19T12:23:03.702Z"
+      "createdAt": "2026-06-19T12:48:39.401Z"
     },
     {
-      "id": "97269d68-47e6-4990-ba79-e5787ff61300",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-to-disneyland-day-trip/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "id": "c662a2cf-0de2-46c7-a9ec-ba7d2ea92a7f",
+      "fromPath": "/blog/hong-kong-cruises/hongkongcruise5",
+      "toPath": "/blog/hong-kong-cruises/",
       "statusCode": 301,
       "isActive": true,
-      "createdAt": "2026-06-19T12:23:05.243Z"
+      "createdAt": "2026-06-19T12:48:39.565Z"
     },
     {
-      "id": "6cd618aa-97f4-480a-94dc-4395324e67b0",
+      "id": "a9919cb0-9073-4b84-82bf-3a4957687619",
       "fromPath": "/blog/web-stories/landmarks-in-bangkok/",
       "toPath": "/blog/web-stories/",
       "statusCode": 301,
       "isActive": true,
-      "createdAt": "2026-06-19T12:23:08.173Z"
+      "createdAt": "2026-06-19T12:48:42.105Z"
+    },
+    {
+      "id": "30aa9ab5-0517-4404-aa59-42e4fa00ddbc",
+      "fromPath": "/blog/plan-your-visit-topkapi-palace/LINK",
+      "toPath": "/blog/plan-your-visit-topkapi-palace/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:42.106Z"
+    },
+    {
+      "id": "eee911c5-ebae-4d2f-bda6-c01a5b249dc3",
+      "fromPath": "/blog/gardens-by-the-bay-garden-rhapsody/",
+      "toPath": "/blog/garden-rhapsody-at-gardens-by-the-bay/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:44.356Z"
+    },
+    {
+      "id": "c39c5fad-323e-4c35-8e3f-5985af718697",
+      "fromPath": "/blog/hong-kong-cruises/hongkongcruise4",
+      "toPath": "/blog/hong-kong-cruises/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:44.706Z"
+    },
+    {
+      "id": "f1707b4c-ad94-49f6-b770-6622057ee731",
+      "fromPath": "/blog/web-stories/paris-in-1-day-itinerary/",
+      "toPath": "/blog/web-stories/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:46.895Z"
+    },
+    {
+      "id": "38f5abd8-0ee8-4723-9c3c-f8a76023f81f",
+      "fromPath": "/blog/unique-christmas-traditions-around-the-world/",
+      "toPath": "/blog/christmas-around-the-world/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:48.529Z"
+    },
+    {
+      "id": "1b402b11-d39e-4cb4-ae7b-a04358682781",
+      "fromPath": "/blog/hong-kong-cruises/hongkongcruise6",
+      "toPath": "/blog/hong-kong-cruises/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:49.303Z"
+    },
+    {
+      "id": "2d7eec28-e33f-4beb-9230-2be6ad16ce9d",
+      "fromPath": "/blog/vatican-city-secrets/",
+      "toPath": "/blog/secrets-of-the-vatican-city/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:50.212Z"
+    },
+    {
+      "id": "3060c63d-741a-4d1d-bda6-952c6d27a58f",
+      "fromPath": "/blog/paris-in-december/LINK",
+      "toPath": "/blog/paris-in-december/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:51.065Z"
+    },
+    {
+      "id": "8784404d-48fc-45d3-a1b2-90b730181a4f",
+      "fromPath": "/blog/historical-landmarks-world/",
+      "toPath": "/blog/historical-landmarks-around-the-world-you-should-visit/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:51.888Z"
+    },
+    {
+      "id": "4a49ac31-7194-4474-8cc4-808567570c2b",
+      "fromPath": "/blog/disneyland-paris-tips",
+      "toPath": "/blog/web-stories/disneyland-paris-tips/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:48:54.573Z"
     }
   ]
 }

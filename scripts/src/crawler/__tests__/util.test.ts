@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyUrl, collapseSlashes, isMalformedBlogUrl } from "../util";
+import { classifyUrl, collapseSlashes, isFrontierDiscovered, isMalformedBlogUrl } from "../util";
 
 const BASE = "https://www.headout.com/blog";
 
@@ -57,6 +57,42 @@ describe("isMalformedBlogUrl", () => {
     expect(isMalformedBlogUrl(`${BASE}/author/some-author-ca-5~8027/`)).toBe(false);
   });
 
+  it("flags a leading-hyphen segment from a botched relative link", () => {
+    // Real corpus garbage: `.../paris-3-day-itinerary/-catacombs/` etc.
+    expect(
+      isMalformedBlogUrl(`${BASE}/web-stories/paris-3-day-itinerary/-catacombs/`),
+    ).toBe(true);
+    expect(
+      isMalformedBlogUrl(`${BASE}/web-stories/paris-3-day-itinerary/-to-loire-valley/`),
+    ).toBe(true);
+  });
+
+  it("flags a segment containing whitespace from captured label text", () => {
+    // Real corpus garbage: alt-text/labels captured as hrefs.
+    expect(isMalformedBlogUrl(`${BASE}/tkts-broadway-tickets/No%20Data`)).toBe(true);
+    expect(
+      isMalformedBlogUrl(`${BASE}/3-days-venice-itinerary/Basilica%20di%20San%20Marco,`),
+    ).toBe(true);
+    expect(
+      isMalformedBlogUrl(`${BASE}/sabrina-carpenter-mean-girls/(opens%20in%20a%20new%20tab)`),
+    ).toBe(true);
+  });
+
+  it("flags an over-nested taxonomy path while keeping a slug+code one valid", () => {
+    // Real corpus garbage: a category with extra `wp-…/wcp-…` nesting.
+    expect(
+      isMalformedBlogUrl(
+        `${BASE}/category/things-to-do-city-new-york/wp-essential-nyc-travel-guide/wcp-new-york-itineraries/`,
+      ),
+    ).toBe(true);
+    // A category slug plus a single collection-code segment stays valid.
+    expect(
+      isMalformedBlogUrl(
+        `${BASE}/category/things-to-do-city-singapore/tickets-singapore-ca-1__23209/`,
+      ),
+    ).toBe(false);
+  });
+
   it("returns true for an unparseable URL", () => {
     expect(isMalformedBlogUrl("http://")).toBe(true);
   });
@@ -82,5 +118,18 @@ describe("classifyUrl", () => {
     expect(classifyUrl(`${BASE}/category/things-to-do/`)).toBe("category");
     expect(classifyUrl(`${BASE}/tag/family/`)).toBe("tag");
     expect(classifyUrl(`${BASE}/thanksgiving-vacation-ideas-for-families/`)).toBe("post");
+  });
+});
+
+describe("isFrontierDiscovered", () => {
+  it("is true for a link discovered on a page (frontier expansion)", () => {
+    expect(isFrontierDiscovered(`${BASE}/some-source-article/`)).toBe(true);
+  });
+
+  it("is false for sitemap-sourced and unknown-origin items", () => {
+    expect(isFrontierDiscovered(`${BASE}/post-sitemap2.xml`)).toBe(false);
+    expect(isFrontierDiscovered(`${BASE}/web-story-sitemap.xml`)).toBe(false);
+    expect(isFrontierDiscovered(null)).toBe(false);
+    expect(isFrontierDiscovered(undefined)).toBe(false);
   });
 });

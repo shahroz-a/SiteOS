@@ -57,8 +57,8 @@ const brokenHtml = loadFixture("broken-article.html");
 const config = { ...DEFAULT_CONFIG, perRequestDelayMs: 0 };
 
 type Item = Parameters<typeof processItem>[0];
-function makeItem(url: string): Item {
-  return { url, discoveredFrom: null } as Item;
+function makeItem(url: string, discoveredFrom: string | null = null): Item {
+  return { url, discoveredFrom } as Item;
 }
 
 /** Pull the single ValidationResult passed to storeValidation. */
@@ -177,5 +177,80 @@ describe("processItem validation gate", () => {
     expect(storeValidation).not.toHaveBeenCalled();
     const warnLog = crawlLogs().find((l) => l.level === "warn");
     expect(warnLog?.message).toContain("503");
+  });
+
+  it("skips a blog URL that redirects off-blog instead of failing or storing it", async () => {
+    // A retired web story 301'd to an off-blog product page that then 404s.
+    fetchPage.mockResolvedValue({
+      requestedUrl: "https://www.headout.com/blog/web-stories/amsterdam-day-trips/",
+      finalUrl: "https://www.headout.com/day-trips-amsterdam-ca-6~15096/",
+      httpStatus: 404,
+      html: "",
+      redirectChain: ["https://www.headout.com/day-trips-amsterdam-ca-6~15096/"],
+      via: "http" as const,
+      httpHeaders: {},
+    });
+
+    const outcome = await processItem(
+      makeItem(
+        "https://www.headout.com/blog/web-stories/amsterdam-day-trips/",
+        "https://www.headout.com/blog/web-story-sitemap.xml",
+      ),
+      config,
+      () => {},
+    );
+
+    expect(outcome.status).toBe("skipped");
+    expect(storePage).not.toHaveBeenCalled();
+    expect(crawlLogs().some((l) => /redirected off-blog/.test(l.message))).toBe(true);
+  });
+
+  it("skips a frontier-discovered dead link (404) instead of retrying it as a failure", async () => {
+    fetchPage.mockResolvedValue({
+      requestedUrl: "https://www.headout.com/blog/eiffel-tower-tour/",
+      finalUrl: "https://www.headout.com/blog/eiffel-tower-tour/",
+      httpStatus: 404,
+      html: "",
+      redirectChain: [],
+      via: "http" as const,
+      httpHeaders: {},
+    });
+
+    const outcome = await processItem(
+      makeItem(
+        "https://www.headout.com/blog/eiffel-tower-tour/",
+        "https://www.headout.com/blog/paris-travel-guide/",
+      ),
+      config,
+      () => {},
+    );
+
+    expect(outcome.status).toBe("skipped");
+    expect(fetchPage).toHaveBeenCalledTimes(1);
+    expect(crawlLogs().some((l) => /dead link \(404\)/.test(l.message))).toBe(true);
+  });
+
+  it("still fails a sitemap-declared URL that 404s with no off-blog redirect", async () => {
+    fetchPage.mockResolvedValue({
+      requestedUrl: "https://www.headout.com/blog/declared-but-missing/",
+      finalUrl: "https://www.headout.com/blog/declared-but-missing/",
+      httpStatus: 404,
+      html: "",
+      redirectChain: [],
+      via: "http" as const,
+      httpHeaders: {},
+    });
+
+    const outcome = await processItem(
+      makeItem(
+        "https://www.headout.com/blog/declared-but-missing/",
+        "https://www.headout.com/blog/post-sitemap2.xml",
+      ),
+      config,
+      () => {},
+    );
+
+    expect(outcome.status).toBe("failed");
+    expect(crawlLogs().some((l) => l.level === "warn" && /404/.test(l.message))).toBe(true);
   });
 });

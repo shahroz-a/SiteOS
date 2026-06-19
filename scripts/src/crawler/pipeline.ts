@@ -10,6 +10,7 @@ import {
   markSkipped,
   queueStats,
   recoverStaleInProgress,
+  reclassifyMalformedQueueItems,
   type QueueStats,
 } from "./queue";
 import { fetchPage } from "./fetcher";
@@ -18,7 +19,14 @@ import { validateExtraction } from "./validate";
 import { logCrawl, storePage, storeValidation } from "./store";
 import { closeBrowser, isBrowserAvailable } from "./browser";
 import { generateReports } from "./reports";
-import { collapseSlashes, isAssetUrl, isBlogUrl, isMalformedBlogUrl, sleep } from "./util";
+import {
+  collapseSlashes,
+  isAssetUrl,
+  isBlogUrl,
+  isFrontierDiscovered,
+  isMalformedBlogUrl,
+  sleep,
+} from "./util";
 import type { CrawlQueueItem } from "@workspace/db";
 
 export interface DiscoverResult {
@@ -75,23 +83,55 @@ export async function processItem(
       return { status: "skipped" };
     }
 
-    // Non-2xx with no body: treat as a failure to retry/record.
-    if (fetchResult.httpStatus >= 400 || (!fetchResult.html && fetchResult.httpStatus !== 200)) {
+    // A blog URL that redirects to a non-blog destination has moved off the blog
+    // (e.g. a retired web story 301'd to a product page, or an old post pointing
+    // at a `/…-tickets/` listing). Don't parse/store the off-blog page or retry
+    // it to exhaustion — skip it by design so it stops burning fetch attempts.
+    if (
+      fetchResult.redirectChain.length > 0 &&
+      isBlogUrl(item.url) &&
+      !isBlogUrl(fetchResult.finalUrl)
+    ) {
       await logCrawl({
         url: item.url,
-        level: "warn",
+        level: "info",
         httpStatus: fetchResult.httpStatus,
-        message: `non-OK response (${fetchResult.httpStatus})`,
+        message: `skipped: redirected off-blog to ${fetchResult.finalUrl}`,
+        details: { redirectChain: fetchResult.redirectChain },
         durationMs: Date.now() - started,
       });
-      return { status: "failed" };
+      return { status: "skipped" };
     }
 
-    const page = assemblePage(
-      fetchResult,
-      item.discoveredFrom ? { sitemapSource: item.discoveredFrom, lastmod: null } : null,
-      config,
-    );
+    // Non-2xx with no body: treat as a failure to retry/record. A frontier-
+    // discovered link that is simply gone (404/410) is a dead internal link in
+    // the source content — expected cruft, not a migration blocker — so skip it
+    // (one attempt) rather than retrying to exhaustion and inflating the failed
+    // count. Sitemap-declared URLs and transient errors (5xx) still fail loudly.
+    if (fetchResult.httpStatus >= 400 || (!fetchResult.html && fetchResult.httpStatus !== 200)) {
+      const deadLink =
+        (fetchResult.httpStatus === 404 || fetchResult.httpStatus === 410) &&
+        isFrontierDiscovered(item.discoveredFrom);
+      await logCrawl({
+        url: item.url,
+        level: deadLink ? "info" : "warn",
+        httpStatus: fetchResult.httpStatus,
+        message: deadLink
+          ? `skipped: dead link (${fetchResult.httpStatus})`
+          : `non-OK response (${fetchResult.httpStatus})`,
+        durationMs: Date.now() - started,
+      });
+      return { status: deadLink ? "skipped" : "failed" };
+    }
+
+    // Only genuine sitemap-declared items carry a sitemap source. A frontier
+    // `discoveredFrom` is a discovering *page* URL, not a sitemap, so don't
+    // mislabel it as `sitemapSource`.
+    const sitemapMeta =
+      item.discoveredFrom && !isFrontierDiscovered(item.discoveredFrom)
+        ? { sitemapSource: item.discoveredFrom, lastmod: null }
+        : null;
+    const page = assemblePage(fetchResult, sitemapMeta, config);
 
     const validation = validateExtraction(page);
     if (validation.status === "fail" && attempt < maxExtractionRetries) {
@@ -151,6 +191,10 @@ export async function runCrawl(opts: CrawlRunOptions = {}): Promise<QueueStats> 
 
   const recovered = await recoverStaleInProgress(config.maxAttempts);
   if (recovered > 0) log(`Recovered ${recovered} stale in-progress items.`);
+
+  const reclassified = await reclassifyMalformedQueueItems();
+  if (reclassified > 0)
+    log(`Reclassified ${reclassified} malformed/asset URLs as skipped (queue hygiene).`);
 
   const browser = await isBrowserAvailable();
   log(`Rendering mode: ${browser ? "Playwright (browser)" : "HTTP fallback (no browser)"}.`);

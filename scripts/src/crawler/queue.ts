@@ -1,7 +1,7 @@
 import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { db, crawlQueueTable, type CrawlQueueItem } from "@workspace/db";
 import type { DiscoveredUrl } from "./types";
-import { stripNul } from "./util";
+import { isAssetUrl, isMalformedBlogUrl, stripNul } from "./util";
 
 /**
  * The Supabase session pooler occasionally drops connections mid-query
@@ -128,7 +128,22 @@ export async function claimBatch(limit: number, maxAttempts: number): Promise<Cr
     RETURNING *;
   `),
   );
-  return rows.rows as CrawlQueueItem[];
+  // `db.execute` runs raw SQL, so `RETURNING *` yields the driver's snake_case
+  // column names (e.g. `discovered_from`), NOT Drizzle's camelCase select shape.
+  // Casting straight to `CrawlQueueItem` is unsound: `item.discoveredFrom` reads
+  // back `undefined` even though `discovered_from` is populated (this silently
+  // broke the dead-link/frontier skip classification). Map keys to camelCase so
+  // the cast is honest.
+  return rows.rows.map((row) => snakeRowToCamel<CrawlQueueItem>(row as Record<string, unknown>));
+}
+
+/** Convert a raw snake_case driver row into a camelCase object. */
+function snakeRowToCamel<T>(row: Record<string, unknown>): T {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    out[key.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase())] = value;
+  }
+  return out as T;
 }
 
 export async function markCompleted(id: string): Promise<void> {
@@ -166,6 +181,41 @@ export async function markSkipped(id: string, reason: string): Promise<void> {
       .set({ status: "skipped", lastError: stripNul(reason).slice(0, 500), completedAt: new Date() })
       .where(eq(crawlQueueTable.id, id)),
   );
+}
+
+/**
+ * One-pass queue hygiene: any `pending`/`failed` row whose URL is structurally
+ * malformed or a non-page asset can never resolve to an article, so mark it
+ * `skipped` (by design) instead of leaving it to burn fetch attempts on every
+ * crawl. Idempotent — runs at the start of each crawl so the queue self-cleans.
+ * Returns the number of rows reclassified.
+ */
+export async function reclassifyMalformedQueueItems(): Promise<number> {
+  const rows = await withRetry(() =>
+    db
+      .select({ id: crawlQueueTable.id, url: crawlQueueTable.url })
+      .from(crawlQueueTable)
+      .where(inArray(crawlQueueTable.status, ["pending", "failed"])),
+  );
+  const deadIds = rows
+    .filter((r) => isMalformedBlogUrl(r.url) || isAssetUrl(r.url))
+    .map((r) => r.id);
+  if (deadIds.length === 0) return 0;
+  const CHUNK = 500;
+  for (let i = 0; i < deadIds.length; i += CHUNK) {
+    const ids = deadIds.slice(i, i + CHUNK);
+    await withRetry(() =>
+      db
+        .update(crawlQueueTable)
+        .set({
+          status: "skipped",
+          lastError: "skipped: malformed/asset URL",
+          completedAt: new Date(),
+        })
+        .where(inArray(crawlQueueTable.id, ids)),
+    );
+  }
+  return deadIds.length;
 }
 
 export interface QueueStats {

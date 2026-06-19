@@ -95,12 +95,39 @@ export function isMalformedBlogUrl(url: string): boolean {
   const path = u.pathname;
   // An embedded protocol or quote character left over from a concatenated href.
   if (/\/https?:|:\/\/|%22|%27|%e2%80%9[cd]|["'<>]/i.test(path)) return true;
-  // A path segment that is itself a hostname (dot-separated label). Real blog
-  // slugs never contain a dot, so any dotted non-asset segment is garbage.
-  for (const seg of path.split("/")) {
-    if (seg && /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(seg)) return true;
+  const segments = path.split("/").filter(Boolean);
+  for (const seg of segments) {
+    // A leading-hyphen segment (e.g. `…/paris-3-day-itinerary/-catacombs/`) is a
+    // botched relative link — a trailing `/-…` fragment joined onto the path.
+    // Real WordPress slugs are never produced with a leading hyphen.
+    if (seg.startsWith("-")) return true;
+    // A segment containing whitespace (`…/No%20Data`, `…/Basilica%20di%20San…`)
+    // is alt-text/label text mistakenly captured as an href. Real WordPress slugs
+    // are hyphenated and never contain a space.
+    if (/%20|\s/i.test(seg)) return true;
+    // A path segment that is itself a hostname (dot-separated label). Real blog
+    // slugs never contain a dot, so any dotted non-asset segment is garbage.
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(seg)) return true;
   }
+  // A doubled / over-nested taxonomy path. A `category`/`author`/`tag` listing
+  // legitimately carries at most a slug plus an optional collection-code segment
+  // (e.g. `/blog/category/things-to-do-city-singapore/tickets-…-ca-1__23209/`).
+  // Anything deeper (e.g. `/blog/category/…/wp-…/wcp-…/`) is a frontier-expanded
+  // artifact that can never resolve to a real page.
+  const taxonomyIdx = segments.findIndex((s) => s === "category" || s === "author" || s === "tag");
+  if (taxonomyIdx >= 0 && segments.length - taxonomyIdx - 1 > 2) return true;
   return false;
+}
+
+/**
+ * True when a queue item was discovered by frontier link-expansion (its
+ * `discoveredFrom` is the page it was found on) rather than from a sitemap.
+ * A frontier link that 404s is a dead internal link in source content — cruft,
+ * not a migration blocker — so it can be skipped instead of failed; a missing
+ * sitemap-declared URL still fails loudly.
+ */
+export function isFrontierDiscovered(discoveredFrom: string | null | undefined): boolean {
+  return !!discoveredFrom && !discoveredFrom.includes("sitemap");
 }
 
 export function isInternalUrl(url: string): boolean {

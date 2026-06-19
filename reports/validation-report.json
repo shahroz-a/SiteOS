@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-06-19T12:24:22.054Z",
-  "total": 3988,
+  "generatedAt": "2026-06-19T12:58:59.034Z",
+  "total": 4011,
   "byStatus": {
-    "fail": 1046,
-    "pass": 1531,
-    "warn": 1411
+    "fail": 1044,
+    "pass": 1545,
+    "warn": 1422
   },
   "failures": [
     {
-      "pageId": "a6d0e638-2d5e-41ce-9e62-72aa170f4c44",
+      "pageId": "2df428c5-0316-4095-8adc-0b8f25df4d5f",
       "status": "fail",
       "score": 50,
       "issues": {
@@ -48,7 +48,7 @@
       }
     },
     {
-      "pageId": "904c1d93-430c-460e-8ea2-08c1e2fdf593",
+      "pageId": "c29c455b-65bc-42e4-b658-5b6eacb5ab51",
       "status": "fail",
       "score": 50,
       "issues": {
@@ -88,87 +88,54 @@
       }
     },
     {
-      "pageId": "5ae1860c-df0b-49d1-8270-4abbef02b86d",
+      "pageId": "58f839f7-be8b-445f-bce6-a8567cd6371c",
       "status": "fail",
-      "score": 50,
+      "score": 25,
       "issues": {
         "issues": [
           {
             "field": "headings",
             "parsed": 0,
-            "source": 16,
-            "message": "parsed headings (0) below source (16)",
+            "source": 22,
+            "message": "parsed headings (0) below source (22)",
             "severity": "fail"
           },
           {
-            "field": "lists",
-            "parsed": 2,
-            "source": 22,
-            "message": "parsed lists (2) below source (22)",
-            "severity": "fail"
-          }
-        ],
-        "parsed": {
-          "links": 5,
-          "lists": 2,
-          "images": 27,
-          "tables": 0,
-          "headings": 0,
-          "components": 34,
-          "paragraphs": 12
-        },
-        "source": {
-          "links": 210,
-          "lists": 22,
-          "images": 27,
-          "tables": 0,
-          "headings": 16,
-          "paragraphs": 12
-        }
-      }
-    },
-    {
-      "pageId": "e3a536d0-4ca2-4fd4-8c9b-4aa118b242fb",
-      "status": "fail",
-      "score": 50,
-      "issues": {
-        "issues": [
-          {
-            "field": "headings",
+            "field": "paragraphs",
             "parsed": 0,
-            "source": 16,
-            "message": "parsed headings (0) below source (16)",
+            "source": 32,
+            "message": "parsed paragraphs (0) below source (32)",
             "severity": "fail"
           },
           {
-            "field": "lists",
-            "parsed": 2,
-            "source": 22,
-            "message": "parsed lists (2) below source (22)",
+            "field": "components",
+            "parsed": 0,
+            "source": 32,
+            "message": "component tree is empty despite source content",
             "severity": "fail"
           }
         ],
         "parsed": {
-          "links": 5,
-          "lists": 2,
-          "images": 27,
+          "links": 0,
+          "lists": 0,
+          "images": 0,
           "tables": 0,
           "headings": 0,
-          "components": 34,
-          "paragraphs": 12
+          "components": 0,
+          "paragraphs": 0
         },
         "source": {
-          "links": 210,
-          "lists": 22,
-          "images": 27,
+          "links": 3,
+          "lists": 0,
+          "images": 0,
           "tables": 0,
-          "headings": 16,
-          "paragraphs": 12
+          "headings": 22,
+          "paragraphs": 32
         }
       }
     },
     {
-      "pageId": "0bbffa28-5cd6-4362-a009-9c0abfe6ebce",
+      "pageId": "3033e859-d583-4989-87cf-726d38bf2d6a",
       "status": "fail",
       "score": 50,
       "issues": {
@@ -208,7 +175,7 @@
       }
     },
     {
-      "pageId": "c8ea6751-4c82-4e61-aa52-c8c33cf44c32",
+      "pageId": "0b68a864-8367-4679-90c0-6ff2d475e9c6",
       "status": "fail",
       "score": 50,
       "issues": {
@@ -248,87 +215,7 @@
       }
     },
     {
-      "pageId": "2b89365e-11b2-41dd-a747-4a24da0fb9c7",
-      "status": "fail",
-      "score": 50,
-      "issues": {
-        "issues": [
-          {
-            "field": "headings",
-            "parsed": 0,
-            "source": 16,
-            "message": "parsed headings (0) below source (16)",
-            "severity": "fail"
-          },
-          {
-            "field": "lists",
-            "parsed": 2,
-            "source": 22,
-            "message": "parsed lists (2) below source (22)",
-            "severity": "fail"
-          }
-        ],
-        "parsed": {
-          "links": 5,
-          "lists": 2,
-          "images": 27,
-          "tables": 0,
-          "headings": 0,
-          "components": 34,
-          "paragraphs": 12
-        },
-        "source": {
-          "links": 210,
-          "lists": 22,
-          "images": 27,
-          "tables": 0,
-          "headings": 16,
-          "paragraphs": 12
-        }
-      }
-    },
-    {
-      "pageId": "c43c091f-3a6d-43b4-84f4-0939bff3938e",
-      "status": "fail",
-      "score": 50,
-      "issues": {
-        "issues": [
-          {
-            "field": "headings",
-            "parsed": 0,
-            "source": 16,
-            "message": "parsed headings (0) below source (16)",
-            "severity": "fail"
-          },
-          {
-            "field": "lists",
-            "parsed": 2,
-            "source": 22,
-            "message": "parsed lists (2) below source (22)",
-            "severity": "fail"
-          }
-        ],
-        "parsed": {
-          "links": 5,
-          "lists": 2,
-          "images": 27,
-          "tables": 0,
-          "headings": 0,
-          "components": 34,
-          "paragraphs": 12
-        },
-        "source": {
-          "links": 206,
-          "lists": 22,
-          "images": 27,
-          "tables": 0,
-          "headings": 16,
-          "paragraphs": 12
-        }
-      }
-    },
-    {
-      "pageId": "15194fcd-b6a0-4d3b-923b-5ca2c10dbea7",
+      "pageId": "4108d0f6-8c9c-4862-a912-e0c5dad11aa8",
       "status": "fail",
       "score": 50,
       "issues": {
@@ -368,40 +255,7 @@
       }
     },
     {
-      "pageId": "6cc58962-8847-45a4-92af-ecafed17fdb7",
-      "status": "fail",
-      "score": 75,
-      "issues": {
-        "issues": [
-          {
-            "field": "headings",
-            "parsed": 0,
-            "source": 1,
-            "message": "parsed headings (0) below source (1)",
-            "severity": "fail"
-          }
-        ],
-        "parsed": {
-          "links": 0,
-          "lists": 0,
-          "images": 1,
-          "tables": 0,
-          "headings": 0,
-          "components": 2,
-          "paragraphs": 1
-        },
-        "source": {
-          "links": 4,
-          "lists": 0,
-          "images": 1,
-          "tables": 0,
-          "headings": 1,
-          "paragraphs": 1
-        }
-      }
-    },
-    {
-      "pageId": "3585bf8e-f426-49c8-be54-d672c7597ab8",
+      "pageId": "8e45b3c1-2419-4c26-8b0a-853c937ec938",
       "status": "fail",
       "score": 50,
       "issues": {
@@ -441,54 +295,7 @@
       }
     },
     {
-      "pageId": "f017f287-e6df-4314-a298-7ce22ecbac58",
-      "status": "fail",
-      "score": 25,
-      "issues": {
-        "issues": [
-          {
-            "field": "headings",
-            "parsed": 0,
-            "source": 26,
-            "message": "parsed headings (0) below source (26)",
-            "severity": "fail"
-          },
-          {
-            "field": "paragraphs",
-            "parsed": 0,
-            "source": 9,
-            "message": "parsed paragraphs (0) below source (9)",
-            "severity": "fail"
-          },
-          {
-            "field": "components",
-            "parsed": 0,
-            "source": 9,
-            "message": "component tree is empty despite source content",
-            "severity": "fail"
-          }
-        ],
-        "parsed": {
-          "links": 0,
-          "lists": 0,
-          "images": 0,
-          "tables": 0,
-          "headings": 0,
-          "components": 0,
-          "paragraphs": 0
-        },
-        "source": {
-          "links": 10,
-          "lists": 0,
-          "images": 0,
-          "tables": 0,
-          "headings": 26,
-          "paragraphs": 9
-        }
-      }
-    },
-    {
-      "pageId": "9423aa93-e084-41a6-aeb8-3b52ad2a821f",
+      "pageId": "87336bc2-aa99-4d4b-b4bb-125b98f72b44",
       "status": "fail",
       "score": 50,
       "issues": {
@@ -518,7 +325,7 @@
           "paragraphs": 12
         },
         "source": {
-          "links": 209,
+          "links": 210,
           "lists": 22,
           "images": 27,
           "tables": 0,
@@ -528,134 +335,7 @@
       }
     },
     {
-      "pageId": "c43c091f-3a6d-43b4-84f4-0939bff3938e",
-      "status": "fail",
-      "score": 50,
-      "issues": {
-        "issues": [
-          {
-            "field": "headings",
-            "parsed": 0,
-            "source": 16,
-            "message": "parsed headings (0) below source (16)",
-            "severity": "fail"
-          },
-          {
-            "field": "lists",
-            "parsed": 2,
-            "source": 22,
-            "message": "parsed lists (2) below source (22)",
-            "severity": "fail"
-          }
-        ],
-        "parsed": {
-          "links": 5,
-          "lists": 2,
-          "images": 27,
-          "tables": 0,
-          "headings": 0,
-          "components": 34,
-          "paragraphs": 12
-        },
-        "source": {
-          "links": 206,
-          "lists": 22,
-          "images": 27,
-          "tables": 0,
-          "headings": 16,
-          "paragraphs": 12
-        }
-      }
-    },
-    {
-      "pageId": "f017f287-e6df-4314-a298-7ce22ecbac58",
-      "status": "fail",
-      "score": 25,
-      "issues": {
-        "issues": [
-          {
-            "field": "headings",
-            "parsed": 0,
-            "source": 26,
-            "message": "parsed headings (0) below source (26)",
-            "severity": "fail"
-          },
-          {
-            "field": "paragraphs",
-            "parsed": 0,
-            "source": 9,
-            "message": "parsed paragraphs (0) below source (9)",
-            "severity": "fail"
-          },
-          {
-            "field": "components",
-            "parsed": 0,
-            "source": 9,
-            "message": "component tree is empty despite source content",
-            "severity": "fail"
-          }
-        ],
-        "parsed": {
-          "links": 0,
-          "lists": 0,
-          "images": 0,
-          "tables": 0,
-          "headings": 0,
-          "components": 0,
-          "paragraphs": 0
-        },
-        "source": {
-          "links": 10,
-          "lists": 0,
-          "images": 0,
-          "tables": 0,
-          "headings": 26,
-          "paragraphs": 9
-        }
-      }
-    },
-    {
-      "pageId": "e991ff15-409f-4993-8100-6fe019224751",
-      "status": "fail",
-      "score": 50,
-      "issues": {
-        "issues": [
-          {
-            "field": "headings",
-            "parsed": 0,
-            "source": 16,
-            "message": "parsed headings (0) below source (16)",
-            "severity": "fail"
-          },
-          {
-            "field": "lists",
-            "parsed": 2,
-            "source": 22,
-            "message": "parsed lists (2) below source (22)",
-            "severity": "fail"
-          }
-        ],
-        "parsed": {
-          "links": 5,
-          "lists": 2,
-          "images": 27,
-          "tables": 0,
-          "headings": 0,
-          "components": 34,
-          "paragraphs": 12
-        },
-        "source": {
-          "links": 208,
-          "lists": 22,
-          "images": 27,
-          "tables": 0,
-          "headings": 16,
-          "paragraphs": 12
-        }
-      }
-    },
-    {
-      "pageId": "5e2a35c4-9651-4189-b801-df5dea31e144",
+      "pageId": "533f64d0-4b13-4e26-9ae2-f49ee7bc0dbd",
       "status": "fail",
       "score": 50,
       "issues": {
@@ -691,6 +371,246 @@
           "tables": 0,
           "headings": 12,
           "paragraphs": 8
+        }
+      }
+    },
+    {
+      "pageId": "2cf4d69c-d56b-44bc-a8a9-58ddb9d7cfc2",
+      "status": "fail",
+      "score": 50,
+      "issues": {
+        "issues": [
+          {
+            "field": "headings",
+            "parsed": 0,
+            "source": 16,
+            "message": "parsed headings (0) below source (16)",
+            "severity": "fail"
+          },
+          {
+            "field": "lists",
+            "parsed": 2,
+            "source": 22,
+            "message": "parsed lists (2) below source (22)",
+            "severity": "fail"
+          }
+        ],
+        "parsed": {
+          "links": 5,
+          "lists": 2,
+          "images": 27,
+          "tables": 0,
+          "headings": 0,
+          "components": 34,
+          "paragraphs": 12
+        },
+        "source": {
+          "links": 210,
+          "lists": 22,
+          "images": 27,
+          "tables": 0,
+          "headings": 16,
+          "paragraphs": 12
+        }
+      }
+    },
+    {
+      "pageId": "62889d72-f932-481e-a777-214ca310626c",
+      "status": "fail",
+      "score": 50,
+      "issues": {
+        "issues": [
+          {
+            "field": "headings",
+            "parsed": 0,
+            "source": 16,
+            "message": "parsed headings (0) below source (16)",
+            "severity": "fail"
+          },
+          {
+            "field": "lists",
+            "parsed": 2,
+            "source": 22,
+            "message": "parsed lists (2) below source (22)",
+            "severity": "fail"
+          }
+        ],
+        "parsed": {
+          "links": 5,
+          "lists": 2,
+          "images": 27,
+          "tables": 0,
+          "headings": 0,
+          "components": 34,
+          "paragraphs": 12
+        },
+        "source": {
+          "links": 209,
+          "lists": 22,
+          "images": 27,
+          "tables": 0,
+          "headings": 16,
+          "paragraphs": 12
+        }
+      }
+    },
+    {
+      "pageId": "2b5a5398-0208-48c9-8065-d92b6eb5b636",
+      "status": "fail",
+      "score": 50,
+      "issues": {
+        "issues": [
+          {
+            "field": "headings",
+            "parsed": 0,
+            "source": 16,
+            "message": "parsed headings (0) below source (16)",
+            "severity": "fail"
+          },
+          {
+            "field": "lists",
+            "parsed": 2,
+            "source": 22,
+            "message": "parsed lists (2) below source (22)",
+            "severity": "fail"
+          }
+        ],
+        "parsed": {
+          "links": 5,
+          "lists": 2,
+          "images": 27,
+          "tables": 0,
+          "headings": 0,
+          "components": 34,
+          "paragraphs": 12
+        },
+        "source": {
+          "links": 210,
+          "lists": 22,
+          "images": 27,
+          "tables": 0,
+          "headings": 16,
+          "paragraphs": 12
+        }
+      }
+    },
+    {
+      "pageId": "c43c091f-3a6d-43b4-84f4-0939bff3938e",
+      "status": "fail",
+      "score": 50,
+      "issues": {
+        "issues": [
+          {
+            "field": "headings",
+            "parsed": 0,
+            "source": 16,
+            "message": "parsed headings (0) below source (16)",
+            "severity": "fail"
+          },
+          {
+            "field": "lists",
+            "parsed": 2,
+            "source": 22,
+            "message": "parsed lists (2) below source (22)",
+            "severity": "fail"
+          }
+        ],
+        "parsed": {
+          "links": 5,
+          "lists": 2,
+          "images": 27,
+          "tables": 0,
+          "headings": 0,
+          "components": 34,
+          "paragraphs": 12
+        },
+        "source": {
+          "links": 206,
+          "lists": 22,
+          "images": 27,
+          "tables": 0,
+          "headings": 16,
+          "paragraphs": 12
+        }
+      }
+    },
+    {
+      "pageId": "2795bda0-81e2-4e97-a9c0-f117f485fdad",
+      "status": "fail",
+      "score": 50,
+      "issues": {
+        "issues": [
+          {
+            "field": "headings",
+            "parsed": 0,
+            "source": 16,
+            "message": "parsed headings (0) below source (16)",
+            "severity": "fail"
+          },
+          {
+            "field": "lists",
+            "parsed": 2,
+            "source": 22,
+            "message": "parsed lists (2) below source (22)",
+            "severity": "fail"
+          }
+        ],
+        "parsed": {
+          "links": 5,
+          "lists": 2,
+          "images": 27,
+          "tables": 0,
+          "headings": 0,
+          "components": 34,
+          "paragraphs": 12
+        },
+        "source": {
+          "links": 208,
+          "lists": 22,
+          "images": 27,
+          "tables": 0,
+          "headings": 16,
+          "paragraphs": 12
+        }
+      }
+    },
+    {
+      "pageId": "c43c091f-3a6d-43b4-84f4-0939bff3938e",
+      "status": "fail",
+      "score": 50,
+      "issues": {
+        "issues": [
+          {
+            "field": "headings",
+            "parsed": 0,
+            "source": 16,
+            "message": "parsed headings (0) below source (16)",
+            "severity": "fail"
+          },
+          {
+            "field": "lists",
+            "parsed": 2,
+            "source": 22,
+            "message": "parsed lists (2) below source (22)",
+            "severity": "fail"
+          }
+        ],
+        "parsed": {
+          "links": 5,
+          "lists": 2,
+          "images": 27,
+          "tables": 0,
+          "headings": 0,
+          "components": 34,
+          "paragraphs": 12
+        },
+        "source": {
+          "links": 206,
+          "lists": 22,
+          "images": 27,
+          "tables": 0,
+          "headings": 16,
+          "paragraphs": 12
         }
       }
     },
