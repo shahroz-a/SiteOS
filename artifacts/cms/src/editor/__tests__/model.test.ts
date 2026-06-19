@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { CmsPostDetail } from "@workspace/api-client-react";
+import type { CTNode } from "@workspace/blog-renderer";
 import {
   blocksToComponentTree,
   blocksFromDetail,
@@ -35,6 +36,55 @@ function makeDetail(overrides: Partial<CmsPostDetail> = {}): CmsPostDetail {
   };
 }
 
+/**
+ * Regression coverage for "writer-inserted library images show on the published
+ * article". The public blog renders an article body from `contentHtml` ->
+ * `componentTree` -> `richText` (first non-empty wins), so for the editor's edits
+ * to take effect it MUST (a) write the inserted image into `componentTree` — the
+ * structure the blog actually renders — and (b) null out `contentHtml` so the
+ * structured tree is the one that renders. These tests lock that contract in.
+ */
+
+function baseDetail(overrides: Partial<CmsPostDetail> = {}): CmsPostDetail {
+  return {
+    id: "page-1",
+    slug: "best-of-nyc",
+    status: "draft",
+    pageType: "post",
+    title: "Best of NYC",
+    subtitle: null,
+    excerpt: null,
+    canonicalUrl: "https://www.headout.com/blog/best-of-nyc/",
+    pathname: "/blog/best-of-nyc/",
+    parentPath: null,
+    featuredImageUrl: "https://cdn.headout.com/hero.jpg",
+    featuredImageAlt: "skyline",
+    readingTimeMinutes: 5,
+    wordCount: 800,
+    language: "en",
+    publishedAt: null,
+    modifiedAt: null,
+    updatedAt: null,
+    contentHtml: null,
+    richText: null,
+    componentTree: null,
+    author: null,
+    primaryCategory: null,
+    categories: [],
+    tags: [],
+    breadcrumbs: [],
+    faq: [],
+    images: [],
+    galleries: [],
+    seo: null,
+    jsonld: [],
+    internalLinks: [],
+    externalLinks: [],
+    latestVersion: null,
+    ...overrides,
+  };
+}
+
 /** Strip the random `id` from every block so trees compare structurally. */
 function stripIds(blocks: EditorBlock[]): Omit<EditorBlock, "id" | "children">[] {
   return blocks.map((b) => {
@@ -43,6 +93,13 @@ function stripIds(blocks: EditorBlock[]): Omit<EditorBlock, "id" | "children">[]
     if (children) out.children = stripIds(children);
     return out as Omit<EditorBlock, "id" | "children">;
   });
+}
+
+function imageBlock(src: string, alt = "library shot"): EditorBlock {
+  const b = createBlock("image");
+  b.data.src = src;
+  b.data.alt = alt;
+  return b;
 }
 
 /* ------------------------------------------------------------------ */
@@ -281,5 +338,144 @@ describe("detailToInput", () => {
     expect(input.internalLinks).toEqual([
       { href: "/blog/other", anchorText: "Other", rel: null, domain: null, position: 0 },
     ]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* inserted library images reach the rendered structure               */
+/* ------------------------------------------------------------------ */
+
+describe("editor model — inserted images reach the rendered structure", () => {
+  it("writes an inserted image into componentTree and nulls contentHtml", () => {
+    const detail = baseDetail();
+    const blocks: EditorBlock[] = [
+      createBlock("richText"),
+      imageBlock("https://cdn.headout.com/library/skyline.jpg"),
+    ];
+    blocks[0].data.html = "<p>Intro paragraph.</p>";
+
+    const input = detailToInput(detail, blocks, { title: "Best of NYC" });
+
+    // The blog only renders the structured tree when there's no HTML body.
+    expect(input.contentHtml).toBeNull();
+    expect(input.richText).toBeNull();
+
+    const tree = input.componentTree as CTNode[];
+    expect(Array.isArray(tree)).toBe(true);
+    const img = tree.find((n) => n.type === "image");
+    expect(img).toBeDefined();
+    expect(img?.data?.src).toBe("https://cdn.headout.com/library/skyline.jpg");
+    expect(img?.data?.alt).toBe("library shot");
+  });
+
+  it("carries hero, gallery and image library picks through to componentTree", () => {
+    const hero = createBlock("hero");
+    hero.data.imageUrl = "https://cdn.headout.com/library/hero.jpg";
+    hero.data.imageAlt = "hero alt";
+    const gallery = createBlock("gallery");
+    gallery.data.images = [
+      { src: "https://cdn.headout.com/library/g1.jpg", alt: "g1" },
+      { src: "https://cdn.headout.com/library/g2.jpg", alt: "g2" },
+    ];
+
+    const tree = blocksToComponentTree([
+      hero,
+      gallery,
+      imageBlock("https://cdn.headout.com/library/body.jpg"),
+    ]) as CTNode[];
+
+    expect(tree.find((n) => n.type === "hero")?.data?.imageUrl).toBe(
+      "https://cdn.headout.com/library/hero.jpg",
+    );
+    const galleryNode = tree.find((n) => n.type === "gallery");
+    expect(galleryNode?.data?.images?.map((i) => i.src)).toEqual([
+      "https://cdn.headout.com/library/g1.jpg",
+      "https://cdn.headout.com/library/g2.jpg",
+    ]);
+    expect(tree.find((n) => n.type === "image")?.data?.src).toBe(
+      "https://cdn.headout.com/library/body.jpg",
+    );
+  });
+
+  it("loads a legacy contentHtml article as one editable rich-text block", () => {
+    const detail = baseDetail({
+      contentHtml: "<p>Crawled body with an <img src='x.jpg'></p>",
+      componentTree: [{ type: "richText", data: { html: "<p>tree</p>" } }],
+    });
+
+    const blocks = blocksFromDetail(detail);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].type).toBe("richText");
+    expect(blocks[0].data.html).toContain("Crawled body");
+  });
+
+  it("recovers an image block from an editor-authored componentTree on reload", () => {
+    const detail = baseDetail({
+      contentHtml: null,
+      componentTree: [
+        { type: "richText", data: { html: "<p>Body.</p>" } },
+        {
+          type: "image",
+          data: { src: "https://cdn.headout.com/library/round-trip.jpg", alt: "rt" },
+        },
+      ],
+    });
+
+    const blocks = blocksFromDetail(detail);
+    const img = blocks.find((b) => b.type === "image");
+    expect(img?.data.src).toBe("https://cdn.headout.com/library/round-trip.jpg");
+
+    // Re-emitting must keep the image in the rendered structure.
+    const reEmitted = detailToInput(detail, blocks, { title: detail.title });
+    const tree = reEmitted.componentTree as CTNode[];
+    expect(tree.find((n) => n.type === "image")?.data?.src).toBe(
+      "https://cdn.headout.com/library/round-trip.jpg",
+    );
+  });
+
+  it("preserves existing nested collections on save (no content dropped)", () => {
+    const detail = baseDetail({
+      images: [
+        {
+          url: "https://cdn.headout.com/existing.jpg",
+          originalUrl: null,
+          alt: "existing",
+          caption: null,
+          credit: null,
+          width: null,
+          height: null,
+          role: "featured",
+          position: 0,
+        },
+      ],
+      faq: [{ question: "Q?", answer: "A.", position: 0 }],
+      seo: {
+        metaTitle: "Meta",
+        metaDescription: "Desc",
+        canonicalUrl: null,
+        robots: null,
+        focusKeyword: null,
+        keywords: null,
+        ogTitle: null,
+        ogDescription: null,
+        ogImage: null,
+        ogType: null,
+        twitterCard: null,
+        twitterTitle: null,
+        twitterDescription: null,
+        twitterImage: null,
+        needsReview: false,
+      },
+    } as Partial<CmsPostDetail>);
+
+    const input = detailToInput(detail, [imageBlock("https://cdn.headout.com/new.jpg")], {
+      title: detail.title,
+    });
+
+    expect(input.images?.map((i) => i.url)).toEqual([
+      "https://cdn.headout.com/existing.jpg",
+    ]);
+    expect(input.faq?.map((f) => f.question)).toEqual(["Q?"]);
+    expect(input.seo?.metaTitle).toBe("Meta");
   });
 });
