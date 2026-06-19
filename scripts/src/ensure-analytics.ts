@@ -57,15 +57,23 @@ const INDEXES: Array<{ name: string; ddl: string }> = [
   },
 ];
 
+/**
+ * Minimal executor surface shared by the global `db` and a transaction handle.
+ * Threading this through lets the self-heal run against an injected transaction
+ * (e.g. a rolled-back one in tests) instead of only the global connection.
+ */
+export type Executor = Pick<typeof db, "execute">;
+
 export async function ensureAnalytics(
   log: (m: string) => void = console.log,
+  executor: Executor = db,
 ): Promise<void> {
   log("Ensuring page_views table exists…");
-  const tableExisted = await tableExists("page_views");
+  const tableExisted = await tableExists(executor, "page_views");
   // Static DDL from this source file — never user input. Column types, defaults
   // and the FK constraint name match lib/db/src/schema/analytics.ts so the
   // publish-time dev→prod diff is a no-op once prod has the table.
-  await db.execute(
+  await executor.execute(
     sql.raw(`
       CREATE TABLE IF NOT EXISTS page_views (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -82,10 +90,10 @@ export async function ensureAnalytics(
   log(tableExisted ? "  page_views already present." : "  + created page_views");
 
   log("Ensuring page_view_daily rollup table exists…");
-  const rollupExisted = await tableExists("page_view_daily");
+  const rollupExisted = await tableExists(executor, "page_view_daily");
   // Static DDL — column types, PK and FK constraint names match
   // lib/db/src/schema/analytics.ts so the publish-time dev→prod diff is a no-op.
-  await db.execute(
+  await executor.execute(
     sql.raw(`
       CREATE TABLE IF NOT EXISTS page_view_daily (
         day date NOT NULL,
@@ -106,10 +114,13 @@ export async function ensureAnalytics(
   );
 
   log("Ensuring page_view_referrer_daily rollup table exists…");
-  const referrerRollupExisted = await tableExists("page_view_referrer_daily");
+  const referrerRollupExisted = await tableExists(
+    executor,
+    "page_view_referrer_daily",
+  );
   // Static DDL — column types and PK constraint name match
   // lib/db/src/schema/analytics.ts so the publish-time dev→prod diff is a no-op.
-  await db.execute(
+  await executor.execute(
     sql.raw(`
       CREATE TABLE IF NOT EXISTS page_view_referrer_daily (
         day date NOT NULL,
@@ -131,8 +142,8 @@ export async function ensureAnalytics(
   let created = 0;
   let present = 0;
   for (const idx of INDEXES) {
-    const existed = await indexExists(idx.name);
-    await db.execute(sql.raw(idx.ddl));
+    const existed = await indexExists(executor, idx.name);
+    await executor.execute(sql.raw(idx.ddl));
     if (existed) {
       present += 1;
     } else {
@@ -146,15 +157,21 @@ export async function ensureAnalytics(
   );
 }
 
-async function tableExists(name: string): Promise<boolean> {
-  const result = await db.execute(
+async function tableExists(
+  executor: Executor,
+  name: string,
+): Promise<boolean> {
+  const result = await executor.execute(
     sql`SELECT 1 FROM pg_class WHERE relkind = 'r' AND relname = ${name} LIMIT 1`,
   );
   return result.rows.length > 0;
 }
 
-async function indexExists(name: string): Promise<boolean> {
-  const result = await db.execute(
+async function indexExists(
+  executor: Executor,
+  name: string,
+): Promise<boolean> {
+  const result = await executor.execute(
     sql`SELECT 1 FROM pg_class WHERE relkind = 'i' AND relname = ${name} LIMIT 1`,
   );
   return result.rows.length > 0;

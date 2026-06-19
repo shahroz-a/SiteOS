@@ -34,20 +34,28 @@ import { db, pool, TRIGRAM_INDEXES, type TrigramIndex } from "@workspace/db";
 export { TRIGRAM_INDEXES };
 export type { TrigramIndex };
 
+/**
+ * Minimal executor surface shared by the global `db` and a transaction handle.
+ * Threading this through lets the self-heal run against an injected transaction
+ * (e.g. a rolled-back one in tests) instead of only the global connection.
+ */
+export type Executor = Pick<typeof db, "execute">;
+
 export async function ensureSearchIndexes(
   log: (m: string) => void = console.log,
+  executor: Executor = db,
 ): Promise<void> {
   log("Ensuring pg_trgm extension exists…");
-  await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+  await executor.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
 
   log(`Ensuring ${TRIGRAM_INDEXES.length} trigram GIN indexes exist…`);
   let created = 0;
   let present = 0;
   for (const idx of TRIGRAM_INDEXES) {
-    const existed = await indexExists(idx.name);
+    const existed = await indexExists(executor, idx.name);
     // Identifiers come from a fixed in-source list (never user input), so raw
     // interpolation is safe here and CREATE INDEX can't be parameterized.
-    await db.execute(
+    await executor.execute(
       sql.raw(
         `CREATE INDEX IF NOT EXISTS ${idx.name} ON ${idx.table} USING gin (${idx.column} gin_trgm_ops)`,
       ),
@@ -65,8 +73,11 @@ export async function ensureSearchIndexes(
   );
 }
 
-async function indexExists(name: string): Promise<boolean> {
-  const result = await db.execute(
+async function indexExists(
+  executor: Executor,
+  name: string,
+): Promise<boolean> {
+  const result = await executor.execute(
     sql`SELECT 1 FROM pg_class WHERE relkind = 'i' AND relname = ${name} LIMIT 1`,
   );
   return result.rows.length > 0;
