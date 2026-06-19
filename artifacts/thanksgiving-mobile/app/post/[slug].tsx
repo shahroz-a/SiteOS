@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ArticleContent } from "@/components/ArticleContent";
+import { CollectionsModal } from "@/components/CollectionsModal";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
@@ -64,6 +65,7 @@ export default function PostDetailScreen() {
   const isWeb = Platform.OS === "web";
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
 
   const { data: post, isLoading, isError, refetch } = useGetPostBySlug(slug);
 
@@ -90,28 +92,49 @@ export default function PostDetailScreen() {
         <Feather name="arrow-left" size={20} color={colors.foreground} />
       </Pressable>
 
-      {/* Floating favorite button */}
+      {/* Floating action buttons */}
       {post ? (
-        <Pressable
-          testID="favorite-toggle"
-          accessibilityRole="button"
-          accessibilityLabel={saved ? "Remove from saved" : "Save article"}
-          onPress={() => toggleFavorite(post)}
+        <View
           style={[
-            styles.favButton,
-            {
-              top: insets.top + (isWeb ? 67 : 8),
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
+            styles.actionStack,
+            { top: insets.top + (isWeb ? 67 : 8) },
           ]}
         >
-          <Feather
-            name="heart"
-            size={20}
-            color={saved ? colors.primary : colors.foreground}
-          />
-        </Pressable>
+          <Pressable
+            testID="collections-toggle"
+            accessibilityRole="button"
+            accessibilityLabel="Add to collection"
+            onPress={() => setCollectionsOpen(true)}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Feather name="folder-plus" size={20} color={colors.foreground} />
+          </Pressable>
+          <Pressable
+            testID="favorite-toggle"
+            accessibilityRole="button"
+            accessibilityLabel={saved ? "Remove from saved" : "Save article"}
+            onPress={() => toggleFavorite(post)}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Feather
+              name="heart"
+              size={20}
+              color={saved ? colors.primary : colors.foreground}
+            />
+          </Pressable>
+        </View>
       ) : null}
 
       {isLoading ? (
@@ -234,6 +257,12 @@ export default function PostDetailScreen() {
           </View>
         </ScrollView>
       )}
+
+      <CollectionsModal
+        post={post ?? null}
+        visible={collectionsOpen}
+        onClose={() => setCollectionsOpen(false)}
+      />
     </View>
   );
 }
@@ -253,10 +282,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  favButton: {
+  actionStack: {
     position: "absolute",
     right: 16,
     zIndex: 10,
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionButton: {
     width: 40,
     height: 40,
     borderRadius: 20,

@@ -12,6 +12,8 @@ type Props = {
   post: PostSummary;
   onPress: (slug: string) => void;
   featured?: boolean;
+  /** When provided, shows a folder action to file the post into collections. */
+  onManageCollections?: (post: PostSummary) => void;
 };
 
 function formatDate(value?: string | null): string | null {
@@ -25,7 +27,12 @@ function formatDate(value?: string | null): string | null {
   });
 }
 
-function PostCardBase({ post, onPress, featured = false }: Props) {
+function PostCardBase({
+  post,
+  onPress,
+  featured = false,
+  onManageCollections,
+}: Props) {
   const colors = useColors();
   const { isFavorite, toggleFavorite } = useFavorites();
   const date = formatDate(post.publishedAt);
@@ -69,31 +76,60 @@ function PostCardBase({ post, onPress, featured = false }: Props) {
           </View>
         )}
 
-        <Pressable
-          testID={`favorite-toggle-${post.slug}`}
-          accessibilityRole="button"
-          accessibilityLabel={saved ? "Remove from saved" : "Save article"}
-          hitSlop={8}
-          onPress={(e) => {
-            e.stopPropagation();
-            toggleFavorite(post);
-          }}
-          style={({ pressed }) => [
-            styles.favButton,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <Feather
-            name="heart"
-            size={18}
-            color={saved ? colors.primary : colors.mutedForeground}
-            style={saved ? styles.favIconActive : undefined}
-          />
-        </Pressable>
+        <View style={styles.actionStack}>
+          {onManageCollections ? (
+            <Pressable
+              testID={`collections-toggle-${post.slug}`}
+              accessibilityRole="button"
+              accessibilityLabel="Add to collection"
+              hitSlop={8}
+              onPress={(e) => {
+                e.stopPropagation();
+                onManageCollections(post);
+              }}
+              style={({ pressed }) => [
+                styles.favButton,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <Feather
+                name="folder-plus"
+                size={18}
+                color={colors.mutedForeground}
+              />
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            testID={`favorite-toggle-${post.slug}`}
+            accessibilityRole="button"
+            accessibilityLabel={saved ? "Remove from saved" : "Save article"}
+            hitSlop={8}
+            onPress={(e) => {
+              e.stopPropagation();
+              toggleFavorite(post);
+            }}
+            style={({ pressed }) => [
+              styles.favButton,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <Feather
+              name="heart"
+              size={18}
+              color={saved ? colors.primary : colors.mutedForeground}
+              style={saved ? styles.favIconActive : undefined}
+            />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.body}>
@@ -178,10 +214,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  favButton: {
+  actionStack: {
     position: "absolute",
     top: 12,
     right: 12,
+    flexDirection: "row",
+    gap: 8,
+  },
+  favButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
