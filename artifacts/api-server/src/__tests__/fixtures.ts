@@ -22,6 +22,7 @@ export const IDS = {
   p5: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   draft: "ffffffff-ffff-4fff-8fff-ffffffffffff",
   staticPage: "12121212-1212-4121-8121-121212121212",
+  commercePage: "13131313-1313-4131-8131-131313131313",
   faq1: "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1",
   img1: "b1b1b1b1-b1b1-4b1b-8b1b-b1b1b1b1b1b1",
 } as const;
@@ -195,6 +196,19 @@ export function seedTables(): Tables {
         title: "About Us",
         pageType: "page",
         publishedAt: new Date("2025-09-01T00:00:00Z"),
+      }),
+      // A non-blog Headout commerce page misclassified as a published `post`.
+      // Its canonical URL is NOT under `/blog/`, so the read API must keep it
+      // out of the article feed and detail even though it is `post`+`published`.
+      makePage({
+        id: IDS.commercePage,
+        slug: "museums-rome-sc-1002",
+        title: "Museums in Rome",
+        pageType: "post",
+        status: "published",
+        publishedAt: new Date("2025-12-01T00:00:00Z"),
+        canonicalUrl: "https://www.headout.com/museums-rome-sc-1002~11738/",
+        pathname: "/museums-rome-sc-1002~11738/",
       }),
     ],
     page_categories: [

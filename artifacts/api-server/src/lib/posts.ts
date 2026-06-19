@@ -78,6 +78,10 @@ export async function listPosts(params: ListParams) {
   const conditions: SQL[] = [
     eq(pagesTable.status, "published"),
     eq(pagesTable.pageType, "post"),
+    // Defence in depth: only genuine blog articles live under `/blog/`. Even if a
+    // non-blog commerce/main-site page were ever (re)stored as `pageType='post'`,
+    // this keeps it out of the article feed. See `classifyUrl` in the crawler.
+    ilike(pagesTable.canonicalUrl, "%/blog/%"),
   ];
 
   if (params.authorSlug) {

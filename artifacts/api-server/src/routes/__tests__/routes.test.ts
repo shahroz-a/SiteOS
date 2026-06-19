@@ -91,6 +91,11 @@ describe("GET /api/posts/:slug", () => {
     const res = await request(app).get("/api/posts/does-not-exist");
     expect(res.status).toBe(404);
   });
+
+  it("returns 404 for a non-blog page misclassified as a published post", async () => {
+    const res = await request(app).get("/api/posts/museums-rome-sc-1002");
+    expect(res.status).toBe(404);
+  });
 });
 
 describe("GET /api/categories", () => {

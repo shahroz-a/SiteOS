@@ -27,6 +27,15 @@ describe("listPosts — base listing and pagination", () => {
     expect(slugs).not.toContain("about");
   });
 
+  it("excludes a non-blog page even when misclassified as a published post", async () => {
+    const res = await listPosts({ page: 1, limit: 12 });
+    const slugs = res.items.map((i) => i.slug);
+    // The commerce fixture is pageType=post + published but its canonical URL is
+    // not under /blog/, so the defensive feed filter must drop it.
+    expect(slugs).not.toContain("museums-rome-sc-1002");
+    expect(res.pagination.total).toBe(5);
+  });
+
   it("orders by publishedAt desc with nulls last", async () => {
     const res = await listPosts({ page: 1, limit: 12 });
     expect(res.items.map((i) => i.slug)).toEqual([

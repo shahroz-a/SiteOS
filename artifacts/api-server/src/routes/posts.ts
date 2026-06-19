@@ -13,7 +13,7 @@ import {
   jsonldTable,
   seoTable,
 } from "@workspace/db";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, ilike } from "drizzle-orm";
 import {
   ListPostsQueryParams,
   ListPostsResponse,
@@ -53,7 +53,15 @@ router.get("/posts/:slug", async (req, res) => {
   const [page] = await db
     .select()
     .from(pagesTable)
-    .where(and(eq(pagesTable.slug, slug), eq(pagesTable.status, "published")))
+    .where(
+      and(
+        eq(pagesTable.slug, slug),
+        eq(pagesTable.status, "published"),
+        eq(pagesTable.pageType, "post"),
+        // Only genuine `/blog/` articles are servable; mirrors `listPosts`.
+        ilike(pagesTable.canonicalUrl, "%/blog/%"),
+      ),
+    )
     .limit(1);
 
   if (!page) {

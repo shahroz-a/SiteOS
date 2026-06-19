@@ -174,6 +174,10 @@ export function parentPathOf(url: string): string | null {
  */
 export function classifyUrl(url: string, sitemapSource?: string | null): PageType {
   const path = pathnameOf(url);
+  // Non-blog URLs are Headout commerce/main-site pages (e.g. `/museums-rome-sc-…`,
+  // `/london-theatre-tickets/…`), never editorial articles. They must not default
+  // to `post` or the read API would serve them as blog articles.
+  if (!path.includes("/blog/")) return "page";
   if (/\/blog\/author\//.test(path)) return "author";
   if (/\/blog\/category\//.test(path)) return "category";
   if (/\/blog\/tag\//.test(path)) return "tag";

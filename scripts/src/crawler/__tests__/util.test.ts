@@ -119,6 +119,21 @@ describe("classifyUrl", () => {
     expect(classifyUrl(`${BASE}/tag/family/`)).toBe("tag");
     expect(classifyUrl(`${BASE}/thanksgiving-vacation-ideas-for-families/`)).toBe("post");
   });
+
+  it("classifies non-blog commerce/main-site URLs as 'page', not 'post'", () => {
+    expect(classifyUrl("https://www.headout.com/museums-rome-sc-1002~11738/")).toBe("page");
+    expect(
+      classifyUrl("https://www.headout.com/london-theatre-tickets/six-e-9858/"),
+    ).toBe("page");
+    expect(classifyUrl("https://www.headout.com/headout-reviews/")).toBe("page");
+    // A post-sitemap source must not promote a non-blog URL back to 'post'.
+    expect(
+      classifyUrl(
+        "https://www.headout.com/empire-state-building-tickets-c-234/",
+        "https://www.headout.com/post-sitemap.xml",
+      ),
+    ).toBe("page");
+  });
 });
 
 describe("isFrontierDiscovered", () => {
