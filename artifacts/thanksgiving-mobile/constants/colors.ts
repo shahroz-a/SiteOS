@@ -1,8 +1,9 @@
 /**
  * Semantic design tokens for the mobile app.
  *
- * Synced from the sibling web artifact (artifacts/thanksgiving-guide/src/index.css)
- * so the mobile app shares the same warm, editorial visual identity.
+ * Originally synced from the now-removed Thanksgiving guide web artifact;
+ * these tokens are the source of truth for the mobile app's warm, editorial
+ * visual identity (the same palette used by the blog at artifacts/blog).
  * HSL values from index.css were converted to hex.
  */
 
