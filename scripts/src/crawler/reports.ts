@@ -18,7 +18,38 @@ import {
 } from "@workspace/db";
 import { DEFAULT_CONFIG } from "./config";
 import { rescoreStoredValidation, type ValidationResult } from "./validate";
+import type { PageType } from "./types";
 import type { QueueStats } from "./queue";
+
+/**
+ * Build a held-back-queue entry for a draft article, re-deriving its verdict
+ * from the latest stored validation row through the CURRENT validator (via
+ * {@link rescoreStoredValidation}). Editors then see the live reason an article
+ * is held back — the real current fail issues — never a stale/contradictory
+ * verdict written by an older validator. A page with no validation row yet
+ * carries null verdict fields (there is nothing to re-score).
+ */
+export function buildHeldBackEntry<
+  T extends { pageType: PageType; url: string | null; title: string | null },
+>(
+  page: T,
+  validation: { issues: unknown } | undefined,
+): T & {
+  validationStatus: ValidationResult["status"] | null;
+  validationScore: number | null;
+  issues: ValidationResult["issues"] | null;
+} {
+  if (!validation) {
+    return { ...page, validationStatus: null, validationScore: null, issues: null };
+  }
+  const rescored = rescoreStoredValidation(validation.issues, page);
+  return {
+    ...page,
+    validationStatus: rescored.status,
+    validationScore: rescored.score,
+    issues: rescored.issues,
+  };
+}
 
 async function writeReport(dir: string, name: string, data: unknown): Promise<string> {
   const file = path.join(dir, name);
@@ -263,15 +294,12 @@ export async function generateReports(
     // "broken article" review queue.
     .where(and(eq(pagesTable.status, "draft"), eq(pagesTable.pageType, "post")))
     .orderBy(desc(pagesTable.crawledAt));
-  const heldBack = draftPages.map((p) => {
-    const v = latestValidationByPage.get(p.id);
-    return {
-      ...p,
-      validationStatus: v?.status ?? null,
-      validationScore: v?.score ?? null,
-      issues: v?.issues ?? null,
-    };
-  });
+  // Re-score each draft's latest stored validation row through the CURRENT
+  // validator so an editor sees the live reason an article is held back, not a
+  // stale/contradictory verdict written by an older validator. The held-back
+  // *set* is still driven by pages.status="draft" — only the displayed verdict
+  // is refreshed.
+  const heldBack = draftPages.map((p) => buildHeldBackEntry(p, latestValidationByPage.get(p.id)));
   written.push(
     await writeReport(outDir, "held-back-articles.json", {
       generatedAt: new Date().toISOString(),

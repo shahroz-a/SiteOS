@@ -9,6 +9,7 @@ import {
   type CountSet,
 } from "../validate";
 import type { ExtractedPage } from "../types";
+import { buildHeldBackEntry } from "../reports";
 import { loadFixture, makeFetchResult } from "./helpers";
 
 const URL = "https://www.headout.com/blog/sample-article/";
@@ -402,5 +403,56 @@ describe("rescoreStoredValidation (resilience to stale verdicts)", () => {
     // paragraphs coerced to 0 → no "empty tree despite source content" fail.
     expect(r.status).toBe("pass");
     expect(r.source.paragraphs).toBe(0);
+  });
+});
+
+describe("buildHeldBackEntry (editor review queue shows the CURRENT reason)", () => {
+  const page = {
+    id: "page-1",
+    slug: "sample-article",
+    title: "A real article",
+    url: ARTICLE_URL,
+    pageType: "post" as const,
+  };
+
+  // A draft whose latest stored row was written by an OLDER, over-strict
+  // validator that failed it on an element shortfall the current rules only
+  // warn about. The editor must not see that stale "fail" reason.
+  it("re-scores a stale over-strict 'fail' row to the current verdict", () => {
+    const staleStrictFail = {
+      // Captured tallies show a partial shortfall (warn today, not fail) and a
+      // healthy component tree, so the current validator passes the article.
+      source: { paragraphs: 40, headings: 8, images: 10 },
+      parsed: { paragraphs: 30, headings: 6, images: 5, components: 40 },
+      // The verdict the OLD validator stored alongside the tallies — ignored.
+      issues: [{ field: "images", severity: "fail", message: "stale over-strict fail" }],
+    };
+    const entry = buildHeldBackEntry(page, { issues: staleStrictFail });
+    expect(entry.validationStatus).not.toBe("fail");
+    // The displayed issues come from the current validator, not the stored blob.
+    expect(entry.issues).not.toContainEqual(
+      expect.objectContaining({ message: "stale over-strict fail" }),
+    );
+  });
+
+  it("shows the real current fail issues for a genuinely broken article", () => {
+    const brokenArticle = {
+      source: { paragraphs: 20 },
+      parsed: { components: 0 },
+    };
+    const entry = buildHeldBackEntry(page, { issues: brokenArticle });
+    expect(entry.validationStatus).toBe("fail");
+    expect(entry.issues).toContainEqual(
+      expect.objectContaining({ field: "components", severity: "fail" }),
+    );
+  });
+
+  it("carries null verdict fields when a draft has no validation row yet", () => {
+    const entry = buildHeldBackEntry(page, undefined);
+    expect(entry.validationStatus).toBeNull();
+    expect(entry.validationScore).toBeNull();
+    expect(entry.issues).toBeNull();
+    // The page fields are preserved unchanged.
+    expect(entry.slug).toBe("sample-article");
   });
 });
