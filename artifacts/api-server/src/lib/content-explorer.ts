@@ -190,7 +190,7 @@ function normalizeSeverity(raw: unknown): ValidationIssue["severity"] {
  * `issues.checks`) and `content-fidelity` reports (every `issues.issues` entry
  * is a problem). Returns an empty list for clean or unrecognized reports.
  */
-function extractValidationIssues(raw: unknown): ValidationIssue[] {
+export function extractValidationIssues(raw: unknown): ValidationIssue[] {
   if (!raw || typeof raw !== "object") return [];
   const obj = raw as { checks?: unknown; issues?: unknown };
 
