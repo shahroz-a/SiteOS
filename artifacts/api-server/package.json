@@ -9,6 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "verify:media": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/lib/__tests__/media-real-data.test.ts",
     "verify:media-audit": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/routes/__tests__/cms-media-audit-real-data.test.ts",
+    "verify:publish-scheduled": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/lib/__tests__/publish-scheduled-real-data.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify:cms-io": "cd ../.. && VERIFY_CMS_IO=1 CMS_IO_VERIFY_LIMIT=3 vitest run artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts",
     "verify:cms-io:full": "cd ../.. && VERIFY_CMS_IO=1 vitest run artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts"
