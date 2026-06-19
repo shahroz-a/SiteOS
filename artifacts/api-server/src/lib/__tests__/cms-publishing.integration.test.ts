@@ -219,5 +219,235 @@ describe.skipIf(!RUN)("CMS publishing — live DB (rolled-back)", () => {
     } catch (err) {
       if (!(err instanceof Rollback)) throw err;
     }
-  });
+  }, 30000);
+
+  // The MANUAL, editor-driven lifecycle moves (a person publishing/scheduling a
+  // post or renaming its URL through the CMS routes) must leave a human-
+  // attributed audit_logs row behind. The automatic scheduler trail is covered
+  // above; here we prove the route layer's `recordAudit` call records the acting
+  // user (actorId/actorEmail/actorRole), the right action string, entityType
+  // "page", and the before/after state — so a route refactor can't silently drop
+  // the human history. We exercise the same lib functions the routes call
+  // (transitionPost / changePostUrl) plus recordAudit with the EXACT entry each
+  // route builds, all threaded through the rolled-back tx so the live DB is
+  // never mutated.
+  it("records human-attributed audit rows for manual transitions and slug changes", async () => {
+    const { transitionPost, changePostUrl } = mod;
+    const { db, pagesTable, auditLogsTable, usersTable } = dbMod;
+    const { recordAudit } = await import("../audit");
+    const { canonicalUrlForSlug, pathnameForSlug } = contentMod;
+    const { eq, and } = await import("drizzle-orm");
+
+    const suffix = Date.now();
+
+    async function insertDraft(tx: typeof db, slug: string): Promise<string> {
+      const [row] = await tx
+        .insert(pagesTable)
+        .values({
+          slug,
+          title: `Manual Audit Test ${slug}`,
+          status: "draft",
+          originalUrl: canonicalUrlForSlug(slug),
+          canonicalUrl: canonicalUrlForSlug(slug),
+          pathname: pathnameForSlug(slug),
+        })
+        .returning({ id: pagesTable.id });
+      return row!.id;
+    }
+
+    try {
+      await db.transaction(async (txRaw) => {
+        const tx = txRaw as unknown as typeof db;
+
+        // A real CMS user as the acting editor — actorId is an FK to users, so
+        // it must reference an existing row.
+        const [actor] = await tx
+          .insert(usersTable)
+          .values({
+            email: `editor-${suffix}@example.com`,
+            firstName: "Manual",
+            lastName: "Editor",
+            role: "editor",
+          })
+          .returning({ id: usersTable.id, email: usersTable.email });
+
+        // A faithful stand-in for the authenticated Express request the route
+        // hands to recordAudit: an authenticated user, an IP, and a logger.
+        const req = {
+          isAuthenticated: () => true,
+          user: { id: actor!.id, email: actor!.email },
+          ip: "203.0.113.7",
+          cmsRole: "editor",
+          log: { error: () => {} },
+        } as unknown as Parameters<typeof recordAudit>[0];
+
+        // 1) Manual publish: draft -> published through transitionPost, then the
+        //    route's audit call (action "post.transition").
+        const publishId = await insertDraft(tx, `manual-publish-${suffix}`);
+        const publishNow = new Date("2026-06-19T12:00:00Z");
+        const pubResult = await transitionPost(
+          publishId,
+          "published",
+          null,
+          publishNow,
+          tx,
+        );
+        expect(pubResult.ok).toBe(true);
+        await recordAudit(
+          req,
+          {
+            action: "post.transition",
+            entityType: "page",
+            entityId: publishId,
+            actorRole: "editor",
+            before: { status: "draft" },
+            after: { status: "published", scheduledFor: null },
+            metadata: null,
+          },
+          tx,
+        );
+
+        const [pubAudit] = await tx
+          .select({
+            action: auditLogsTable.action,
+            entityType: auditLogsTable.entityType,
+            entityId: auditLogsTable.entityId,
+            actorId: auditLogsTable.actorId,
+            actorEmail: auditLogsTable.actorEmail,
+            actorRole: auditLogsTable.actorRole,
+            ipAddress: auditLogsTable.ipAddress,
+            before: auditLogsTable.before,
+            after: auditLogsTable.after,
+          })
+          .from(auditLogsTable)
+          .where(
+            and(
+              eq(auditLogsTable.entityId, publishId),
+              eq(auditLogsTable.action, "post.transition"),
+            ),
+          )
+          .limit(1);
+        expect(pubAudit).toBeTruthy();
+        expect(pubAudit?.entityType).toBe("page");
+        expect(pubAudit?.actorId).toBe(actor!.id);
+        expect(pubAudit?.actorEmail).toBe(actor!.email);
+        expect(pubAudit?.actorRole).toBe("editor");
+        expect(pubAudit?.ipAddress).toBe("203.0.113.7");
+        expect(pubAudit?.before).toEqual({ status: "draft" });
+        expect(pubAudit?.after).toEqual({
+          status: "published",
+          scheduledFor: null,
+        });
+
+        // 2) Manual schedule: draft -> scheduled carries the scheduledFor in the
+        //    audit after-state.
+        const scheduleId = await insertDraft(tx, `manual-schedule-${suffix}`);
+        const scheduleNow = new Date("2026-06-19T12:00:00Z");
+        const scheduledFor = new Date("2026-06-25T12:00:00Z");
+        const schedResult = await transitionPost(
+          scheduleId,
+          "scheduled",
+          scheduledFor,
+          scheduleNow,
+          tx,
+        );
+        expect(schedResult.ok).toBe(true);
+        await recordAudit(
+          req,
+          {
+            action: "post.transition",
+            entityType: "page",
+            entityId: scheduleId,
+            actorRole: "editor",
+            before: { status: "draft" },
+            after: {
+              status: "scheduled",
+              scheduledFor: scheduledFor.toISOString(),
+            },
+            metadata: null,
+          },
+          tx,
+        );
+
+        const [schedAudit] = await tx
+          .select({
+            action: auditLogsTable.action,
+            actorId: auditLogsTable.actorId,
+            after: auditLogsTable.after,
+          })
+          .from(auditLogsTable)
+          .where(
+            and(
+              eq(auditLogsTable.entityId, scheduleId),
+              eq(auditLogsTable.action, "post.transition"),
+            ),
+          )
+          .limit(1);
+        expect(schedAudit).toBeTruthy();
+        expect(schedAudit?.actorId).toBe(actor!.id);
+        expect(schedAudit?.after).toEqual({
+          status: "scheduled",
+          scheduledFor: scheduledFor.toISOString(),
+        });
+
+        // 3) Manual slug change: changePostUrl renames the post, then the route's
+        //    audit call (action "post.url-change") records old/new slug+pathname.
+        const oldSlug = `manual-old-${suffix}`;
+        const newSlug = `manual-new-${suffix}`;
+        const oldPath = pathnameForSlug(oldSlug);
+        const newPath = pathnameForSlug(newSlug);
+        const urlId = await insertDraft(tx, oldSlug);
+        const urlResult = await changePostUrl(urlId, newSlug, true, tx);
+        expect(urlResult.ok).toBe(true);
+        await recordAudit(
+          req,
+          {
+            action: "post.url-change",
+            entityType: "page",
+            entityId: urlId,
+            actorRole: "editor",
+            before: urlResult.before ?? null,
+            after: urlResult.detail
+              ? {
+                  slug: urlResult.detail.slug,
+                  pathname: urlResult.detail.pathname,
+                }
+              : null,
+          },
+          tx,
+        );
+
+        const [urlAudit] = await tx
+          .select({
+            action: auditLogsTable.action,
+            entityType: auditLogsTable.entityType,
+            entityId: auditLogsTable.entityId,
+            actorId: auditLogsTable.actorId,
+            actorEmail: auditLogsTable.actorEmail,
+            actorRole: auditLogsTable.actorRole,
+            before: auditLogsTable.before,
+            after: auditLogsTable.after,
+          })
+          .from(auditLogsTable)
+          .where(
+            and(
+              eq(auditLogsTable.entityId, urlId),
+              eq(auditLogsTable.action, "post.url-change"),
+            ),
+          )
+          .limit(1);
+        expect(urlAudit).toBeTruthy();
+        expect(urlAudit?.entityType).toBe("page");
+        expect(urlAudit?.actorId).toBe(actor!.id);
+        expect(urlAudit?.actorEmail).toBe(actor!.email);
+        expect(urlAudit?.actorRole).toBe("editor");
+        expect(urlAudit?.before).toEqual({ slug: oldSlug, pathname: oldPath });
+        expect(urlAudit?.after).toEqual({ slug: newSlug, pathname: newPath });
+
+        throw new Rollback();
+      });
+    } catch (err) {
+      if (!(err instanceof Rollback)) throw err;
+    }
+  }, 30000);
 });
