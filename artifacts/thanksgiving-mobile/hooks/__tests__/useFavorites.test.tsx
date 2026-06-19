@@ -281,6 +281,96 @@ describe("useFavorites — togglePostCollection", () => {
   });
 });
 
+describe("useFavorites — removeFromCollection", () => {
+  it("removes a post from one collection without un-saving it or touching others", async () => {
+    const h = await setup();
+    let a = "";
+    let b = "";
+    await act(async () => {
+      a = h.value.createCollection("A")!.id;
+      b = h.value.createCollection("B")!.id;
+    });
+    await act(async () => {
+      h.value.togglePostCollection(makePost("p1"), a);
+      h.value.togglePostCollection(makePost("p1"), b);
+    });
+    expect(h.value.getPostCollections("p1").sort()).toEqual([a, b].sort());
+
+    await act(async () => {
+      h.value.removeFromCollection("p1", a);
+    });
+    // Dropped from A only; still in B and still saved overall.
+    expect(h.value.isInCollection("p1", a)).toBe(false);
+    expect(h.value.isInCollection("p1", b)).toBe(true);
+    expect(h.value.getPostCollections("p1")).toEqual([b]);
+    expect(h.value.isFavorite("p1")).toBe(true);
+    expect(h.value.collectionCount(a)).toBe(0);
+    expect(h.value.collectionCount(b)).toBe(1);
+  });
+
+  it("clears the membership key when the last collection is removed but keeps the favorite", async () => {
+    const h = await setup();
+    let cId = "";
+    await act(async () => {
+      cId = h.value.createCollection("Trips")!.id;
+    });
+    await act(async () => {
+      h.value.togglePostCollection(makePost("p1"), cId);
+    });
+
+    await act(async () => {
+      h.value.removeFromCollection("p1", cId);
+    });
+    expect(h.value.getPostCollections("p1")).toEqual([]);
+    expect(h.value.isFavorite("p1")).toBe(true);
+    expect(h.value.collectionCount(cId)).toBe(0);
+  });
+
+  it("prunes the post from the collection's custom order", async () => {
+    const h = await setup();
+    let cId = "";
+    await act(async () => {
+      cId = h.value.createCollection("Trips")!.id;
+    });
+    await act(async () => {
+      h.value.togglePostCollection(makePost("p1"), cId);
+      h.value.togglePostCollection(makePost("p2"), cId);
+    });
+    await act(async () => {
+      h.value.reorderCollection(cId, ["p2", "p1"]);
+    });
+    expect(h.value.getCollectionPosts(cId).map((p) => p.id)).toEqual([
+      "p2",
+      "p1",
+    ]);
+
+    await act(async () => {
+      h.value.removeFromCollection("p1", cId);
+    });
+    const persisted = lastCollectionsWrite() as {
+      order?: Record<string, string[]>;
+    } | null;
+    expect(persisted?.order?.[cId]).toEqual(["p2"]);
+    expect(h.value.getCollectionPosts(cId).map((p) => p.id)).toEqual(["p2"]);
+  });
+
+  it("is a no-op when the post is not in the collection", async () => {
+    const h = await setup();
+    let cId = "";
+    await act(async () => {
+      cId = h.value.createCollection("Trips")!.id;
+    });
+    await act(async () => {
+      h.value.togglePostCollection(makePost("p1"), cId);
+    });
+    await act(async () => {
+      h.value.removeFromCollection("p-missing", cId);
+    });
+    expect(h.value.isInCollection("p1", cId)).toBe(true);
+    expect(h.value.collectionCount(cId)).toBe(1);
+  });
+});
+
 describe("useFavorites — favorite removal prunes membership", () => {
   it("removeFavorite drops the post and its collection membership", async () => {
     const h = await setup();

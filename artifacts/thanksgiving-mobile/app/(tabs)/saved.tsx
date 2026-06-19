@@ -29,10 +29,12 @@ function DraggablePostCard({
   post,
   onPress,
   onManageCollections,
+  onRemoveFromCollection,
 }: {
   post: PostSummary;
   onPress: (slug: string) => void;
   onManageCollections: (post: PostSummary) => void;
+  onRemoveFromCollection: (post: PostSummary) => void;
 }) {
   const drag = useReorderableDrag();
   const handleLongPress = useCallback(() => {
@@ -47,6 +49,7 @@ function DraggablePostCard({
       post={post}
       onPress={onPress}
       onManageCollections={onManageCollections}
+      onRemoveFromCollection={onRemoveFromCollection}
       onLongPress={handleLongPress}
     />
   );
@@ -72,6 +75,7 @@ export default function SavedScreen() {
     getCollectionPosts,
     reorderCollection,
     reorderCollections,
+    removeFromCollection,
     createCollection,
     renameCollection,
     deleteCollection,
@@ -115,6 +119,17 @@ export default function SavedScreen() {
   const handleManage = useCallback(
     (post: PostSummary) => setManagingPost(post),
     [],
+  );
+
+  const handleRemoveFromCollection = useCallback(
+    (post: PostSummary) => {
+      if (activeSelected === null) return;
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
+      removeFromCollection(post.id, activeSelected);
+    },
+    [activeSelected, removeFromCollection],
   );
 
   const countFor = useCallback(
@@ -197,11 +212,13 @@ export default function SavedScreen() {
           />
         </View>
       ) : null}
-      {activeSelected !== null && visiblePosts.length > 1 ? (
+      {activeSelected !== null && visiblePosts.length > 0 ? (
         <View style={styles.reorderHint}>
-          <Feather name="move" size={13} color={colors.mutedForeground} />
+          <Feather name="x" size={13} color={colors.mutedForeground} />
           <Text style={[styles.reorderHintText, { color: colors.mutedForeground }]}>
-            Long-press and drag to reorder
+            {visiblePosts.length > 1
+              ? "Tap ✕ to remove from this collection · long-press and drag to reorder"
+              : "Tap ✕ to remove from this collection"}
           </Text>
         </View>
       ) : null}
@@ -245,6 +262,7 @@ export default function SavedScreen() {
               post={item}
               onPress={handleOpen}
               onManageCollections={handleManage}
+              onRemoveFromCollection={handleRemoveFromCollection}
             />
           )}
         />

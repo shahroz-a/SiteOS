@@ -14,6 +14,11 @@ type Props = {
   featured?: boolean;
   /** When provided, shows a folder action to file the post into collections. */
   onManageCollections?: (post: PostSummary) => void;
+  /**
+   * When provided, shows an inline action to remove the post from the currently
+   * viewed collection (without un-saving it). Used in a collection's filtered view.
+   */
+  onRemoveFromCollection?: (post: PostSummary) => void;
   /** When provided, long-pressing the card triggers this (e.g. to start a drag). */
   onLongPress?: () => void;
 };
@@ -34,6 +39,7 @@ function PostCardBase({
   onPress,
   featured = false,
   onManageCollections,
+  onRemoveFromCollection,
   onLongPress,
 }: Props) {
   const colors = useColors();
@@ -82,6 +88,29 @@ function PostCardBase({
         )}
 
         <View style={styles.actionStack}>
+          {onRemoveFromCollection ? (
+            <Pressable
+              testID={`remove-from-collection-${post.slug}`}
+              accessibilityRole="button"
+              accessibilityLabel="Remove from this collection"
+              hitSlop={8}
+              onPress={(e) => {
+                e.stopPropagation();
+                onRemoveFromCollection(post);
+              }}
+              style={({ pressed }) => [
+                styles.favButton,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <Feather name="x" size={18} color={colors.mutedForeground} />
+            </Pressable>
+          ) : null}
+
           {onManageCollections ? (
             <Pressable
               testID={`collections-toggle-${post.slug}`}

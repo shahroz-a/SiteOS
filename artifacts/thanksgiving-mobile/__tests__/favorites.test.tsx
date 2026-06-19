@@ -11,6 +11,7 @@ import React from "react";
 import { makePost, makePostDetail } from "./fixtures";
 
 const STORAGE_KEY = "@headout/favorites/v1";
+const COLLECTIONS_KEY = "@headout/collections/v1";
 
 // --- Native / navigation module mocks ------------------------------------
 
@@ -130,6 +131,82 @@ describe("favorites end to end", () => {
     );
     expect(screen.queryByTestId(`post-card-${detail.slug}`)).toBeNull();
     expect(screen.queryByText(/article(s)? bookmarked/)).toBeNull();
+  });
+
+  it("shows an inline remove button on a PostCard only when onRemoveFromCollection is given", async () => {
+    const post = makePost();
+    const onRemove = jest.fn();
+
+    const { rerender } = render(
+      <FavoritesProvider>
+        <PostCard post={post} onPress={() => {}} />
+      </FavoritesProvider>,
+    );
+
+    // No collection context → no remove affordance.
+    expect(
+      screen.queryByTestId(`remove-from-collection-${post.slug}`),
+    ).toBeNull();
+
+    rerender(
+      <FavoritesProvider>
+        <PostCard
+          post={post}
+          onPress={() => {}}
+          onRemoveFromCollection={onRemove}
+        />
+      </FavoritesProvider>,
+    );
+
+    const btn = screen.getByTestId(`remove-from-collection-${post.slug}`);
+    fireEvent.press(btn, { stopPropagation: jest.fn() });
+    expect(onRemove).toHaveBeenCalledTimes(1);
+    expect(onRemove).toHaveBeenCalledWith(post);
+  });
+
+  it("removing from a collection in the Saved tab keeps the article saved under All", async () => {
+    const post = makePost();
+    // Pre-seed: the post is saved and filed into one collection.
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([post]));
+    await AsyncStorage.setItem(
+      COLLECTIONS_KEY,
+      JSON.stringify({
+        collections: [{ id: "col1", name: "Trips", createdAt: 1 }],
+        membership: { [post.id]: ["col1"] },
+        order: {},
+      }),
+    );
+
+    render(
+      <FavoritesProvider>
+        <SavedScreen />
+      </FavoritesProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/1 article bookmarked/)).toBeTruthy(),
+    );
+
+    // Switch to the collection's filtered view.
+    fireEvent.press(screen.getByTestId("collection-chip-col1"));
+
+    // The inline remove button is now available; tap it.
+    const removeBtn = await screen.findByTestId(
+      `remove-from-collection-${post.slug}`,
+    );
+    fireEvent.press(removeBtn, { stopPropagation: jest.fn() });
+
+    // The collection chip count drops to 0…
+    await waitFor(() =>
+      expect(screen.getByTestId("collection-chip-col1")).toHaveTextContent(
+        "Trips (0)",
+      ),
+    );
+    // …but the article is still saved overall (All count unchanged).
+    expect(screen.getByTestId("collection-chip-all")).toHaveTextContent(
+      "All (1)",
+    );
+    expect(screen.getByText(/1 article bookmarked/)).toBeTruthy();
   });
 
   it("persists favorites across an app restart (AsyncStorage rehydration on mount)", async () => {

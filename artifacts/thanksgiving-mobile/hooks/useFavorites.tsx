@@ -71,6 +71,12 @@ type FavoritesContextValue = {
    * not already a favorite so assigning always works from any screen.
    */
   togglePostCollection: (post: PostSummary, collectionId: string) => void;
+  /**
+   * Remove a post from a single collection without un-saving it. The post stays
+   * a favorite (under "All") and in any other collections it belongs to. Also
+   * prunes the post from that collection's custom order.
+   */
+  removeFromCollection: (postId: string, collectionId: string) => void;
   /** Number of saved posts assigned to the given collection. */
   collectionCount: (collectionId: string) => number;
   /**
@@ -350,6 +356,29 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const removeFromCollection = useCallback(
+    (postId: string, collectionId: string) => {
+      setMembership((prev) => {
+        const current = prev[postId];
+        if (!current || !current.includes(collectionId)) return prev;
+        const nextIds = current.filter((cid) => cid !== collectionId);
+        const next = { ...prev };
+        if (nextIds.length > 0) {
+          next[postId] = nextIds;
+        } else {
+          delete next[postId];
+        }
+        return next;
+      });
+      setOrder((prev) => {
+        const ids = prev[collectionId];
+        if (!ids || !ids.includes(postId)) return prev;
+        return { ...prev, [collectionId]: ids.filter((id) => id !== postId) };
+      });
+    },
+    [],
+  );
+
   const collectionCount = useCallback(
     (collectionId: string) =>
       Object.values(membership).reduce(
@@ -402,6 +431,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       getPostCollections,
       isInCollection,
       togglePostCollection,
+      removeFromCollection,
       collectionCount,
       getCollectionPosts,
       reorderCollection,
@@ -420,6 +450,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       getPostCollections,
       isInCollection,
       togglePostCollection,
+      removeFromCollection,
       collectionCount,
       getCollectionPosts,
       reorderCollection,
