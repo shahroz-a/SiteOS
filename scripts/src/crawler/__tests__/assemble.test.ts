@@ -98,4 +98,72 @@ describe("assemblePage redirect-chain filtering", () => {
       },
     ]);
   });
+
+  // Every hop that fails the gate is captured (with its precise reason) so an
+  // editor can fix the broken source link; kept hops never appear here.
+  it("captures each dropped hop with its drop reason", () => {
+    const page = assembleWith([
+      // kept — not captured as dropped
+      { from: `${ORIGIN}/blog/old-a/`, to: `${ORIGIN}/blog/new-a/`, status: 301 },
+      // off-blog `from` → unserveable-from
+      {
+        from: `${ORIGIN}/statue-of-liberty-cruises-c-121/`,
+        to: `${ORIGIN}/statue-of-liberty-tickets-c-121/`,
+        status: 301,
+      },
+      // foreign-host destination
+      {
+        from: `${ORIGIN}/blog/where-to-eat/`,
+        to: "https://maps.google.com/?q=rome",
+        status: 302,
+      },
+      // on-blog junk destination → the single on-blog reason
+      {
+        from: `${ORIGIN}/blog/disneyland-tips/`,
+        to: `${ORIGIN}/blog/foo/https://www.headout.com/blog/bar/`,
+        status: 301,
+      },
+      // bare-domain segment destination (non-blog same-origin)
+      {
+        from: `${ORIGIN}/blog/athens-guide/`,
+        to: `${ORIGIN}/introducingathens.com`,
+        status: 301,
+      },
+    ]);
+
+    expect(page.redirectChain).toHaveLength(1);
+    expect(page.droppedRedirects).toEqual([
+      {
+        from: `${ORIGIN}/statue-of-liberty-cruises-c-121/`,
+        to: `${ORIGIN}/statue-of-liberty-tickets-c-121/`,
+        status: 301,
+        reason: "unserveable-from",
+      },
+      {
+        from: `${ORIGIN}/blog/where-to-eat/`,
+        to: "https://maps.google.com/?q=rome",
+        status: 302,
+        reason: "foreign-host",
+      },
+      {
+        from: `${ORIGIN}/blog/disneyland-tips/`,
+        to: `${ORIGIN}/blog/foo/https://www.headout.com/blog/bar/`,
+        status: 301,
+        reason: "malformed-blog-target",
+      },
+      {
+        from: `${ORIGIN}/blog/athens-guide/`,
+        to: `${ORIGIN}/introducingathens.com`,
+        status: 301,
+        reason: "bare-domain-segment",
+      },
+    ]);
+  });
+
+  it("captures no dropped hops when every hop is clean", () => {
+    const page = assembleWith([
+      { from: `${ORIGIN}/blog/old-a/`, to: `${ORIGIN}/blog/new-a/`, status: 301 },
+    ]);
+    expect(page.droppedRedirects).toEqual([]);
+  });
 });

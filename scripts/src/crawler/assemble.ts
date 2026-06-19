@@ -4,15 +4,15 @@ import { buildComponentTree, buildRichText, countComponents } from "./normalize"
 import type {
   ContentCounts,
   DiscoveredUrl,
+  DroppedRedirect,
   ExtractedPage,
   FetchResult,
 } from "./types";
 import {
   canonicalizeUrl,
+  classifyRedirectHop,
   classifyUrl,
   countWords,
-  isCleanBlogUrl,
-  isResolvableRedirectTarget,
   parentPathOf,
   sha256,
   slugFromUrl,
@@ -87,9 +87,21 @@ export function assemblePage(
   // available, means malformed source-markup junk can never reach the redirect
   // list. The raw `fetch.redirectChain` is still used above for off-blog/loop
   // detection.
-  const redirectChain = fetch.redirectChain.filter(
-    (hop) => isCleanBlogUrl(hop.from) && isResolvableRedirectTarget(hop.to),
-  );
+  //
+  // Each dropped hop is captured (with the precise reason it failed the gate) so
+  // it can be surfaced in a migration report — an editor then fixes the broken
+  // source link instead of leaving readers on a dead path. `classifyRedirectHop`
+  // is the single source of truth: a `null` reason means the hop is kept.
+  const redirectChain: typeof fetch.redirectChain = [];
+  const droppedRedirects: DroppedRedirect[] = [];
+  for (const hop of fetch.redirectChain) {
+    const reason = classifyRedirectHop(hop.from, hop.to);
+    if (reason === null) {
+      redirectChain.push(hop);
+    } else {
+      droppedRedirects.push({ from: hop.from, to: hop.to, status: hop.status, reason });
+    }
+  }
 
   // Content hash over the meaningful, lossless content representation.
   const contentHash = sha256(
@@ -110,6 +122,7 @@ export function assemblePage(
     httpStatus: fetch.httpStatus,
     redirectTarget,
     redirectChain,
+    droppedRedirects,
     hreflang: raw.hreflang,
     sitemapSource: discovered?.sitemapSource ?? null,
     sitemapLastmod: discovered?.lastmod ?? null,

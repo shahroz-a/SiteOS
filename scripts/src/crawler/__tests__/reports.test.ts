@@ -29,6 +29,7 @@ const tables: Tables = {
   categories: [],
   authors: [],
   redirects: [],
+  dropped_redirects: [],
   tags: [],
   images: [],
   internal_links: [],
@@ -85,6 +86,21 @@ async function readSkipped() {
     skipped: number;
     byReason: Record<string, number>;
     entries: Array<{ id: string; fromPath: string; toPath: string; reason: string }>;
+  };
+}
+
+async function readDropped() {
+  const raw = await readFile(path.join(REPORT_DIR, "redirect-dropped.json"), "utf8");
+  return JSON.parse(raw) as {
+    total: number;
+    byReason: Record<string, number>;
+    entries: Array<{
+      from: string;
+      to: string;
+      reason: string;
+      statusCode: number;
+      discoveredOn: string;
+    }>;
   };
 }
 
@@ -315,6 +331,80 @@ describe("generateReports — redirect-skipped.json", () => {
       "malformed-segment": 0,
       "self-redirect": 0,
     });
+    expect(report.entries).toEqual([]);
+  });
+});
+
+describe("generateReports — redirect-dropped.json", () => {
+  it("joins each dropped hop to its discovering page and tallies by reason", async () => {
+    setTables({
+      pages: [
+        page({ id: "p1", canonicalUrl: "https://www.headout.com/blog/athens/" }),
+        page({ id: "p2", canonicalUrl: "https://www.headout.com/blog/rome/" }),
+      ],
+      // The fake DB treats innerJoin as a no-op and reads every projected column
+      // flat off the FROM-table row, so the joined page's `canonicalUrl` lives on
+      // each dropped_redirects row here (mirrors how the other join tests work).
+      dropped_redirects: [
+        {
+          id: "d1",
+          pageId: "p1",
+          fromUrl: "https://www.headout.com/blog/athens/",
+          toUrl: "https://maps.google.com/?q=acropolis",
+          reason: "foreign-host",
+          statusCode: 301,
+          canonicalUrl: "https://www.headout.com/blog/athens/",
+        },
+        {
+          id: "d2",
+          pageId: "p1",
+          fromUrl: "https://www.headout.com/blog/athens/",
+          toUrl: "https://www.headout.com/blog/x/introducingathens.com",
+          reason: "bare-domain-segment",
+          statusCode: 302,
+          canonicalUrl: "https://www.headout.com/blog/athens/",
+        },
+        {
+          id: "d3",
+          pageId: "p2",
+          fromUrl: "https://www.headout.com/blog/rome/",
+          toUrl: "https://other.example.com/page",
+          reason: "foreign-host",
+          statusCode: 301,
+          canonicalUrl: "https://www.headout.com/blog/rome/",
+        },
+      ],
+    });
+
+    const written = await generateReports(EMPTY_QUEUE_STATS, REPORT_DIR);
+    expect(written.some((f) => f.endsWith("redirect-dropped.json"))).toBe(true);
+
+    const report = await readDropped();
+    expect(report.total).toBe(3);
+    expect(report.byReason).toEqual({
+      "foreign-host": 2,
+      "bare-domain-segment": 1,
+    });
+    // Each entry carries the FULL junk URLs plus the page it was found on.
+    const d1 = report.entries.find((e) => e.to === "https://maps.google.com/?q=acropolis");
+    expect(d1).toMatchObject({
+      from: "https://www.headout.com/blog/athens/",
+      reason: "foreign-host",
+      statusCode: 301,
+      discoveredOn: "https://www.headout.com/blog/athens/",
+    });
+    const d3 = report.entries.find((e) => e.reason === "foreign-host" && e.discoveredOn === "https://www.headout.com/blog/rome/");
+    expect(d3?.to).toBe("https://other.example.com/page");
+  });
+
+  it("emits an empty dropped report when nothing was dropped", async () => {
+    setTables({ pages: [page({ id: "p1" })], dropped_redirects: [] });
+
+    await generateReports(EMPTY_QUEUE_STATS, REPORT_DIR);
+
+    const report = await readDropped();
+    expect(report.total).toBe(0);
+    expect(report.byReason).toEqual({});
     expect(report.entries).toEqual([]);
   });
 });

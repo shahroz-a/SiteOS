@@ -226,6 +226,7 @@ vi.mock("@workspace/db", () => ({
   internalLinksTable: table("internal_links"),
   externalLinksTable: table("external_links"),
   redirectsTable: table("redirects"),
+  droppedRedirectsTable: table("dropped_redirects"),
   crawlLogsTable: table("crawl_logs"),
   validationReportsTable: table("validation_reports"),
 }));

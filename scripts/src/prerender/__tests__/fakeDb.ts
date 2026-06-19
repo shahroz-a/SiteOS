@@ -201,6 +201,7 @@ export function makeDbMock(tables: Tables, control: FakeDbControl) {
     categoriesTable: tableProxy("categories"),
     authorsTable: tableProxy("authors"),
     redirectsTable: tableProxy("redirects"),
+    droppedRedirectsTable: tableProxy("dropped_redirects"),
     tagsTable: tableProxy("tags"),
     imagesTable: tableProxy("images"),
     internalLinksTable: tableProxy("internal_links"),

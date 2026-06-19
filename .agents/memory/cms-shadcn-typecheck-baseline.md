@@ -8,6 +8,7 @@ emits pre-existing errors in vendored shadcn components that are NOT caused by
 typical feature work:
 - `src/components/ui/chart.tsx` — recharts `Tooltip` JSX-constructor + payload prop errors (TS2344/TS2339/TS7006)
 - `src/components/ui/input-otp.tsx` — `inputOTPContext` is `unknown` (TS18046)
+- `src/pages/held-back.tsx` — imports `@/components/ui/{badge,table,skeleton}` which were never vendored into cms (TS2307); the held-back review-queue screen shipped referencing UI primitives that don't exist in `artifacts/cms/src/components/ui/`. Pre-existing, unrelated to scripts/db work.
 
 Also (separately): the **media library + import/export** pages
 (`src/pages/media.tsx`, `src/pages/import-export.tsx`, `src/components/media-*.tsx`)

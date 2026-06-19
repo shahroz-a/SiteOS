@@ -22,6 +22,7 @@ import {
   internalLinksTable,
   externalLinksTable,
   redirectsTable,
+  droppedRedirectsTable,
   crawlLogsTable,
   validationReportsTable,
 } from "@workspace/db";
@@ -388,6 +389,23 @@ export async function storePage(
         isActive: true,
       })
       .onConflictDoNothing({ target: redirectsTable.fromPath });
+  }
+
+  // Persist the hops dropped at crawl time (junk source links) for operator
+  // visibility. These never forward anyone — they exist so an editor can find
+  // and fix the broken content link. Scoped to this page and rebuilt every crawl
+  // (clear-then-insert), so the table always reflects the latest verdict and a
+  // since-fixed link stops re-appearing. Full original URLs are kept (host
+  // included) so the junk is visible; stripNul guards the text columns.
+  await db.delete(droppedRedirectsTable).where(eq(droppedRedirectsTable.pageId, pageId));
+  for (const dropped of page.droppedRedirects) {
+    await db.insert(droppedRedirectsTable).values({
+      pageId,
+      fromUrl: stripNul(dropped.from),
+      toUrl: stripNul(dropped.to),
+      reason: dropped.reason,
+      statusCode: dropped.status || 301,
+    });
   }
 
   return { pageId, created: !existing, changed, versionNumber };

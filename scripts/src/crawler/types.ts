@@ -18,6 +18,56 @@ export interface RedirectHop {
   status: number;
 }
 
+/**
+ * Why a redirect hop was dropped at crawl time instead of being persisted as a
+ * forwarding redirect. Mirrors the `RedirectSkipReason` pattern used by the
+ * prerender's serving path, but covers the *capture* gate
+ * (`isResolvableRedirectTarget` / `isCleanBlogUrl`) rather than the serving one.
+ * Each reason maps one-to-one to the fix an editor would make to the source
+ * markup:
+ *  - `unserveable-from`: the OLD path (`from`) isn't a clean, blog-serveable URL
+ *    (off-blog, an asset, or structurally malformed) so even a sound target
+ *    couldn't be served from the migrated blog.
+ *  - `foreign-host`: the destination points at a third-party host (e.g. a Google
+ *    Maps link); storing it would strip the host and re-home it under
+ *    headout.com, forwarding readers to a path that doesn't exist there.
+ *  - `embedded-url`: the destination path carries an embedded protocol/quote
+ *    left over from a concatenated href.
+ *  - `bare-domain-segment`: a destination path segment is itself a hostname
+ *    (`…/introducingathens.com`) — a bare domain mistakenly used as a link.
+ *  - `leading-hyphen-segment`: a destination path segment is a botched `/-…`
+ *    relative-link fragment.
+ *  - `whitespace-segment`: a destination path segment carries whitespace —
+ *    alt-text/label text captured as an href.
+ *  - `malformed-encoding`: a destination path segment has invalid
+ *    percent-encoding.
+ *  - `unparseable-target`: the destination URL can't be parsed at all.
+ *  - `malformed-blog-target`: an on-blog destination that's still junk (a
+ *    non-page asset, mis-cased, or over-nested taxonomy path).
+ */
+export type RedirectDropReason =
+  | "unserveable-from"
+  | "foreign-host"
+  | "embedded-url"
+  | "bare-domain-segment"
+  | "leading-hyphen-segment"
+  | "whitespace-segment"
+  | "malformed-encoding"
+  | "unparseable-target"
+  | "malformed-blog-target";
+
+/**
+ * A redirect hop dropped at crawl time, retained for operator visibility. The
+ * `from`/`to` keep their FULL original URLs (host included) so an editor can see
+ * exactly the junk link — the foreign host or embedded URL is the whole point.
+ */
+export interface DroppedRedirect {
+  from: string;
+  to: string;
+  status: number;
+  reason: RedirectDropReason;
+}
+
 /** Result of fetching/rendering a single URL. */
 export interface FetchResult {
   requestedUrl: string;
@@ -162,6 +212,7 @@ export interface ExtractedPage {
   httpStatus: number;
   redirectTarget: string | null;
   redirectChain: RedirectHop[];
+  droppedRedirects: DroppedRedirect[];
   hreflang: Array<{ lang: string; href: string }>;
   sitemapSource: string | null;
   sitemapLastmod: Date | null;

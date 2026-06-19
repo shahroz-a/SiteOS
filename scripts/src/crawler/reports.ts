@@ -13,6 +13,7 @@ import {
   seoTable,
   jsonldTable,
   redirectsTable,
+  droppedRedirectsTable,
   validationReportsTable,
   blocksTable,
 } from "@workspace/db";
@@ -315,6 +316,40 @@ export async function generateReports(
         "self-redirect": skippedByReason["self-redirect"] ?? 0,
       },
       entries: skippedEntries,
+    }),
+  );
+
+  // --- Dropped redirects (junk source links) ---
+  // Redirect hops thrown away at crawl time because the source markup was broken
+  // — the old path can't be served from the migrated blog, or the destination is
+  // structurally malformed / off-host. Unlike `redirect-skipped` (which reports
+  // rows that DID land in the `redirects` table but can't be served), these never
+  // reach that table at all: the capture gate in `assemblePage` discards them. An
+  // editor uses this report to find and fix the underlying content link. Joined
+  // to the discovering page so each junk hop carries the page it was found on.
+  const droppedRows = await db
+    .select({
+      from: droppedRedirectsTable.fromUrl,
+      to: droppedRedirectsTable.toUrl,
+      reason: droppedRedirectsTable.reason,
+      statusCode: droppedRedirectsTable.statusCode,
+      discoveredOn: pagesTable.canonicalUrl,
+    })
+    .from(droppedRedirectsTable)
+    .innerJoin(pagesTable, eq(droppedRedirectsTable.pageId, pagesTable.id));
+  const droppedByReason = droppedRows.reduce<Record<string, number>>(
+    (acc, r) => {
+      acc[r.reason] = (acc[r.reason] ?? 0) + 1;
+      return acc;
+    },
+    {},
+  );
+  written.push(
+    await writeReport(outDir, "redirect-dropped.json", {
+      generatedAt: new Date().toISOString(),
+      total: droppedRows.length,
+      byReason: droppedByReason,
+      entries: droppedRows,
     }),
   );
 

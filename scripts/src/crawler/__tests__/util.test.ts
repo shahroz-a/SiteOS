@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyRedirectHop,
+  classifyRedirectTarget,
   classifyUrl,
   collapseSlashes,
   isCleanBlogUrl,
@@ -186,6 +188,68 @@ describe("isResolvableRedirectTarget", () => {
   it("rejects asset and unparseable destinations", () => {
     expect(isResolvableRedirectTarget(`${BASE}/wp-content/uploads/2020/x.jpg`)).toBe(false);
     expect(isResolvableRedirectTarget("not-a-url")).toBe(false);
+  });
+});
+
+describe("classifyRedirectTarget", () => {
+  it("returns null for resolvable targets (the boolean gate agrees)", () => {
+    expect(classifyRedirectTarget(`${BASE}/new-name/`)).toBeNull();
+    expect(
+      classifyRedirectTarget("https://www.headout.com/empire-state-building-tickets-c-234/"),
+    ).toBeNull();
+  });
+
+  it("names the precise reason each junk target fails", () => {
+    // foreign host (off the Headout origin entirely)
+    expect(classifyRedirectTarget("https://maps.google.com/?q=rome")).toBe("foreign-host");
+    // non-blog same-origin URL carrying an embedded protocol
+    expect(
+      classifyRedirectTarget("https://www.headout.com/x/https://en.wikipedia.org/y"),
+    ).toBe("embedded-url");
+    // non-blog same-origin path segment that is itself a bare domain
+    expect(classifyRedirectTarget("https://www.headout.com/introducingathens.com")).toBe(
+      "bare-domain-segment",
+    );
+    // any on-blog junk collapses to the single on-blog reason
+    expect(classifyRedirectTarget(`${BASE}/foo/https://www.headout.com/blog/bar/`)).toBe(
+      "malformed-blog-target",
+    );
+    expect(classifyRedirectTarget(`${BASE}/wp-content/uploads/2020/x.jpg`)).toBe(
+      "malformed-blog-target",
+    );
+    expect(classifyRedirectTarget("not-a-url")).toBe("unparseable-target");
+  });
+
+  it("stays in lockstep with isResolvableRedirectTarget", () => {
+    for (const url of [
+      `${BASE}/new-name/`,
+      "https://maps.google.com/?q=rome",
+      `${BASE}/foo/https://www.headout.com/blog/bar/`,
+      "not-a-url",
+    ]) {
+      expect(classifyRedirectTarget(url) === null).toBe(isResolvableRedirectTarget(url));
+    }
+  });
+});
+
+describe("classifyRedirectHop", () => {
+  it("flags an unserveable `from` before even looking at the target", () => {
+    expect(
+      classifyRedirectHop(
+        "https://www.headout.com/statue-of-liberty-cruises-c-121/",
+        `${BASE}/new-name/`,
+      ),
+    ).toBe("unserveable-from");
+  });
+
+  it("defers to the target classification when `from` is clean", () => {
+    expect(classifyRedirectHop(`${BASE}/old/`, "https://maps.google.com/?q=rome")).toBe(
+      "foreign-host",
+    );
+  });
+
+  it("returns null when both ends are sound (the hop is kept)", () => {
+    expect(classifyRedirectHop(`${BASE}/old/`, `${BASE}/new/`)).toBeNull();
   });
 });
 

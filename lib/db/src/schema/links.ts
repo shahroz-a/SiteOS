@@ -113,9 +113,43 @@ export const insertExternalLinkSchema = createInsertSchema(
 export type InsertExternalLink = z.infer<typeof insertExternalLinkSchema>;
 export type ExternalLink = typeof externalLinksTable.$inferSelect;
 
+/**
+ * Redirect hops dropped at crawl time because the source markup was broken — the
+ * old path can't be served from the migrated blog, or the destination is junk
+ * (a foreign host, an embedded URL, a bare-domain segment, …). Unlike
+ * `redirects` these never forward a reader anywhere; they are retained purely
+ * for operator visibility so an editor can fix the underlying content link. The
+ * full original `from`/`to` URLs (host included) are kept so the junk is
+ * visible. Rows are scoped to the discovering page (cascade-deleted with it and
+ * rebuilt per crawl) so the table always reflects the latest crawl's verdict.
+ */
+export const droppedRedirectsTable = pgTable(
+  "dropped_redirects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    pageId: uuid("page_id")
+      .notNull()
+      .references(() => pagesTable.id, { onDelete: "cascade" }),
+    fromUrl: text("from_url").notNull(),
+    toUrl: text("to_url").notNull(),
+    reason: text("reason").notNull(),
+    statusCode: integer("status_code").notNull().default(301),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("dropped_redirects_page_idx").on(t.pageId)],
+);
+
 export const insertRedirectSchema = createInsertSchema(redirectsTable).omit({
   id: true,
   createdAt: true,
 });
 export type InsertRedirect = z.infer<typeof insertRedirectSchema>;
 export type Redirect = typeof redirectsTable.$inferSelect;
+
+export const insertDroppedRedirectSchema = createInsertSchema(
+  droppedRedirectsTable,
+).omit({ id: true, createdAt: true });
+export type InsertDroppedRedirect = z.infer<typeof insertDroppedRedirectSchema>;
+export type DroppedRedirectRow = typeof droppedRedirectsTable.$inferSelect;

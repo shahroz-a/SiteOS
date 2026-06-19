@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { SITE_ORIGIN, BLOG_PREFIX } from "./config";
-import type { PageType } from "./types";
+import type { PageType, RedirectDropReason } from "./types";
 
 /** Stable sha-256 hex digest of a string. */
 export function sha256(input: string): string {
@@ -172,28 +172,56 @@ export function isCleanBlogUrl(url: string): boolean {
  * Returns false for anything unparseable.
  */
 export function isResolvableRedirectTarget(url: string): boolean {
+  return classifyRedirectTarget(url) === null;
+}
+
+/**
+ * Classify a redirect DESTINATION (`to`) into the precise reason it can't be
+ * persisted as a forwarding redirect, or `null` when it's a clean, resolvable
+ * target. This is the single source of truth behind {@link isResolvableRedirectTarget}
+ * (which is just `=== null`), so the boolean gate and the operator-facing
+ * drop-reason report can never disagree. The checks run in the same order as the
+ * original predicate; see {@link RedirectDropReason} for what each reason means.
+ */
+export function classifyRedirectTarget(url: string): RedirectDropReason | null {
   const collapsed = collapseSlashes(url);
-  if (isBlogUrl(collapsed)) return isCleanBlogUrl(collapsed);
+  if (isBlogUrl(collapsed)) {
+    return isCleanBlogUrl(collapsed) ? null : "malformed-blog-target";
+  }
   let u: URL;
   try {
     u = new URL(collapsed);
   } catch {
-    return false;
+    return "unparseable-target";
   }
-  if (u.origin !== SITE_ORIGIN) return false;
+  if (u.origin !== SITE_ORIGIN) return "foreign-host";
   const path = u.pathname;
-  if (/\/https?:|:\/\/|%22|%27|%e2%80%9[cd]|["'<>]/i.test(path)) return false;
+  if (/\/https?:|:\/\/|%22|%27|%e2%80%9[cd]|["'<>]/i.test(path)) return "embedded-url";
   for (const seg of path.split("/").filter(Boolean)) {
     try {
       decodeURIComponent(seg);
     } catch {
-      return false;
+      return "malformed-encoding";
     }
-    if (seg.startsWith("-")) return false;
-    if (/%20|\s/i.test(seg)) return false;
-    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(seg)) return false;
+    if (seg.startsWith("-")) return "leading-hyphen-segment";
+    if (/%20|\s/i.test(seg)) return "whitespace-segment";
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(seg)) return "bare-domain-segment";
   }
-  return true;
+  return null;
+}
+
+/**
+ * Classify a whole redirect HOP (`from` → `to`) into the reason it was dropped
+ * at crawl time, or `null` when both ends are sound and the hop is kept. The
+ * `from` is checked first: if the OLD path can't be served from the migrated
+ * blog at all (off-blog/asset/malformed) the destination is moot. Mirrors the
+ * exact gate `assemblePage` applies (`isCleanBlogUrl(from) &&
+ * isResolvableRedirectTarget(to)`), so the kept/dropped split and the recorded
+ * drop reason are derived from one place.
+ */
+export function classifyRedirectHop(from: string, to: string): RedirectDropReason | null {
+  if (!isCleanBlogUrl(from)) return "unserveable-from";
+  return classifyRedirectTarget(to);
 }
 
 /**
