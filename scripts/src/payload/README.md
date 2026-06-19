@@ -260,8 +260,23 @@ What it does (the exact reverse of the export):
 - **Version history.** A new `page_versions` snapshot is appended only when the
   editable content actually changed (sha256 content hash differs from the latest
   version).
-- **Scope.** Only the children the export owns are rewritten: `componentTree`,
-  `blocks`, `seo`, `breadcrumbs`, `faq`, `jsonld`, page↔category / page↔tag joins
-  and the **featured** image (from `heroImage`). Inline images, internal/external
-  links and raw `metadata` are **not** represented in the export and are left
-  untouched.
+- **Scope.** The children the export owns are rewritten: `componentTree`,
+  `blocks`, `seo`, `breadcrumbs`, `faq`, `jsonld`, page↔category / page↔tag joins,
+  the page's images, internal/external links and the raw `metadata` bag.
+  - **Images.** Both the **featured** image (from `heroImage`, always written at
+    `position` 0) and every **inline** (non-hero) image are carried. Inline images
+    travel on the post as an `inlineImages` array, each entry
+    `{ image, role, position }` where `image` is a media relationship. On import
+    the page's image rows are rebuilt from the hero relationship plus the inline
+    entries (hero as the `featured` row, inline rows preserving their `role` /
+    `position`).
+  - **Links.** A `links` group with `internal` and `external` arrays. Internal
+    link entries are `{ href, anchorText, rel, position }`; external add a
+    `domain`. Both are emitted sorted by `position` and round-tripped back into the
+    `internal_links` / `external_links` tables (delete-then-insert per page). The
+    internal link's `targetPageId` is not represented in the export — it is left
+    null on import and resolved separately by the crawler.
+  - **Metadata.** The raw per-page `metadata` bag (`metaTags`, `httpHeaders`,
+    `openGraph`, `twitter`, `custom`) passes through verbatim as a Payload `json`
+    field and is round-tripped back into the `metadata` table (delete-then-insert,
+    one row per page), or `null` when the page has no metadata row.

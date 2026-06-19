@@ -38,6 +38,7 @@ const IDS = {
   tagA: "66666666-6666-4666-8666-666666666666",
   tagB: "77777777-7777-4777-8777-777777777777",
   post: "88888888-8888-4888-8888-888888888888",
+  inline: "99999999-9999-4999-8999-999999999999",
 };
 
 function fixtureExport(): PayloadExport {
@@ -71,6 +72,19 @@ function fixtureExport(): PayloadExport {
           height: 1,
           sourceUrl: "https://cdn.example.com/hero.png",
           url: "https://cdn.example.com/hero.png",
+        },
+        {
+          id: IDS.inline,
+          alt: "Inline image",
+          caption: null,
+          credit: null,
+          filename: "inline.png",
+          mimeType: "image/png",
+          filesize: PNG_1x1.byteLength,
+          width: 1,
+          height: 1,
+          sourceUrl: "https://cdn.example.com/inline.png",
+          url: "https://cdn.example.com/inline.png",
         },
       ],
       authors: [
@@ -162,6 +176,35 @@ function fixtureExport(): PayloadExport {
           ],
           faq: [{ question: "Best time to visit?", answer: "Late November." }],
           structuredData: [{ type: "Article", data: { "@type": "Article" } }],
+          inlineImages: [
+            { image: IDS.inline, role: "inline", position: 1 },
+          ],
+          links: {
+            internal: [
+              {
+                href: "/blog/new-york/",
+                anchorText: "New York",
+                rel: null,
+                position: 0,
+              },
+            ],
+            external: [
+              {
+                href: "https://www.nycgo.com/",
+                anchorText: "NYC Go",
+                rel: "nofollow",
+                domain: "www.nycgo.com",
+                position: 0,
+              },
+            ],
+          },
+          metadata: {
+            metaTags: [{ name: "robots", content: "index,follow" }],
+            httpHeaders: { "cache-control": "max-age=3600" },
+            openGraph: { "og:type": "article" },
+            twitter: { "twitter:card": "summary_large_image" },
+            custom: { theme: "autumn" },
+          },
         },
       ],
     },
@@ -188,7 +231,7 @@ describe("Payload export → real Payload load (integration)", () => {
 
   it("creates every document in each collection", () => {
     expect(result.counts).toEqual({
-      media: 2,
+      media: 3,
       authors: 1,
       categories: 2,
       tags: 2,
@@ -205,7 +248,7 @@ describe("Payload export → real Payload load (integration)", () => {
       collection: "media",
       limit: 100,
     });
-    expect(mediaDocs.totalDocs).toBe(2);
+    expect(mediaDocs.totalDocs).toBe(3);
     for (const m of mediaDocs.docs) {
       expect((m as { filename?: string }).filename).toBeTruthy();
     }
@@ -293,7 +336,7 @@ describe("Payload export → real Payload load (integration)", () => {
       posts: 0,
     });
     expect(second.updated).toEqual({
-      media: 2,
+      media: 3,
       authors: 1,
       categories: 2,
       tags: 2,
@@ -346,7 +389,7 @@ describe("Payload export → real Payload load (integration)", () => {
       posts: 0,
     });
     expect(preview.updated).toEqual({
-      media: 2,
+      media: 3,
       authors: 1,
       categories: 2,
       tags: 2,
@@ -392,5 +435,46 @@ describe("Payload export → real Payload load (integration)", () => {
     // The JSON-LD structured data survives the load.
     expect((post.structuredData ?? []).map((s) => s.type)).toEqual(["Article"]);
     expect((post.structuredData ?? [])[0]?.data).toEqual({ "@type": "Article" });
+  });
+
+  it("carries inline images, links and raw metadata onto the loaded post", async () => {
+    const postId = result.idMap.get(IDS.post)!;
+    const post = (await instance.payload.findByID({
+      collection: "posts",
+      id: postId,
+      depth: 0,
+    })) as {
+      inlineImages?: Array<{ image?: unknown; role?: string; position?: number }>;
+      links?: {
+        internal?: Array<{ href?: string; anchorText?: string }>;
+        external?: Array<{ href?: string; domain?: string; rel?: string }>;
+      };
+      metadata?: unknown;
+    };
+
+    // The inline (non-hero) image remaps to its new media id, distinct from hero.
+    expect((post.inlineImages ?? []).length).toBe(1);
+    expect(post.inlineImages?.[0]?.image).toBe(result.idMap.get(IDS.inline));
+    expect(post.inlineImages?.[0]?.role).toBe("inline");
+    expect(post.inlineImages?.[0]?.position).toBe(1);
+
+    // Internal & external links survive verbatim.
+    expect((post.links?.internal ?? []).map((l) => l.href)).toEqual([
+      "/blog/new-york/",
+    ]);
+    expect((post.links?.external ?? []).map((l) => l.href)).toEqual([
+      "https://www.nycgo.com/",
+    ]);
+    expect(post.links?.external?.[0]?.domain).toBe("www.nycgo.com");
+    expect(post.links?.external?.[0]?.rel).toBe("nofollow");
+
+    // The raw metadata bag is preserved as-is.
+    expect(post.metadata).toEqual({
+      metaTags: [{ name: "robots", content: "index,follow" }],
+      httpHeaders: { "cache-control": "max-age=3600" },
+      openGraph: { "og:type": "article" },
+      twitter: { "twitter:card": "summary_large_image" },
+      custom: { theme: "autumn" },
+    });
   });
 });

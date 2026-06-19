@@ -30,6 +30,9 @@ import {
   imagesTable,
   jsonldTable,
   seoTable,
+  internalLinksTable,
+  externalLinksTable,
+  metadataTable,
 } from "@workspace/db";
 import { asc, eq } from "drizzle-orm";
 import {
@@ -112,33 +115,57 @@ export async function buildExport(): Promise<PayloadExport> {
   // Posts: load per-page relations and structured content.
   const postDocs = [];
   for (const page of pages) {
-    const [pageCats, pageTags, crumbs, faqRows, jsonldRows, seoRows] =
-      await Promise.all([
-        db
-          .select({ categoryId: pageCategoriesTable.categoryId })
-          .from(pageCategoriesTable)
-          .where(eq(pageCategoriesTable.pageId, page.id)),
-        db
-          .select({ tagId: pageTagsTable.tagId })
-          .from(pageTagsTable)
-          .where(eq(pageTagsTable.pageId, page.id)),
-        db
-          .select()
-          .from(breadcrumbsTable)
-          .where(eq(breadcrumbsTable.pageId, page.id))
-          .orderBy(asc(breadcrumbsTable.position)),
-        db
-          .select()
-          .from(faqTable)
-          .where(eq(faqTable.pageId, page.id))
-          .orderBy(asc(faqTable.position)),
-        db
-          .select()
-          .from(jsonldTable)
-          .where(eq(jsonldTable.pageId, page.id))
-          .orderBy(asc(jsonldTable.position)),
-        db.select().from(seoTable).where(eq(seoTable.pageId, page.id)).limit(1),
-      ]);
+    const [
+      pageCats,
+      pageTags,
+      crumbs,
+      faqRows,
+      jsonldRows,
+      seoRows,
+      internalLinkRows,
+      externalLinkRows,
+      metadataRows,
+    ] = await Promise.all([
+      db
+        .select({ categoryId: pageCategoriesTable.categoryId })
+        .from(pageCategoriesTable)
+        .where(eq(pageCategoriesTable.pageId, page.id)),
+      db
+        .select({ tagId: pageTagsTable.tagId })
+        .from(pageTagsTable)
+        .where(eq(pageTagsTable.pageId, page.id)),
+      db
+        .select()
+        .from(breadcrumbsTable)
+        .where(eq(breadcrumbsTable.pageId, page.id))
+        .orderBy(asc(breadcrumbsTable.position)),
+      db
+        .select()
+        .from(faqTable)
+        .where(eq(faqTable.pageId, page.id))
+        .orderBy(asc(faqTable.position)),
+      db
+        .select()
+        .from(jsonldTable)
+        .where(eq(jsonldTable.pageId, page.id))
+        .orderBy(asc(jsonldTable.position)),
+      db.select().from(seoTable).where(eq(seoTable.pageId, page.id)).limit(1),
+      db
+        .select()
+        .from(internalLinksTable)
+        .where(eq(internalLinksTable.pageId, page.id))
+        .orderBy(asc(internalLinksTable.position)),
+      db
+        .select()
+        .from(externalLinksTable)
+        .where(eq(externalLinksTable.pageId, page.id))
+        .orderBy(asc(externalLinksTable.position)),
+      db
+        .select()
+        .from(metadataTable)
+        .where(eq(metadataTable.pageId, page.id))
+        .limit(1),
+    ]);
 
     const pageImages = imagesByPage.get(page.id) ?? [];
     const featured =
@@ -218,6 +245,28 @@ export async function buildExport(): Promise<PayloadExport> {
             twitterDescription: seo.twitterDescription,
             twitterImage: seo.twitterImage,
             keywords: seo.keywords,
+          }
+        : null,
+      internalLinks: internalLinkRows.map((l) => ({
+        href: l.href,
+        anchorText: l.anchorText,
+        rel: l.rel,
+        position: l.position,
+      })),
+      externalLinks: externalLinkRows.map((l) => ({
+        href: l.href,
+        anchorText: l.anchorText,
+        rel: l.rel,
+        domain: l.domain,
+        position: l.position,
+      })),
+      metadata: metadataRows[0]
+        ? {
+            metaTags: metadataRows[0].metaTags,
+            httpHeaders: metadataRows[0].httpHeaders,
+            openGraph: metadataRows[0].openGraph,
+            twitter: metadataRows[0].twitter,
+            custom: metadataRows[0].custom,
           }
         : null,
     };

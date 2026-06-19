@@ -163,6 +163,9 @@ function makeBundle(): SourcePageBundle {
       twitterImage: "https://cdn/tw.jpg",
       keywords: ["a", "b"],
     },
+    internalLinks: [],
+    externalLinks: [],
+    metadata: null,
   };
 }
 
@@ -385,6 +388,9 @@ vi.mock("@workspace/db", () => ({
   breadcrumbsTable: table("breadcrumbs"),
   jsonldTable: table("jsonld"),
   seoTable: table("seo"),
+  internalLinksTable: table("internal_links"),
+  externalLinksTable: table("external_links"),
+  metadataTable: table("metadata"),
 }));
 
 vi.mock("drizzle-orm", () => ({

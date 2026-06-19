@@ -23,6 +23,9 @@ const tables: Tables = {
   faq: [],
   jsonld: [],
   seo: [],
+  internal_links: [],
+  external_links: [],
+  metadata: [],
 };
 
 vi.mock("@workspace/db", () => makeDbMock(tables));

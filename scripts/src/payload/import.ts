@@ -14,7 +14,7 @@
  * ids — round-tripping works either way.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   db,
   authorsTable,
@@ -31,6 +31,9 @@ import {
   breadcrumbsTable,
   jsonldTable,
   seoTable,
+  internalLinksTable,
+  externalLinksTable,
+  metadataTable,
 } from "@workspace/db";
 import {
   layoutToComponentTree,
@@ -85,6 +88,9 @@ export function postContentHash(post: PayloadPostDoc): string {
     breadcrumbs: post.breadcrumbs,
     faq: post.faq,
     structuredData: post.structuredData,
+    inlineImages: post.inlineImages,
+    links: post.links,
+    metadata: post.metadata,
   });
   return createHash("sha256").update(material).digest("hex");
 }
@@ -318,8 +324,23 @@ export async function importExport(
     else if (changed) stats.postsUpdated++;
     else stats.postsUnchanged++;
 
-    // Rewrite only the children the Payload export actually owns. Links and raw
-    // metadata are NOT represented in the export, so they are left untouched.
+    // Resolve inline (non-hero) image relationships to their media documents.
+    const inlineMedia = post.inlineImages
+      .map((ii) => {
+        const media = mediaById.get(ii.image);
+        return media
+          ? { media, role: ii.role, position: ii.position }
+          : null;
+      })
+      .filter(
+        (
+          x,
+        ): x is { media: PayloadMediaDoc; role: string | null; position: number } =>
+          x !== null,
+      );
+
+    // Rewrite every child relation the Payload export now owns: hero + inline
+    // images, internal/external links and the raw metadata bag all round-trip.
     await rewritePostChildren({
       pageId,
       componentTree,
@@ -327,8 +348,10 @@ export async function importExport(
       tagIds,
       post,
       heroMedia: heroMedia ?? null,
+      inlineMedia,
     });
     if (heroMedia) stats.media++;
+    stats.media += inlineMedia.length;
   }
 
   return stats;
@@ -341,8 +364,14 @@ async function rewritePostChildren(opts: {
   tagIds: string[];
   post: PayloadPostDoc;
   heroMedia: PayloadMediaDoc | null;
+  inlineMedia: Array<{
+    media: PayloadMediaDoc;
+    role: string | null;
+    position: number;
+  }>;
 }): Promise<void> {
-  const { pageId, componentTree, categoryIds, tagIds, post, heroMedia } = opts;
+  const { pageId, componentTree, categoryIds, tagIds, post, heroMedia, inlineMedia } =
+    opts;
 
   // Component tree (one row per page) + flattened blocks.
   await db
@@ -427,14 +456,13 @@ async function rewritePostChildren(opts: {
     );
   }
 
-  // Media: rebuild only the featured image row from the hero relationship.
-  // Inline images are not represented in the Payload export, so other image
-  // rows are left untouched.
-  await db
-    .delete(imagesTable)
-    .where(and(eq(imagesTable.pageId, pageId), eq(imagesTable.role, "featured")));
+  // Media: rebuild the page's image rows from the hero relationship plus every
+  // inline (non-hero) image. The hero is always written as the featured row at
+  // position 0; inline images preserve the role/position carried in the export.
+  await db.delete(imagesTable).where(eq(imagesTable.pageId, pageId));
+  const imageRows: Array<typeof imagesTable.$inferInsert> = [];
   if (heroMedia) {
-    await db.insert(imagesTable).values({
+    imageRows.push({
       pageId,
       originalUrl: heroMedia.sourceUrl || heroMedia.url,
       url: heroMedia.url,
@@ -448,6 +476,68 @@ async function rewritePostChildren(opts: {
       fileSize: heroMedia.filesize,
       role: "featured",
       position: 0,
+    });
+  }
+  for (const { media, role, position } of inlineMedia) {
+    imageRows.push({
+      pageId,
+      originalUrl: media.sourceUrl || media.url,
+      url: media.url,
+      alt: media.alt,
+      title: null,
+      caption: media.caption,
+      credit: media.credit,
+      width: media.width,
+      height: media.height,
+      mimeType: media.mimeType,
+      fileSize: media.filesize,
+      role,
+      position,
+    });
+  }
+  if (imageRows.length) await db.insert(imagesTable).values(imageRows);
+
+  // Internal & external links.
+  await db
+    .delete(internalLinksTable)
+    .where(eq(internalLinksTable.pageId, pageId));
+  if (post.links.internal.length) {
+    await db.insert(internalLinksTable).values(
+      post.links.internal.map((l) => ({
+        pageId,
+        href: l.href,
+        anchorText: l.anchorText,
+        rel: l.rel,
+        position: l.position,
+      })),
+    );
+  }
+  await db
+    .delete(externalLinksTable)
+    .where(eq(externalLinksTable.pageId, pageId));
+  if (post.links.external.length) {
+    await db.insert(externalLinksTable).values(
+      post.links.external.map((l) => ({
+        pageId,
+        href: l.href,
+        anchorText: l.anchorText,
+        rel: l.rel,
+        domain: l.domain,
+        position: l.position,
+      })),
+    );
+  }
+
+  // Raw metadata bag (one row per page).
+  await db.delete(metadataTable).where(eq(metadataTable.pageId, pageId));
+  if (post.metadata) {
+    await db.insert(metadataTable).values({
+      pageId,
+      metaTags: post.metadata.metaTags,
+      httpHeaders: post.metadata.httpHeaders,
+      openGraph: post.metadata.openGraph,
+      twitter: post.metadata.twitter,
+      custom: post.metadata.custom,
     });
   }
 }

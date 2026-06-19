@@ -268,6 +268,15 @@ export async function loadPayloadExport(
       breadcrumbs: p.breadcrumbs,
       faq: p.faq,
       structuredData: p.structuredData,
+      inlineImages: p.inlineImages
+        .map((ii) => ({
+          image: remap(ii.image),
+          role: ii.role,
+          position: ii.position,
+        }))
+        .filter((ii) => ii.image != null),
+      links: p.links,
+      metadata: p.metadata,
     };
     const draft = p._status !== "published";
     const existing = await findByKey(payload, "posts", "slug", p.slug);

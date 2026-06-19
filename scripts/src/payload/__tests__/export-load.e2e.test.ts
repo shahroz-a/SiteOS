@@ -35,6 +35,9 @@ const tables: Tables = {
   faq: [],
   jsonld: [],
   seo: [],
+  internal_links: [],
+  external_links: [],
+  metadata: [],
 };
 
 vi.mock("@workspace/db", () => makeDbMock(tables));
@@ -225,6 +228,35 @@ function seedTables(): void {
   tables.jsonld = [
     { pageId: IDS.post, type: "Article", data: { "@type": "Article" }, position: 0 },
   ];
+  tables.internal_links = [
+    {
+      pageId: IDS.post,
+      href: "/blog/new-york/",
+      anchorText: "New York",
+      rel: null,
+      position: 0,
+    },
+  ];
+  tables.external_links = [
+    {
+      pageId: IDS.post,
+      href: "https://www.nycgo.com/",
+      anchorText: "NYC Go",
+      rel: "nofollow",
+      domain: "www.nycgo.com",
+      position: 0,
+    },
+  ];
+  tables.metadata = [
+    {
+      pageId: IDS.post,
+      metaTags: [{ name: "robots", content: "index,follow" }],
+      httpHeaders: { "cache-control": "max-age=3600" },
+      openGraph: { "og:type": "article" },
+      twitter: { "twitter:card": "summary_large_image" },
+      custom: { theme: "autumn" },
+    },
+  ];
   tables.seo = [
     {
       pageId: IDS.post,
@@ -377,5 +409,46 @@ describe("export-payload.ts → real Payload load (end-to-end)", () => {
     // The JSON-LD structured data survives the load.
     expect((post.structuredData ?? []).map((s) => s.type)).toEqual(["Article"]);
     expect((post.structuredData ?? [])[0]?.data).toEqual({ "@type": "Article" });
+  });
+
+  it("carries inline images, links and raw metadata onto the loaded post", async () => {
+    const postId = result.idMap.get(IDS.post)!;
+    const post = (await instance.payload.findByID({
+      collection: "posts",
+      id: postId,
+      depth: 0,
+    })) as {
+      inlineImages?: Array<{ image?: unknown; role?: string; position?: number }>;
+      links?: {
+        internal?: Array<{ href?: string; anchorText?: string }>;
+        external?: Array<{ href?: string; domain?: string; rel?: string }>;
+      };
+      metadata?: unknown;
+    };
+
+    // The inline (non-hero) image round-trips as a media relationship and is not
+    // confused with the hero image.
+    expect((post.inlineImages ?? []).length).toBe(1);
+    expect(post.inlineImages?.[0]?.image).toBe(result.idMap.get(IDS.inline));
+    expect(post.inlineImages?.[0]?.role).toBe("inline");
+
+    // Internal & external links survive verbatim.
+    expect((post.links?.internal ?? []).map((l) => l.href)).toEqual([
+      "/blog/new-york/",
+    ]);
+    expect((post.links?.external ?? []).map((l) => l.href)).toEqual([
+      "https://www.nycgo.com/",
+    ]);
+    expect(post.links?.external?.[0]?.domain).toBe("www.nycgo.com");
+    expect(post.links?.external?.[0]?.rel).toBe("nofollow");
+
+    // The raw metadata bag is preserved as-is.
+    expect(post.metadata).toEqual({
+      metaTags: [{ name: "robots", content: "index,follow" }],
+      httpHeaders: { "cache-control": "max-age=3600" },
+      openGraph: { "og:type": "article" },
+      twitter: { "twitter:card": "summary_large_image" },
+      custom: { theme: "autumn" },
+    });
   });
 });

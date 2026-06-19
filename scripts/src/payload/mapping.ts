@@ -81,6 +81,31 @@ export interface SourceJsonld {
   data: unknown;
 }
 
+export interface SourceInternalLink {
+  href: string;
+  anchorText: string | null;
+  rel: string | null;
+  position: number;
+}
+
+export interface SourceExternalLink {
+  href: string;
+  anchorText: string | null;
+  rel: string | null;
+  domain: string | null;
+  position: number;
+}
+
+export interface SourceMetadata {
+  metaTags:
+    | Array<{ name?: string; property?: string; content?: string }>
+    | null;
+  httpHeaders: Record<string, string> | null;
+  openGraph: Record<string, unknown> | null;
+  twitter: Record<string, unknown> | null;
+  custom: Record<string, unknown> | null;
+}
+
 export interface SourceSeo {
   metaTitle: string | null;
   metaDescription: string | null;
@@ -130,6 +155,9 @@ export interface SourcePageBundle {
   faq: SourceFaq[];
   jsonld: SourceJsonld[];
   seo: SourceSeo | null;
+  internalLinks: SourceInternalLink[];
+  externalLinks: SourceExternalLink[];
+  metadata: SourceMetadata | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +264,38 @@ export interface PayloadPostDoc {
   breadcrumbs: Array<{ label: string; url: string | null }>;
   faq: Array<{ question: string; answer: string }>;
   structuredData: Array<{ type: string | null; data: unknown }>;
+  /**
+   * Inline (non-hero) images, each a relationship to the `media` collection
+   * carrying the role/position the image had on the source page. The hero image
+   * is excluded — it is carried separately via `heroImage`.
+   */
+  inlineImages: Array<{
+    image: string;
+    role: string | null;
+    position: number;
+  }>;
+  /** Internal & external links preserved verbatim from the source page. */
+  links: {
+    internal: Array<{
+      href: string;
+      anchorText: string | null;
+      rel: string | null;
+      position: number;
+    }>;
+    external: Array<{
+      href: string;
+      anchorText: string | null;
+      rel: string | null;
+      domain: string | null;
+      position: number;
+    }>;
+  };
+  /**
+   * Raw page metadata bag captured verbatim (meta tags, HTTP headers, and the
+   * Open Graph / Twitter / custom property maps). `null` when the source page
+   * has no metadata row.
+   */
+  metadata: SourceMetadata | null;
 }
 
 export interface PayloadExport {
@@ -633,5 +693,44 @@ export function mapPost(
       .sort((a, b) => a.position - b.position)
       .map((f) => ({ question: f.question, answer: f.answer })),
     structuredData: bundle.jsonld.map((j) => ({ type: j.type, data: j.data })),
+    inlineImages: bundle.images
+      .filter((img) => img.id !== heroImageId)
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((img) => ({
+        image: img.id,
+        role: img.role,
+        position: img.position,
+      })),
+    links: {
+      internal: bundle.internalLinks
+        .slice()
+        .sort((a, b) => a.position - b.position)
+        .map((l) => ({
+          href: l.href,
+          anchorText: l.anchorText,
+          rel: l.rel,
+          position: l.position,
+        })),
+      external: bundle.externalLinks
+        .slice()
+        .sort((a, b) => a.position - b.position)
+        .map((l) => ({
+          href: l.href,
+          anchorText: l.anchorText,
+          rel: l.rel,
+          domain: l.domain,
+          position: l.position,
+        })),
+    },
+    metadata: bundle.metadata
+      ? {
+          metaTags: bundle.metadata.metaTags,
+          httpHeaders: bundle.metadata.httpHeaders,
+          openGraph: bundle.metadata.openGraph,
+          twitter: bundle.metadata.twitter,
+          custom: bundle.metadata.custom,
+        }
+      : null,
   };
 }

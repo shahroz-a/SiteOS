@@ -168,6 +168,43 @@ const posts: CollectionConfig = {
         { name: "data", type: "json" },
       ],
     },
+    {
+      name: "inlineImages",
+      type: "array",
+      fields: [
+        { name: "image", type: "relationship", relationTo: "media" },
+        { name: "role", type: "text" },
+        { name: "position", type: "number" },
+      ],
+    },
+    {
+      name: "links",
+      type: "group",
+      fields: [
+        {
+          name: "internal",
+          type: "array",
+          fields: [
+            { name: "href", type: "text" },
+            { name: "anchorText", type: "text" },
+            { name: "rel", type: "text" },
+            { name: "position", type: "number" },
+          ],
+        },
+        {
+          name: "external",
+          type: "array",
+          fields: [
+            { name: "href", type: "text" },
+            { name: "anchorText", type: "text" },
+            { name: "rel", type: "text" },
+            { name: "domain", type: "text" },
+            { name: "position", type: "number" },
+          ],
+        },
+      ],
+    },
+    { name: "metadata", type: "json" },
   ],
 };
 

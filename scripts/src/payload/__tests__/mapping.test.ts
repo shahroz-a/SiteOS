@@ -449,6 +449,9 @@ function makeBundle(overrides: Partial<SourcePageBundle> = {}): SourcePageBundle
       twitterImage: "https://cdn.example.com/tw.jpg",
       keywords: ["a", "b"],
     },
+    internalLinks: [],
+    externalLinks: [],
+    metadata: null,
     ...overrides,
   };
 }
@@ -584,5 +587,99 @@ describe("mapPost", () => {
     });
     expect(doc.readingTimeMinutes).toBe(4);
     expect(doc.wordCount).toBe(800);
+  });
+
+  it("emits inline images sorted by position, excluding the hero", () => {
+    const mkImage = (
+      id: string,
+      role: string,
+      position: number,
+    ): SourceImage => ({
+      id,
+      pageId: "page-1",
+      originalUrl: `https://origin/${id}.jpg`,
+      url: `https://cdn/${id}.jpg`,
+      alt: `alt ${id}`,
+      title: null,
+      caption: null,
+      credit: null,
+      width: 100,
+      height: 100,
+      mimeType: "image/jpeg",
+      fileSize: 1,
+      role,
+      position,
+    });
+    const bundle = makeBundle({
+      images: [
+        mkImage("hero-id", "featured", 0),
+        mkImage("inline-b", "inline", 2),
+        mkImage("inline-a", "inline", 1),
+      ],
+    });
+    const doc = mapPost(bundle, "hero-id");
+    expect(doc.inlineImages).toEqual([
+      { image: "inline-a", role: "inline", position: 1 },
+      { image: "inline-b", role: "inline", position: 2 },
+    ]);
+  });
+
+  it("emits internal and external links sorted by position", () => {
+    const bundle = makeBundle({
+      internalLinks: [
+        { href: "/b/", anchorText: "B", rel: null, position: 1 },
+        { href: "/a/", anchorText: "A", rel: "nofollow", position: 0 },
+      ],
+      externalLinks: [
+        {
+          href: "https://y.com/",
+          anchorText: "Y",
+          rel: null,
+          domain: "y.com",
+          position: 1,
+        },
+        {
+          href: "https://x.com/",
+          anchorText: "X",
+          rel: "sponsored",
+          domain: "x.com",
+          position: 0,
+        },
+      ],
+    });
+    const doc = mapPost(bundle, null);
+    expect(doc.links.internal).toEqual([
+      { href: "/a/", anchorText: "A", rel: "nofollow", position: 0 },
+      { href: "/b/", anchorText: "B", rel: null, position: 1 },
+    ]);
+    expect(doc.links.external).toEqual([
+      {
+        href: "https://x.com/",
+        anchorText: "X",
+        rel: "sponsored",
+        domain: "x.com",
+        position: 0,
+      },
+      {
+        href: "https://y.com/",
+        anchorText: "Y",
+        rel: null,
+        domain: "y.com",
+        position: 1,
+      },
+    ]);
+  });
+
+  it("passes the raw metadata bag through, or null when absent", () => {
+    expect(mapPost(makeBundle(), null).metadata).toBeNull();
+    const meta = {
+      metaTags: [{ name: "robots", content: "index,follow" }],
+      httpHeaders: { "cache-control": "max-age=3600" },
+      openGraph: { "og:type": "article" },
+      twitter: { "twitter:card": "summary_large_image" },
+      custom: { theme: "autumn" },
+    };
+    const doc = mapPost(makeBundle({ metadata: meta }), null);
+    expect(doc.metadata).toEqual(meta);
   });
 });

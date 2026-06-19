@@ -154,6 +154,9 @@ export function makeDbMock(tables: Tables) {
     imagesTable: tableProxy("images"),
     jsonldTable: tableProxy("jsonld"),
     seoTable: tableProxy("seo"),
+    internalLinksTable: tableProxy("internal_links"),
+    externalLinksTable: tableProxy("external_links"),
+    metadataTable: tableProxy("metadata"),
   };
 }
 
