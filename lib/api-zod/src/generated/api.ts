@@ -2469,6 +2469,9 @@ export const ListSavedViewsResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "query": zod.record(zod.string(), zod.unknown()).describe('Opaque persisted search\/filter\/sort state.'),
+  "shared": zod.boolean().describe('When true, this view is visible to every authenticated CMS user. Non-owners can apply it but cannot rename\/update\/delete it.'),
+  "isOwner": zod.boolean().describe('Whether the requesting user owns this view. Only owners may rename, update or delete it.'),
+  "ownerId": zod.string().describe('The id of the user who owns this view.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }))
@@ -2489,7 +2492,8 @@ export const createSavedViewBodyNameMax = 120;
 export const CreateSavedViewBody = zod.object({
   "name": zod.string().min(1).max(createSavedViewBodyNameMax),
   "description": zod.string().nullish(),
-  "query": zod.record(zod.string(), zod.unknown())
+  "query": zod.record(zod.string(), zod.unknown()),
+  "shared": zod.boolean().optional().describe('When true, share this view with all CMS users.')
 })
 
 
@@ -2511,7 +2515,8 @@ export const updateSavedViewBodyNameMax = 120;
 export const UpdateSavedViewBody = zod.object({
   "name": zod.string().min(1).max(updateSavedViewBodyNameMax).optional(),
   "description": zod.string().nullish(),
-  "query": zod.record(zod.string(), zod.unknown()).optional()
+  "query": zod.record(zod.string(), zod.unknown()).optional(),
+  "shared": zod.boolean().optional().describe('Toggle whether this view is shared with all CMS users.')
 })
 
 export const UpdateSavedViewResponse = zod.object({
@@ -2519,6 +2524,9 @@ export const UpdateSavedViewResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "query": zod.record(zod.string(), zod.unknown()).describe('Opaque persisted search\/filter\/sort state.'),
+  "shared": zod.boolean().describe('When true, this view is visible to every authenticated CMS user. Non-owners can apply it but cannot rename\/update\/delete it.'),
+  "isOwner": zod.boolean().describe('Whether the requesting user owns this view. Only owners may rename, update or delete it.'),
+  "ownerId": zod.string().describe('The id of the user who owns this view.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

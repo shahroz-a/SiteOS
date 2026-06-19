@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 import { db, savedViewsTable } from "@workspace/db";
 import {
   ListSavedViewsResponse,
@@ -16,12 +16,15 @@ const router: IRouter = Router();
 
 type SavedViewRow = typeof savedViewsTable.$inferSelect;
 
-function serialize(row: SavedViewRow) {
+function serialize(row: SavedViewRow, viewerId: string) {
   return {
     id: row.id,
     name: row.name,
     description: row.description,
     query: row.query,
+    shared: row.shared,
+    isOwner: row.userId === viewerId,
+    ownerId: row.userId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -37,14 +40,22 @@ router.get(
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
+    // Return the user's own views plus any view shared by another user.
     const rows = await db
       .select()
       .from(savedViewsTable)
-      .where(eq(savedViewsTable.userId, req.user.id))
+      .where(
+        or(
+          eq(savedViewsTable.userId, req.user.id),
+          eq(savedViewsTable.shared, true),
+        ),
+      )
       .orderBy(desc(savedViewsTable.updatedAt));
 
     res.json(
-      ListSavedViewsResponse.parse({ items: rows.map(serialize) }),
+      ListSavedViewsResponse.parse({
+        items: rows.map((row) => serialize(row, req.user.id)),
+      }),
     );
   },
 );
@@ -64,7 +75,7 @@ router.post(
       res.status(400).json({ error: "Invalid saved view" });
       return;
     }
-    const { name, description, query } = parsed.data;
+    const { name, description, query, shared } = parsed.data;
 
     const [created] = await db
       .insert(savedViewsTable)
@@ -73,10 +84,13 @@ router.post(
         name,
         description: description ?? null,
         query,
+        shared: shared ?? false,
       })
       .returning();
 
-    res.status(201).json(UpdateSavedViewResponse.parse(serialize(created)));
+    res
+      .status(201)
+      .json(UpdateSavedViewResponse.parse(serialize(created, req.user.id)));
   },
 );
 
@@ -96,13 +110,15 @@ router.patch(
       res.status(400).json({ error: "Invalid saved view" });
       return;
     }
-    const { name, description, query } = parsed.data;
+    const { name, description, query, shared } = parsed.data;
 
     const updates: Partial<SavedViewRow> = { updatedAt: new Date() };
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description ?? null;
     if (query !== undefined) updates.query = query;
+    if (shared !== undefined) updates.shared = shared;
 
+    // Scoped to the owner — only the owner may rename/update/share a view.
     const [updated] = await db
       .update(savedViewsTable)
       .set(updates)
@@ -119,7 +135,7 @@ router.patch(
       return;
     }
 
-    res.json(UpdateSavedViewResponse.parse(serialize(updated)));
+    res.json(UpdateSavedViewResponse.parse(serialize(updated, req.user.id)));
   },
 );
 

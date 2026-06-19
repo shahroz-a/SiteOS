@@ -14,6 +14,12 @@ export interface SavedView {
   description?: string | null;
   /** Opaque persisted search/filter/sort state. */
   query: SavedViewQuery;
+  /** When true, this view is visible to every authenticated CMS user. Non-owners can apply it but cannot rename/update/delete it. */
+  shared: boolean;
+  /** Whether the requesting user owns this view. Only owners may rename, update or delete it. */
+  isOwner: boolean;
+  /** The id of the user who owns this view. */
+  ownerId: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -16,4 +16,6 @@ export interface SavedViewInput {
   /** @nullable */
   description?: string | null;
   query: SavedViewInputQuery;
+  /** When true, share this view with all CMS users. */
+  shared?: boolean;
 }

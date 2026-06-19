@@ -5,6 +5,7 @@ import {
   jsonb,
   timestamp,
   varchar,
+  boolean,
   index,
   unique,
 } from "drizzle-orm/pg-core";
@@ -13,10 +14,12 @@ import { z } from "zod/v4";
 import { usersTable } from "./auth";
 
 /**
- * A per-user saved search/filter view in the CMS. `query` stores the full
- * search request (the `q` term plus filters and sort) so a staff member can
- * re-run a complex global search with one click. Scoped to the owning user;
- * routes always filter by the acting user's id — saved views are private.
+ * A saved search/filter view in the CMS. `query` stores the full search request
+ * (the `q` term plus filters and sort) so a staff member can re-run a complex
+ * global search with one click. Owned by a user (`userId`); a view can be marked
+ * `shared` so every other authenticated CMS user can see and apply it. Shared
+ * views remain editable/deletable only by their owner — non-owners get read-only
+ * access (apply only). Private (non-shared) views stay visible to the owner only.
  */
 export const savedViewsTable = pgTable(
   "saved_views",
@@ -32,6 +35,12 @@ export const savedViewsTable = pgTable(
      * params: `{ q?, status?, pageType?, language?, category?, author?, tag?, sort? }`.
      */
     query: jsonb("query").$type<Record<string, unknown>>().notNull(),
+    /**
+     * When true, every other authenticated CMS user can see and apply this view
+     * (but not rename/update/delete it). When false the view is private to its
+     * owner. Defaults to private.
+     */
+    shared: boolean("shared").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

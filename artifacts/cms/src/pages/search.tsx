@@ -7,6 +7,7 @@ import {
   Pencil,
   Search as SearchIcon,
   Trash2,
+  Users,
 } from "lucide-react";
 import {
   useSearchCmsContent,
@@ -41,6 +42,7 @@ import {
   SelectValue,
 } from "@workspace/ui/select";
 import { Skeleton } from "@workspace/ui/skeleton";
+import { Switch } from "@workspace/ui/switch";
 import {
   Table,
   TableBody,
@@ -185,10 +187,12 @@ export default function SearchPage() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [viewName, setViewName] = useState("");
   const [viewDescription, setViewDescription] = useState("");
+  const [viewShared, setViewShared] = useState(false);
   const [editView, setEditView] = useState<SavedView | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [confirmUpdateFilters, setConfirmUpdateFilters] = useState(false);
+  const [editShared, setEditShared] = useState(false);
 
   const params = useMemo(() => toParams(applied, page), [applied, page]);
 
@@ -202,6 +206,7 @@ export default function SearchPage() {
         setSaveOpen(false);
         setViewName("");
         setViewDescription("");
+        setViewShared(false);
         toast({ title: "View saved" });
       },
       onError: () => {
@@ -268,6 +273,7 @@ export default function SearchPage() {
         name,
         description: viewDescription.trim() || null,
         query,
+        shared: viewShared,
       },
     });
   }
@@ -276,6 +282,7 @@ export default function SearchPage() {
     setEditView(view);
     setEditName(view.name);
     setEditDescription(view.description ?? "");
+    setEditShared(view.shared);
     setConfirmUpdateFilters(false);
   }
 
@@ -294,6 +301,7 @@ export default function SearchPage() {
         data: {
           name,
           description: editDescription.trim() || null,
+          shared: editShared,
         },
       },
       {
@@ -489,32 +497,62 @@ export default function SearchPage() {
                   type="button"
                   className="flex items-center gap-1.5 font-medium hover:text-primary"
                   onClick={() => applyView(view)}
-                  title={view.description ?? undefined}
+                  title={
+                    view.isOwner
+                      ? (view.description ?? undefined)
+                      : [view.description, "Shared by a teammate"]
+                          .filter(Boolean)
+                          .join(" · ")
+                  }
                 >
-                  <Bookmark className="h-3.5 w-3.5" />
+                  {view.shared ? (
+                    <Users className="h-3.5 w-3.5" />
+                  ) : (
+                    <Bookmark className="h-3.5 w-3.5" />
+                  )}
                   {view.name}
                 </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-primary"
-                  onClick={() => openEditView(view)}
-                  title="Edit view"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={
-                    deleteView.isPending && deleteView.variables?.id === view.id
-                  }
-                  onClick={() => deleteView.mutate({ id: view.id })}
-                  title="Delete view"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                {view.shared && view.isOwner ? (
+                  <Badge
+                    variant="secondary"
+                    className="px-1.5 py-0 text-[10px] font-normal"
+                  >
+                    Shared
+                  </Badge>
+                ) : null}
+                {view.isOwner ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-primary"
+                      onClick={() => openEditView(view)}
+                      title="Edit view"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      disabled={
+                        deleteView.isPending &&
+                        deleteView.variables?.id === view.id
+                      }
+                      onClick={() => deleteView.mutate({ id: view.id })}
+                      title="Delete view"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="px-1.5 py-0 text-[10px] font-normal"
+                  >
+                    Team
+                  </Badge>
+                )}
               </div>
             ))
           )}
@@ -667,6 +705,23 @@ export default function SearchPage() {
                 rows={3}
               />
             </div>
+            <div className="flex items-start justify-between gap-4 rounded-md border border-border/60 bg-muted/30 p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="view-shared" className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  Share with the team
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Other CMS users can see and apply this view. Only you can
+                  rename, edit or delete it.
+                </p>
+              </div>
+              <Switch
+                id="view-shared"
+                checked={viewShared}
+                onCheckedChange={setViewShared}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveOpen(false)}>
@@ -716,6 +771,26 @@ export default function SearchPage() {
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
                 rows={3}
+              />
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-md border border-border/60 bg-muted/30 p-3">
+              <div className="space-y-0.5">
+                <Label
+                  htmlFor="edit-view-shared"
+                  className="flex items-center gap-1.5"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Share with the team
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Other CMS users can see and apply this view. Only you can
+                  rename, edit or delete it.
+                </p>
+              </div>
+              <Switch
+                id="edit-view-shared"
+                checked={editShared}
+                onCheckedChange={setEditShared}
               />
             </div>
             <div className="rounded-md border border-border/60 bg-muted/30 p-3">

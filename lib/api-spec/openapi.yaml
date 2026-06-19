@@ -3101,6 +3101,19 @@ components:
           type: object
           additionalProperties: true
           description: Opaque persisted search/filter/sort state.
+        shared:
+          type: boolean
+          description: >-
+            When true, this view is visible to every authenticated CMS user.
+            Non-owners can apply it but cannot rename/update/delete it.
+        isOwner:
+          type: boolean
+          description: >-
+            Whether the requesting user owns this view. Only owners may
+            rename, update or delete it.
+        ownerId:
+          type: string
+          description: The id of the user who owns this view.
         createdAt:
           type: string
           format: date-time
@@ -3111,6 +3124,9 @@ components:
         - id
         - name
         - query
+        - shared
+        - isOwner
+        - ownerId
         - createdAt
         - updatedAt
 
@@ -3136,6 +3152,9 @@ components:
         query:
           type: object
           additionalProperties: true
+        shared:
+          type: boolean
+          description: When true, share this view with all CMS users.
       required:
         - name
         - query
@@ -3152,6 +3171,9 @@ components:
         query:
           type: object
           additionalProperties: true
+        shared:
+          type: boolean
+          description: Toggle whether this view is shared with all CMS users.
 
     Tag:
       type: object

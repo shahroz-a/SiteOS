@@ -16,4 +16,6 @@ export interface SavedViewUpdate {
   /** @nullable */
   description?: string | null;
   query?: SavedViewUpdateQuery;
+  /** Toggle whether this view is shared with all CMS users. */
+  shared?: boolean;
 }
