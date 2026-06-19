@@ -4,7 +4,7 @@ process.env.LOG_LEVEL = "silent";
 import { describe, it, expect, vi } from "vitest";
 import request from "supertest";
 import { makeDbMock, makeDrizzleMock } from "../../__tests__/fakeDb";
-import { seedTables } from "../../__tests__/fixtures";
+import { seedTables, IDS } from "../../__tests__/fixtures";
 
 const tables = seedTables();
 
@@ -94,16 +94,41 @@ describe("GET /api/posts/:slug", () => {
 });
 
 describe("GET /api/categories", () => {
-  it("lists all categories", async () => {
+  it("lists only post-bearing top-level categories, by post count then name", async () => {
     const res = await request(app).get("/api/categories");
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
+    // travel (4 posts) > food (2) = city-london (2) → name asc breaks the tie.
+    expect(res.body.map((c: { slug: string }) => c.slug)).toEqual([
+      "travel",
+      "food",
+      "city-london",
+    ]);
   });
 
-  it("returns a category by slug", async () => {
+  it("excludes leaf categories and post-less junk categories", async () => {
+    const res = await request(app).get("/api/categories");
+    const slugs = res.body.map((c: { slug: string }) => c.slug);
+    expect(slugs).not.toContain("theatres-in-london"); // leaf (has a parent)
+    expect(slugs).not.toContain("events"); // junk: no published posts
+  });
+
+  it("resolves descendant posts for a city parent via ?category=", async () => {
+    const parent = await request(app).get("/api/posts?category=city-london");
+    expect(parent.body.items.map((i: { slug: string }) => i.slug).sort()).toEqual(
+      ["boston-for-families", "budget-nyc"],
+    );
+    const leaf = await request(app).get("/api/posts?category=theatres-in-london");
+    expect(leaf.body.items).toHaveLength(2);
+  });
+
+  it("returns a category by slug (any level)", async () => {
     const res = await request(app).get("/api/categories/travel");
     expect(res.status).toBe(200);
     expect(res.body.slug).toBe("travel");
+
+    const leaf = await request(app).get("/api/categories/theatres-in-london");
+    expect(leaf.status).toBe(200);
+    expect(leaf.body.parentId).toBe(IDS.cityLondon);
   });
 
   it("returns 404 for an unknown category", async () => {

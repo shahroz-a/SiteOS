@@ -14,6 +14,7 @@
     "load:payload": "tsx ./src/load-payload.ts",
     "migrate:payload": "tsx ./src/migrate-payload.ts",
     "prerender:blog": "tsx ./src/prerender-blog.ts",
+    "categories:backfill": "tsx ./src/derive-categories.ts",
     "test": "vitest run",
     "verify:roundtrip": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/payload/__tests__/roundtrip-real-data.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

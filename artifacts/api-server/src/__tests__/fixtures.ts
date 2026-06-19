@@ -9,6 +9,9 @@ export const IDS = {
   bob: "22222222-2222-4222-8222-222222222222",
   travel: "33333333-3333-4333-8333-333333333333",
   food: "44444444-4444-4444-8444-444444444444",
+  cityLondon: "31313131-3131-4131-8131-313131313131",
+  theatresLondon: "32323232-3232-4232-8232-323232323232",
+  events: "39393939-3939-4939-8939-393939393939",
   tagFamily: "55555555-5555-4555-8555-555555555555",
   tagThanksgiving: "66666666-6666-4666-8666-666666666666",
   tagBudget: "77777777-7777-4777-8777-777777777777",
@@ -92,6 +95,32 @@ export function seedTables(): Tables {
         parentId: null,
         path: "/food",
       },
+      {
+        id: IDS.cityLondon,
+        name: "London",
+        slug: "city-london",
+        description: null,
+        parentId: null,
+        path: "city-london",
+      },
+      {
+        id: IDS.theatresLondon,
+        name: "Theatres in London",
+        slug: "theatres-in-london",
+        description: null,
+        parentId: IDS.cityLondon,
+        path: "city-london/theatres-in-london",
+      },
+      // Scraped "junk" category: present in the table but links to no published
+      // post, so it must never appear in GET /categories.
+      {
+        id: IDS.events,
+        name: "Events",
+        slug: "events",
+        description: null,
+        parentId: null,
+        path: "/events",
+      },
     ],
     tags: [
       { id: IDS.tagFamily, name: "Family", slug: "family" },
@@ -169,10 +198,23 @@ export function seedTables(): Tables {
       }),
     ],
     page_categories: [
+      // Every post is linked in page_categories to its category/categories, as
+      // the backfill guarantees (primary leaf + any parents/extra categories).
       // P1 linked to its own primary category (dedup must not double-count it).
       { pageId: IDS.p1, categoryId: IDS.travel },
+      { pageId: IDS.p2, categoryId: IDS.travel },
+      { pageId: IDS.p3, categoryId: IDS.food },
+      { pageId: IDS.p4, categoryId: IDS.food },
       // P4's primary is Food, but it is also linked to Travel via M2M.
       { pageId: IDS.p4, categoryId: IDS.travel },
+      // P5 is published (status), so it counts even with a null publishedAt.
+      { pageId: IDS.p5, categoryId: IDS.travel },
+      // London city parent + its leaf both link the same posts, so the parent
+      // page resolves descendant posts (the two-level taxonomy invariant).
+      { pageId: IDS.p1, categoryId: IDS.cityLondon },
+      { pageId: IDS.p1, categoryId: IDS.theatresLondon },
+      { pageId: IDS.p2, categoryId: IDS.cityLondon },
+      { pageId: IDS.p2, categoryId: IDS.theatresLondon },
     ],
     page_tags: [
       { pageId: IDS.p1, tagId: IDS.tagFamily },

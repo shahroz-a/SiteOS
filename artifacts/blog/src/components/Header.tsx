@@ -6,10 +6,16 @@ import { categoryPath, searchPath } from "@/lib/blog";
 
 const LOGO = "https://cdn-imgix-open.headout.com/logo/svg/Headout_blog.svg";
 
+const MAX_NAV_CATEGORIES = 8;
+
 export function Header() {
   const { data: categories } = useListCategories();
   const [, navigate] = useLocation();
   const [query, setQuery] = useState("");
+
+  // The API returns the navigable top-level categories already ordered by post
+  // count, so the first few are the most popular destinations/topics.
+  const navCategories = (categories ?? []).slice(0, MAX_NAV_CATEGORIES);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +37,7 @@ export function Header() {
           aria-label="Primary"
           className="hidden md:flex items-center gap-6 lg:gap-7"
         >
-          {(categories ?? []).map((cat) => (
+          {navCategories.map((cat) => (
             <Link
               key={cat.id}
               href={categoryPath(cat.slug)}
