@@ -48,10 +48,16 @@ type FavoritesContextValue = {
   /** Remove a post from favorites. */
   removeFavorite: (id: string) => void;
 
-  /** Reader-defined collections, most-recently-created first. */
+  /** Reader-defined collections, in the reader's custom (or creation) order. */
   collections: Collection[];
   /** Create a new collection and return it (trims and ignores blank names). */
   createCollection: (name: string) => Collection | null;
+  /**
+   * Persist a reader-defined ordering of the collection chips. Pass the full
+   * list of collection ids in the desired order; unknown ids are ignored and
+   * any omitted collections are appended in their current order.
+   */
+  reorderCollections: (collectionIds: string[]) => void;
   /** Rename an existing collection. */
   renameCollection: (id: string, name: string) => void;
   /** Delete a collection and drop it from every post's membership. */
@@ -260,6 +266,26 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     return collection;
   }, []);
 
+  const reorderCollections = useCallback((collectionIds: string[]) => {
+    setCollections((prev) => {
+      const byId = new Map(prev.map((c) => [c.id, c]));
+      const next: Collection[] = [];
+      // Take collections in the requested order first.
+      for (const id of collectionIds) {
+        const c = byId.get(id);
+        if (c) {
+          next.push(c);
+          byId.delete(id);
+        }
+      }
+      // Append any collections the caller omitted, keeping their prior order.
+      for (const c of prev) {
+        if (byId.has(c.id)) next.push(c);
+      }
+      return next;
+    });
+  }, []);
+
   const renameCollection = useCallback((id: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -370,6 +396,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       removeFavorite,
       collections,
       createCollection,
+      reorderCollections,
       renameCollection,
       deleteCollection,
       getPostCollections,
@@ -387,6 +414,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       removeFavorite,
       collections,
       createCollection,
+      reorderCollections,
       renameCollection,
       deleteCollection,
       getPostCollections,

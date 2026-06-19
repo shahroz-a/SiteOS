@@ -19,7 +19,8 @@ type Props = {
 
 /**
  * Horizontal collection filter for the Saved tab, mirroring the Articles tab's
- * CategoryChips pattern. Includes an "All" chip and a trailing "New" chip.
+ * CategoryChips pattern. The "All" chip is always pinned first and the "New"
+ * chip last; the collections in between follow the reader's custom order.
  */
 export function CollectionChips({
   collections,

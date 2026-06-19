@@ -164,6 +164,46 @@ describe("useFavorites — create / rename / delete collections", () => {
     expect(h.value.collections[0].name).toBe("New Name");
   });
 
+  it("reorders collections by id and ignores unknown / appends omitted ids", async () => {
+    const h = await setup();
+    let a = "";
+    let b = "";
+    let c = "";
+    await act(async () => {
+      a = h.value.createCollection("A")!.id;
+      b = h.value.createCollection("B")!.id;
+      c = h.value.createCollection("C")!.id;
+    });
+    // Most-recently-created first → [C, B, A].
+    expect(h.value.collections.map((x) => x.name)).toEqual(["C", "B", "A"]);
+
+    await act(async () => {
+      h.value.reorderCollections([a, b, c]);
+    });
+    expect(h.value.collections.map((x) => x.name)).toEqual(["A", "B", "C"]);
+
+    // Unknown ids are skipped; omitted ids keep their order at the end.
+    await act(async () => {
+      h.value.reorderCollections(["nope", c]);
+    });
+    expect(h.value.collections.map((x) => x.name)).toEqual(["C", "A", "B"]);
+  });
+
+  it("persists the reordered collections so they survive a restart", async () => {
+    const h = await setup();
+    let a = "";
+    let b = "";
+    await act(async () => {
+      a = h.value.createCollection("A")!.id;
+      b = h.value.createCollection("B")!.id;
+    });
+    await act(async () => {
+      h.value.reorderCollections([a, b]);
+    });
+    const persisted = lastCollectionsWrite();
+    expect(persisted!.collections.map((x) => x.name)).toEqual(["A", "B"]);
+  });
+
   it("deletes a collection and prunes it from every post's membership", async () => {
     const h = await setup();
     let cId = "";
