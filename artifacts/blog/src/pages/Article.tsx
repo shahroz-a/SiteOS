@@ -19,6 +19,7 @@ import { useSeo } from "@/hooks/use-seo";
 import {
   asComponentTree,
   tocFromComponentTree,
+  prepareArticleHtml,
   authorPath,
   categoryPath,
   formatDate,
@@ -146,10 +147,15 @@ export default function Article() {
   const slug = params?.slug ?? "";
   const { data: post, isLoading, isError } = useGetPostBySlug(slug);
 
-  const tocItems = useMemo(
-    () => tocFromComponentTree(asComponentTree(post?.componentTree)),
-    [post?.componentTree],
-  );
+  // The cleaned raw HTML is the body we actually render, so derive the TOC from
+  // it (heading ids are injected during the same pass) to guarantee anchors
+  // resolve. Fall back to the componentTree only when there's no HTML body.
+  const tocItems = useMemo(() => {
+    if (post?.contentHtml && post.contentHtml.trim().length > 0) {
+      return prepareArticleHtml(post.contentHtml).toc;
+    }
+    return tocFromComponentTree(asComponentTree(post?.componentTree));
+  }, [post?.contentHtml, post?.componentTree]);
 
   const jsonLd = useMemo(
     () => (post?.jsonld ?? []).map((b) => b.data),
