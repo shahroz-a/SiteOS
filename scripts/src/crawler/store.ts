@@ -28,6 +28,7 @@ import {
 import type { ComponentNode, ExtractedPage } from "./types";
 import type { ValidationResult } from "./validate";
 import { pathnameOf, domainOf, stripNul } from "./util";
+import { normalizeRedirectFromPath } from "../prerender/redirects";
 
 export interface StoreResult {
   pageId: string;
@@ -365,13 +366,24 @@ export async function storePage(
     await writeChildren(page, pageId, categoryIds, tagIds);
   }
 
-  // Persist redirect chain (idempotent on from_path).
+  // Persist redirect chain (idempotent on from_path). Only record hops whose old
+  // path is a clean, blog-serveable URL: the static prerender can only emit a
+  // forwarding stub for safe paths under /blog/, so storing malformed junk
+  // (embedded URLs, query strings, map links) or off-blog paths would just create
+  // rows the prerender later skips and that never forward. normalizeRedirectFromPath
+  // mirrors the serving contract so the stored table and the prerender can't drift.
   for (const hop of page.redirectChain) {
+    const fromPath = normalizeRedirectFromPath(pathnameOf(hop.from));
+    if (!fromPath) continue;
+    const toPath = pathnameOf(hop.to).replace(/\/{2,}/g, "/");
+    // A row that forwards to itself is never served (it would loop), so don't
+    // store one — keeps every persisted redirect a genuine, forwarding entry.
+    if (toPath === fromPath) continue;
     await db
       .insert(redirectsTable)
       .values({
-        fromPath: pathnameOf(hop.from),
-        toPath: pathnameOf(hop.to),
+        fromPath,
+        toPath,
         statusCode: hop.status || 301,
         isActive: true,
       })

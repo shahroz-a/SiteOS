@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-19T13:54:16.862Z",
-  "total": 228,
+  "generatedAt": "2026-06-19T14:33:36.202Z",
+  "total": 203,
   "redirects": [
     {
       "id": "c3d0b936-0037-41ee-a26e-21d0460d7943",
@@ -75,14 +75,6 @@
       "createdAt": "2026-06-19T07:02:45.556Z"
     },
     {
-      "id": "7f522839-bdcc-44c7-865f-ee1eeea61228",
-      "fromPath": "/london-theatre-tickets/the-great-gatsby-e-6581/",
-      "toPath": "/london-theatre-tickets/the-great-gatsby-musical-e-6581/",
-      "statusCode": 308,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:02:45.571Z"
-    },
-    {
       "id": "abfb79e4-ef85-418b-a8da-baba1d65c097",
       "fromPath": "/blog/six-the-musical-london/",
       "toPath": "/london-theatre-tickets/six-e-9858/",
@@ -147,14 +139,6 @@
       "createdAt": "2026-06-19T07:04:39.939Z"
     },
     {
-      "id": "7651c40c-3c2b-44d9-a156-b701e27c656f",
-      "fromPath": "/statue-of-liberty-cruises-c-121/",
-      "toPath": "/statue-of-liberty-tickets-c-121/",
-      "statusCode": 308,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:04:39.951Z"
-    },
-    {
       "id": "c88c9347-4977-49b5-93c8-977470c67c31",
       "fromPath": "/blog/headout-reviews/",
       "toPath": "/headout-reviews/",
@@ -201,14 +185,6 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:12:38.390Z"
-    },
-    {
-      "id": "a0fa6e79-8620-4c8f-9429-96e86be8d643",
-      "fromPath": "/blog/off-broadway-week-2-for-1/google.com/maps/place/New+World+Stages/@40.76144,-73.984513,15z/data=!4m5!3m4!1s0x89c25856ddfcb15f:0x95a87dcfffa3c004!8m2!3d40.762763!4d-73.987589",
-      "toPath": "/blog/off-broadway-week-2-for-1/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:12:38.608Z"
     },
     {
       "id": "79b5a802-411a-4b15-a405-69f681187b67",
@@ -435,14 +411,6 @@
       "createdAt": "2026-06-19T07:12:57.112Z"
     },
     {
-      "id": "61c7ca27-66c3-44a6-be19-ccaaab120398",
-      "fromPath": "/blog/coronavirus-in-italy/%E2%80%9Chttps://www.reuters.com/article/us-china-health-vatican-catacombs/vatican-closes-italys-catacombs-due-to-coronavirus-idUSKCN20L2UE%E2%80%9D",
-      "toPath": "/blog/coronavirus-in-italy/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:12:57.842Z"
-    },
-    {
       "id": "c6d39383-d1a7-415f-ac21-8cc9be4944ea",
       "fromPath": "/blog/saint-mark-basilica-tickets/",
       "toPath": "/blog/saint-mark-basilica-guide/",
@@ -659,28 +627,12 @@
       "createdAt": "2026-06-19T07:20:06.762Z"
     },
     {
-      "id": "3fa628ab-c9b3-4d10-a988-9c0c5a1bb567",
-      "fromPath": "/blog/best-broadway-shows-january/%22",
-      "toPath": "/blog/best-broadway-shows-january/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:06.994Z"
-    },
-    {
       "id": "114dbe36-c4a6-4470-a3e4-5ba89c271220",
       "fromPath": "/blog/grindelwald/www.collectionpage.com",
       "toPath": "/blog/grindelwald/",
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:07.016Z"
-    },
-    {
-      "id": "76d8ee54-a04a-4334-8fd3-bf3d09ae1cdf",
-      "fromPath": "/blog/best-broadway-shows-in-march/%22",
-      "toPath": "/blog/best-broadway-shows-in-march/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:07.881Z"
     },
     {
       "id": "392b5cda-000f-40cc-a4c4-9d8b7dc76859",
@@ -705,14 +657,6 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:09.260Z"
-    },
-    {
-      "id": "eca3e60c-d594-4d3a-bccc-41f0ea3effe8",
-      "fromPath": "/blog/best-broadway-shows-in-february/%22",
-      "toPath": "/blog/best-broadway-shows-in-february/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:09.401Z"
     },
     {
       "id": "b7394914-1e31-4b4c-9540-4fb4fdf0890a",
@@ -803,14 +747,6 @@
       "createdAt": "2026-06-19T07:20:13.004Z"
     },
     {
-      "id": "8f513f51-094c-4e02-ae9f-2f674746417d",
-      "fromPath": "/blog/museum-of-illusions-vienna/place/Museum+der+Illusionen/@48.2096637,16.3645048,17z/data=!3m1!4b1!4m6!3m5!1s0x476d079841a8a7ff:0x65aed2df6ea814d4!8m2!3d48.2096637!4d16.3670797!16s%2Fg%2F11d_bkdxqm",
-      "toPath": "/blog/museum-of-illusions-vienna/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:13.334Z"
-    },
-    {
       "id": "61c984c3-2e61-4534-a51e-88273fc836de",
       "fromPath": "/blog/one-world-observatory/",
       "toPath": "/blog/one-world-observatory-new-york-city/",
@@ -891,134 +827,6 @@
       "createdAt": "2026-06-19T07:20:15.781Z"
     },
     {
-      "id": "2a6f1d1e-fb2e-4a48-af4f-81fa40e4dfa1",
-      "fromPath": "/blog/villa-necchi-campiglio/www.hyerlinktoacombo.com",
-      "toPath": "/blog/villa-necchi-campiglio/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:16.452Z"
-    },
-    {
-      "id": "92e11734-6113-4856-ab60-078fc5edc272",
-      "fromPath": "/blog/st-patricks-cathedral-new-york/www.headout.com/blog/",
-      "toPath": "/blog/st-patricks-cathedral-new-york/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:17.378Z"
-    },
-    {
-      "id": "d112993f-53d2-45bc-8380-f1199e2bbbec",
-      "fromPath": "/blog/rubin-museum-of-art-new-york/www.hyerlinktoacombo.com",
-      "toPath": "/blog/rubin-museum-of-art-new-york/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:17.801Z"
-    },
-    {
-      "id": "2fe391bf-8071-4db8-9490-4f1a3ce810d5",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-guide-top-attractions/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:18.298Z"
-    },
-    {
-      "id": "2d8d0b23-f39e-45d7-bf60-f5f65dd6879a",
-      "fromPath": "/blog/verona-arena/www.hyerlinktoacombo.com",
-      "toPath": "/blog/verona-arena/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:19.545Z"
-    },
-    {
-      "id": "902423af-0871-43f4-9355-46aaa764fc19",
-      "fromPath": "/blog/clearwater-aquarium/www.headout.com/blog/",
-      "toPath": "/blog/clearwater-aquarium/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:21.570Z"
-    },
-    {
-      "id": "6083270b-5bce-4d06-afd4-9c99fe3d6e88",
-      "fromPath": "/blog/singapore-budget-travel/www.wwhotels.com/hotel-81/premier-star/",
-      "toPath": "/blog/singapore-budget-travel/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:32.043Z"
-    },
-    {
-      "id": "0996ec05-9f39-4a4a-be5f-c1f546abdb18",
-      "fromPath": "/blog/london-in-june/headout.com/blog/london-windsor-castle-tickets-tours/",
-      "toPath": "/blog/london-windsor-castle-tickets-tours/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:33.327Z"
-    },
-    {
-      "id": "7f550b19-360c-42c3-b3f4-8ce4dfd52f2b",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-skip-the-line-tickets",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:46.405Z"
-    },
-    {
-      "id": "7f4e10d1-5ba4-47c5-b014-facb8b6d21ba",
-      "fromPath": "/blog/burj-khalifa-entrances/",
-      "toPath": "/blog/which-burj-khalifa-entrance-i-should-take/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:47.263Z"
-    },
-    {
-      "id": "400b9657-d569-4163-a222-6a0c76b908c9",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-catacombs-tour",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:47.594Z"
-    },
-    {
-      "id": "b3031019-df23-4e38-9f68-3f020e1b5dd8",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-guide-questions-answered/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:48.756Z"
-    },
-    {
-      "id": "3f5ee79a-c5ed-454b-a1e3-1a4309174209",
-      "fromPath": "/blog/amsterdam-in-august/headout.com/blog/anne-frank-walking-tour/",
-      "toPath": "/blog/anne-frank-walking-tour/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:50.004Z"
-    },
-    {
-      "id": "da15ea3c-3edb-47d3-a0b8-b3f91ca50dc2",
-      "fromPath": "/blog/disneyland-paris-tips/https://www.headout.com/blog/disneyland-paris-hotel/",
-      "toPath": "/blog/disneyland-paris-hotel/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:54.613Z"
-    },
-    {
-      "id": "6bdf6592-d908-4f24-897d-b0f9c4b91d69",
-      "fromPath": "/blog/aya-universe-dubai/headout.com/blog/dubai-dolphinarium/",
-      "toPath": "/blog/dubai-dolphinarium/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:55.552Z"
-    },
-    {
-      "id": "b4bcd7cc-a7db-4229-becd-a6b7bc49696c",
-      "fromPath": "/blog/paris-3-day-itinerary/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:55.748Z"
-    },
-    {
       "id": "410b065b-8556-43ca-9329-6d28eae990e2",
       "fromPath": "/blog/guggenheim-museum-bilbao/LINK",
       "toPath": "/blog/guggenheim-museum-bilbao/",
@@ -1027,12 +835,12 @@
       "createdAt": "2026-06-19T07:20:16.095Z"
     },
     {
-      "id": "4a4cfb98-8ebe-4d46-b364-f713c0ded197",
-      "fromPath": "/blog/london-dance-shows/www.headout.com/london-theatre-tickets-c-167/",
-      "toPath": "/blog/london-dance-shows/",
+      "id": "2a6f1d1e-fb2e-4a48-af4f-81fa40e4dfa1",
+      "fromPath": "/blog/villa-necchi-campiglio/www.hyerlinktoacombo.com",
+      "toPath": "/blog/villa-necchi-campiglio/",
       "statusCode": 301,
       "isActive": true,
-      "createdAt": "2026-06-19T07:20:17.378Z"
+      "createdAt": "2026-06-19T07:20:16.452Z"
     },
     {
       "id": "5683c3dd-7865-45bc-bbf7-b9744456993b",
@@ -1051,6 +859,22 @@
       "createdAt": "2026-06-19T07:20:16.910Z"
     },
     {
+      "id": "92e11734-6113-4856-ab60-078fc5edc272",
+      "fromPath": "/blog/st-patricks-cathedral-new-york/www.headout.com/blog/",
+      "toPath": "/blog/st-patricks-cathedral-new-york/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:17.378Z"
+    },
+    {
+      "id": "4a4cfb98-8ebe-4d46-b364-f713c0ded197",
+      "fromPath": "/blog/london-dance-shows/www.headout.com/london-theatre-tickets-c-167/",
+      "toPath": "/blog/london-dance-shows/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:17.378Z"
+    },
+    {
       "id": "4a18c4e1-ac1e-4d7e-8973-bd5179fbb60c",
       "fromPath": "/blog/schilthorn/www.collectionpage.com",
       "toPath": "/blog/schilthorn/",
@@ -1059,12 +883,28 @@
       "createdAt": "2026-06-19T07:20:17.685Z"
     },
     {
+      "id": "d112993f-53d2-45bc-8380-f1199e2bbbec",
+      "fromPath": "/blog/rubin-museum-of-art-new-york/www.hyerlinktoacombo.com",
+      "toPath": "/blog/rubin-museum-of-art-new-york/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:17.801Z"
+    },
+    {
       "id": "aa073dd4-578e-4a8e-93f8-3b29abca39f6",
       "fromPath": "/blog/st-patricks-cathedral-new-york/www.hyerlinktoacombo.com",
       "toPath": "/blog/st-patricks-cathedral-new-york/",
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:18.075Z"
+    },
+    {
+      "id": "2fe391bf-8071-4db8-9490-4f1a3ce810d5",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-guide-top-attractions/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:18.298Z"
     },
     {
       "id": "bf6642b8-51e9-45ad-bbf8-ec15e93b4f3b",
@@ -1091,6 +931,14 @@
       "createdAt": "2026-06-19T07:20:19.185Z"
     },
     {
+      "id": "2d8d0b23-f39e-45d7-bf60-f5f65dd6879a",
+      "fromPath": "/blog/verona-arena/www.hyerlinktoacombo.com",
+      "toPath": "/blog/verona-arena/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:19.545Z"
+    },
+    {
       "id": "1c0df060-e671-44b6-b97f-cf8254b0297e",
       "fromPath": "/blog/summit-one-vanderbilt-observation-deck/",
       "toPath": "/blog/summit-one-vanderbilt-observation-deck-new-york-city/",
@@ -1115,140 +963,20 @@
       "createdAt": "2026-06-19T07:20:20.304Z"
     },
     {
-      "id": "2aab8a57-4a86-4e65-af9f-75b901b14c8f",
-      "fromPath": "/blog/rubin-museum-of-art-new-york/www.collectionpage.com",
-      "toPath": "/blog/rubin-museum-of-art-new-york/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:20.915Z"
-    },
-    {
-      "id": "28b803fe-fd75-47f8-a52b-eeadb2fdafbc",
-      "fromPath": "/blog/aquarium-cattolica/www.headout.com/blog/",
-      "toPath": "/blog/aquarium-cattolica/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:21.594Z"
-    },
-    {
-      "id": "c9245293-2a68-478e-a501-081de24673b1",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-december/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:26.654Z"
-    },
-    {
-      "id": "1ecf725c-e2f9-45f5-8896-43b246d18769",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-october/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:26.992Z"
-    },
-    {
-      "id": "d879f649-6e75-48a6-9764-fb9c109ad6b0",
-      "fromPath": "/blog/aladdin-on-broadway/:%22https://en.wikipedia.org/wiki/Jonathan_Freeman_(actor)%22",
-      "toPath": "/blog/aladdin-on-broadway/:%22https:/en.wikipedia.org/wiki/Jonathan_Freeman_(actor",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:27.665Z"
-    },
-    {
-      "id": "08a644b0-c4e7-4280-b42c-af97b8dc703a",
-      "fromPath": "/blog/aladdin-on-broadway/:%22https:/en.wikipedia.org/wiki/Jonathan_Freeman_(actor",
-      "toPath": "/blog/aladdin-on-broadway/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:27.671Z"
-    },
-    {
-      "id": "f355e454-d1b1-4795-8440-0607a4502243",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-hop-on-hop-off-tours/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:27.824Z"
-    },
-    {
-      "id": "cde2e643-33ec-4ed0-8e22-9a2eeea6411f",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-summer/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:28.021Z"
-    },
-    {
-      "id": "979d54a9-7470-436a-a1dc-886d9e2aef46",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-february/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:28.359Z"
-    },
-    {
-      "id": "ffad49d3-a1ba-4733-9674-27890adb3585",
-      "fromPath": "/blog/visiting-amsterdam-in-february-the-definitive-travel-guide/",
-      "toPath": "/blog/amsterdam-in-february/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:28.690Z"
-    },
-    {
-      "id": "cb31191f-37cd-4e1e-9144-5c7bae77f5d8",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-catacombs-skip-the-line/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:31.931Z"
-    },
-    {
-      "id": "bda29251-9fc2-4b8d-aa2f-49f1b28c52e8",
-      "fromPath": "/blog/sydney-harbour-dinner-cruises/sydneyharbourdinnercruise9",
-      "toPath": "/blog/sydney-harbour-dinner-cruises/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:50.647Z"
-    },
-    {
-      "id": "9b3e3bad-fce3-4d47-adf0-916414565995",
-      "fromPath": "/blog/eventim-apollo-seating-plan/seating-plan/",
-      "toPath": "/blog/eventim-apollo-seating-plan/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:52.188Z"
-    },
-    {
-      "id": "c3d13cf3-873a-4067-9948-808b0535ef01",
-      "fromPath": "/blog/disneyland-paris-tips/",
-      "toPath": "/blog/web-stories/disneyland-paris-tips/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:52.338Z"
-    },
-    {
-      "id": "224e2530-f9a7-492b-bbc4-70984c334237",
-      "fromPath": "/blog/where-to-stay-in-rome-for-jubilee/suoresantospirito@gmail.com",
-      "toPath": "/blog/where-to-stay-in-rome-for-jubilee/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:52.629Z"
-    },
-    {
-      "id": "5bd61de5-1732-44e4-8db4-de029844fec8",
-      "fromPath": "/blog/palace-theatre-london/www.headout.com/blog/palace-theatre-seating-plan/",
-      "toPath": "/blog/palace-theatre-seating-plan/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:53.074Z"
-    },
-    {
       "id": "681c3e54-bf8d-475f-9198-434822de8a7e",
       "fromPath": "/blog/tivoli-villa-deste/www.hyerlinktoacombo.com",
       "toPath": "/blog/tivoli-villa-deste/",
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:20.762Z"
+    },
+    {
+      "id": "2aab8a57-4a86-4e65-af9f-75b901b14c8f",
+      "fromPath": "/blog/rubin-museum-of-art-new-york/www.collectionpage.com",
+      "toPath": "/blog/rubin-museum-of-art-new-york/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:20.915Z"
     },
     {
       "id": "77d2cb05-919e-44ac-8b20-990efe915901",
@@ -1259,9 +987,25 @@
       "createdAt": "2026-06-19T07:20:21.134Z"
     },
     {
+      "id": "902423af-0871-43f4-9355-46aaa764fc19",
+      "fromPath": "/blog/clearwater-aquarium/www.headout.com/blog/",
+      "toPath": "/blog/clearwater-aquarium/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:21.570Z"
+    },
+    {
       "id": "7dae384b-6291-4765-8a84-06beee0714c4",
       "fromPath": "/blog/tivoli-villa-deste/www.collectionpage.com",
       "toPath": "/blog/tivoli-villa-deste/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:21.594Z"
+    },
+    {
+      "id": "28b803fe-fd75-47f8-a52b-eeadb2fdafbc",
+      "fromPath": "/blog/aquarium-cattolica/www.headout.com/blog/",
+      "toPath": "/blog/aquarium-cattolica/",
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:21.594Z"
@@ -1307,38 +1051,6 @@
       "createdAt": "2026-06-19T07:20:23.335Z"
     },
     {
-      "id": "c83e3db8-06de-4c8b-9776-0e66b13dd744",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-august/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:25.650Z"
-    },
-    {
-      "id": "b3acb5c7-b456-43bf-9673-c7119a812984",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-army-museum/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:25.816Z"
-    },
-    {
-      "id": "80e75ad4-cfac-4c0b-8591-0b9364b8b6c4",
-      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-november/",
-      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:26.515Z"
-    },
-    {
-      "id": "5f9e18f1-2d44-4cc7-84d9-9a917dbaf83f",
-      "fromPath": "/blog/dubai-guide-things-to-do/",
-      "toPath": "/blog/dubai-bucket-list-experiences/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:31.979Z"
-    },
-    {
       "id": "5fe1e795-d79a-4518-8cd1-cb3c8035761a",
       "fromPath": "/blog/web-stories/paris-3-day-itinerary/-skip-the-line-tickets/",
       "toPath": "/blog/web-stories/paris-3-day-itinerary/",
@@ -1371,12 +1083,84 @@
       "createdAt": "2026-06-19T07:20:25.213Z"
     },
     {
+      "id": "c83e3db8-06de-4c8b-9776-0e66b13dd744",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-august/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:25.650Z"
+    },
+    {
+      "id": "b3acb5c7-b456-43bf-9673-c7119a812984",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-army-museum/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:25.816Z"
+    },
+    {
+      "id": "80e75ad4-cfac-4c0b-8591-0b9364b8b6c4",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-november/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:26.515Z"
+    },
+    {
+      "id": "c9245293-2a68-478e-a501-081de24673b1",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-december/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:26.654Z"
+    },
+    {
       "id": "3389b333-3f20-4c0b-9fbc-eb5452e6e901",
       "fromPath": "/blog/playhouse-theatre-seating-plan/",
       "toPath": "/blog/sam-wanamaker-playhouse-seating-plan/",
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:26.654Z"
+    },
+    {
+      "id": "1ecf725c-e2f9-45f5-8896-43b246d18769",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-october/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:26.992Z"
+    },
+    {
+      "id": "f355e454-d1b1-4795-8440-0607a4502243",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-hop-on-hop-off-tours/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:27.824Z"
+    },
+    {
+      "id": "cde2e643-33ec-4ed0-8e22-9a2eeea6411f",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-summer/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:28.021Z"
+    },
+    {
+      "id": "979d54a9-7470-436a-a1dc-886d9e2aef46",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-in-february/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:28.359Z"
+    },
+    {
+      "id": "ffad49d3-a1ba-4733-9674-27890adb3585",
+      "fromPath": "/blog/visiting-amsterdam-in-february-the-definitive-travel-guide/",
+      "toPath": "/blog/amsterdam-in-february/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:28.690Z"
     },
     {
       "id": "00498684-610a-4009-a6af-477f32a8ba98",
@@ -1419,6 +1203,38 @@
       "createdAt": "2026-06-19T07:20:31.157Z"
     },
     {
+      "id": "cb31191f-37cd-4e1e-9144-5c7bae77f5d8",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-catacombs-skip-the-line/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:31.931Z"
+    },
+    {
+      "id": "5f9e18f1-2d44-4cc7-84d9-9a917dbaf83f",
+      "fromPath": "/blog/dubai-guide-things-to-do/",
+      "toPath": "/blog/dubai-bucket-list-experiences/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:31.979Z"
+    },
+    {
+      "id": "6083270b-5bce-4d06-afd4-9c99fe3d6e88",
+      "fromPath": "/blog/singapore-budget-travel/www.wwhotels.com/hotel-81/premier-star/",
+      "toPath": "/blog/singapore-budget-travel/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:32.043Z"
+    },
+    {
+      "id": "0996ec05-9f39-4a4a-be5f-c1f546abdb18",
+      "fromPath": "/blog/london-in-june/headout.com/blog/london-windsor-castle-tickets-tours/",
+      "toPath": "/blog/london-windsor-castle-tickets-tours/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:33.327Z"
+    },
+    {
       "id": "f86b82ca-c520-49ed-b7e6-3c08968834bf",
       "fromPath": "/blog/seaworld-orlando/www.headout.com/blog/",
       "toPath": "/blog/seaworld-orlando/",
@@ -1433,14 +1249,6 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:34.532Z"
-    },
-    {
-      "id": "66585751-ca21-40a6-80f4-de59b2be31a8",
-      "fromPath": "/blog/free-walking-tour-paris/https://www.headout.com/paris-food-and-drinks-c-214/",
-      "toPath": "/blog/free-walking-tour-paris/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:36.501Z"
     },
     {
       "id": "38367d96-760d-4c76-a416-5046fb97fcea",
@@ -1587,6 +1395,30 @@
       "createdAt": "2026-06-19T07:20:46.363Z"
     },
     {
+      "id": "7f550b19-360c-42c3-b3f4-8ce4dfd52f2b",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-skip-the-line-tickets",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:46.405Z"
+    },
+    {
+      "id": "7f4e10d1-5ba4-47c5-b014-facb8b6d21ba",
+      "fromPath": "/blog/burj-khalifa-entrances/",
+      "toPath": "/blog/which-burj-khalifa-entrance-i-should-take/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:47.263Z"
+    },
+    {
+      "id": "400b9657-d569-4163-a222-6a0c76b908c9",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-catacombs-tour",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:47.594Z"
+    },
+    {
       "id": "67c410c1-bca0-431f-9c9e-262186f42674",
       "fromPath": "/blog/1-day-singapore-itinerary/headout.com/blog/singapore-flyer/",
       "toPath": "/blog/singapore-flyer/",
@@ -1601,6 +1433,14 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:48.525Z"
+    },
+    {
+      "id": "b3031019-df23-4e38-9f68-3f020e1b5dd8",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-guide-questions-answered/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:48.756Z"
     },
     {
       "id": "600dfb6f-f1bc-4b9c-8ab0-6072c23dd762",
@@ -1619,12 +1459,28 @@
       "createdAt": "2026-06-19T07:20:49.540Z"
     },
     {
+      "id": "3f5ee79a-c5ed-454b-a1e3-1a4309174209",
+      "fromPath": "/blog/amsterdam-in-august/headout.com/blog/anne-frank-walking-tour/",
+      "toPath": "/blog/anne-frank-walking-tour/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:50.004Z"
+    },
+    {
       "id": "a8198d44-fb6d-4d8e-8017-cad3bfe73e10",
       "fromPath": "/blog/where-to-stay-in-rome-for-jubilee/www.santascolastica.org",
       "toPath": "/blog/where-to-stay-in-rome-for-jubilee/",
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:50.400Z"
+    },
+    {
+      "id": "bda29251-9fc2-4b8d-aa2f-49f1b28c52e8",
+      "fromPath": "/blog/sydney-harbour-dinner-cruises/sydneyharbourdinnercruise9",
+      "toPath": "/blog/sydney-harbour-dinner-cruises/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:50.647Z"
     },
     {
       "id": "46d18666-1d18-43e3-a2f2-d380af85b272",
@@ -1649,6 +1505,30 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:52.079Z"
+    },
+    {
+      "id": "9b3e3bad-fce3-4d47-adf0-916414565995",
+      "fromPath": "/blog/eventim-apollo-seating-plan/seating-plan/",
+      "toPath": "/blog/eventim-apollo-seating-plan/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:52.188Z"
+    },
+    {
+      "id": "c3d13cf3-873a-4067-9948-808b0535ef01",
+      "fromPath": "/blog/disneyland-paris-tips/",
+      "toPath": "/blog/web-stories/disneyland-paris-tips/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:52.338Z"
+    },
+    {
+      "id": "5bd61de5-1732-44e4-8db4-de029844fec8",
+      "fromPath": "/blog/palace-theatre-london/www.headout.com/blog/palace-theatre-seating-plan/",
+      "toPath": "/blog/palace-theatre-seating-plan/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:53.074Z"
     },
     {
       "id": "3443572b-0ab8-4515-b70c-7f99dc49306a",
@@ -1683,12 +1563,28 @@
       "createdAt": "2026-06-19T07:20:54.496Z"
     },
     {
+      "id": "6bdf6592-d908-4f24-897d-b0f9c4b91d69",
+      "fromPath": "/blog/aya-universe-dubai/headout.com/blog/dubai-dolphinarium/",
+      "toPath": "/blog/dubai-dolphinarium/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:55.552Z"
+    },
+    {
       "id": "ad8a5df1-2754-452b-9eef-f57a8039a5ae",
       "fromPath": "/blog/interail-one-country-pass/",
       "toPath": "/blog/interrail-one-country-pass/",
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:55.556Z"
+    },
+    {
+      "id": "b4bcd7cc-a7db-4229-becd-a6b7bc49696c",
+      "fromPath": "/blog/paris-3-day-itinerary/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T07:20:55.748Z"
     },
     {
       "id": "58212b4e-62bb-4279-99ab-f80cd79f5fd5",
@@ -1705,14 +1601,6 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:57.422Z"
-    },
-    {
-      "id": "ed4a652b-c3a3-4de3-8855-aa60b64e8393",
-      "fromPath": "/blog/where-to-stay-in-rome-for-jubilee/ist.it.s.elisabetta@libero.it",
-      "toPath": "/blog/where-to-stay-in-rome-for-jubilee/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T07:20:57.589Z"
     },
     {
       "id": "4b418fa6-16a1-4072-8ad6-da06f5f07e8e",
@@ -1737,94 +1625,6 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:59.139Z"
-    },
-    {
-      "id": "2d8b71ba-974d-4f68-8d19-67c20441b720",
-      "fromPath": "/blog/unique-christmas-traditions-around-the-world/",
-      "toPath": "/blog/christmas-around-the-world/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:22.493Z"
-    },
-    {
-      "id": "fd6c0c4a-8f40-4d85-ae05-26cc72caf5cc",
-      "fromPath": "/blog/shinkansen-bullet-train-to-mount-fuji/",
-      "toPath": "/blog/shinkansen-bullet-train-guide/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:22.547Z"
-    },
-    {
-      "id": "3c21592b-a359-40c6-b150-a7c5e027025e",
-      "fromPath": "/blog/hong-kong-cruises/hongkongcruise5",
-      "toPath": "/blog/hong-kong-cruises/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:23.774Z"
-    },
-    {
-      "id": "77eeb604-a36c-4309-8b60-76f88c0e5279",
-      "fromPath": "/blog/gardens-by-the-bay-garden-rhapsody/",
-      "toPath": "/blog/garden-rhapsody-at-gardens-by-the-bay/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:24.783Z"
-    },
-    {
-      "id": "f1061828-7884-4f32-a09a-b09c7428858f",
-      "fromPath": "/blog/web-stories/paris-in-1-day-itinerary/",
-      "toPath": "/blog/web-stories/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:24.786Z"
-    },
-    {
-      "id": "137ab534-3c0d-44f2-9a09-ec3293a5627a",
-      "fromPath": "/blog/hong-kong-cruises/hongkongcruise6",
-      "toPath": "/blog/hong-kong-cruises/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:25.772Z"
-    },
-    {
-      "id": "91e9881a-cd2c-46b7-a3f6-2fccbcc5822e",
-      "fromPath": "/blog/disneyland-paris-tips",
-      "toPath": "/blog/web-stories/disneyland-paris-tips/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:28.512Z"
-    },
-    {
-      "id": "f5691c8a-fec1-402e-8257-ed141f5e6827",
-      "fromPath": "/blog/hong-kong-cruises/hongkongcruise4",
-      "toPath": "/blog/hong-kong-cruises/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:26.604Z"
-    },
-    {
-      "id": "bbfc6c9c-5a04-4dbd-971c-1a7e31fc44bb",
-      "fromPath": "/blog/web-stories/landmarks-in-bangkok/",
-      "toPath": "/blog/web-stories/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:27.353Z"
-    },
-    {
-      "id": "130f402e-46a8-49be-9d2e-63f2eeb7f596",
-      "fromPath": "/blog/vatican-city-secrets/",
-      "toPath": "/blog/secrets-of-the-vatican-city/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:29.422Z"
-    },
-    {
-      "id": "658f3c0c-d634-4104-aa09-f85943b8f42e",
-      "fromPath": "/blog/historical-landmarks-world/",
-      "toPath": "/blog/historical-landmarks-around-the-world-you-should-visit/",
-      "statusCode": 301,
-      "isActive": true,
-      "createdAt": "2026-06-19T13:49:34.907Z"
     }
   ]
 }

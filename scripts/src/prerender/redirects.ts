@@ -55,6 +55,21 @@ export function redirectFilePaths(fromPath: string): string[] | null {
 }
 
 /**
+ * Normalise a redirect `fromPath` into the clean, blog-serveable form, or
+ * `null` if it can't be salvaged. Collapses accidental repeated slashes, then
+ * keeps the path only if the serving step could actually emit a stub for it
+ * (under `/blog/`, non-empty, every segment safe). This is the single source of
+ * truth for "is this redirect serveable" — recording (`crawler/store.ts`) runs
+ * it before persisting a `redirects` row so the table never stores a path the
+ * prerender would later skip (off-blog paths, the bare blog root, or junk
+ * carrying embedded URLs / query strings / map links).
+ */
+export function normalizeRedirectFromPath(fromPath: string): string | null {
+  const collapsed = fromPath.replace(/\/{2,}/g, "/");
+  return redirectFilePaths(collapsed) ? collapsed : null;
+}
+
+/**
  * Resolve a redirect `toPath` into the URL the stub should forward to. On-blog
  * targets stay root-relative (they live on the migrated deployment); everything
  * else (retired pages now pointing at product/category pages) is made absolute

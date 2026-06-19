@@ -18,6 +18,7 @@ class FakeDb {
   insertRowCounts: Record<string, number> = {};
   insertCallCounts: Record<string, number> = {};
   deleteCounts: Record<string, number> = {};
+  redirectRows: Array<{ fromPath: string; toPath: string }> = [];
   private seq = 0;
 
   id(prefix: string): string {
@@ -88,6 +89,15 @@ class InsertBuilder {
             contentHash: String(r.contentHash),
           });
           this.db.versions.set(pageId, arr);
+        }
+        return [];
+      }
+      case "redirects": {
+        for (const r of this.vals) {
+          this.db.redirectRows.push({
+            fromPath: String(r.fromPath),
+            toPath: String(r.toPath),
+          });
         }
         return [];
       }
@@ -253,6 +263,7 @@ describe("storePage idempotency", () => {
     fakeDb.insertRowCounts = {};
     fakeDb.insertCallCounts = {};
     fakeDb.deleteCounts = {};
+    fakeDb.redirectRows = [];
   });
 
   it("creates the page and an initial version on first store", async () => {
@@ -325,6 +336,7 @@ describe("storePage publication gating (hold back failed articles)", () => {
     fakeDb.insertRowCounts = {};
     fakeDb.insertCallCounts = {};
     fakeDb.deleteCounts = {};
+    fakeDb.redirectRows = [];
   });
 
   it("publishes a page whose validation passed", async () => {
@@ -345,5 +357,75 @@ describe("storePage publication gating (hold back failed articles)", () => {
   it("defaults to published when no validation status is provided", async () => {
     await storePage(assemble());
     expect(fakeDb.pageStatus.get(URL)).toBe("published");
+  });
+});
+
+describe("storePage redirect recording (only clean, serveable rows)", () => {
+  beforeEach(() => {
+    fakeDb.pages.clear();
+    fakeDb.authors.clear();
+    fakeDb.categories.clear();
+    fakeDb.tags.clear();
+    fakeDb.pageStatus.clear();
+    fakeDb.versions.clear();
+    fakeDb.insertRowCounts = {};
+    fakeDb.insertCallCounts = {};
+    fakeDb.deleteCounts = {};
+    fakeDb.redirectRows = [];
+  });
+
+  const ORIGIN = "https://www.headout.com";
+  function assembleWithRedirects(hops: Array<{ from: string; to: string; status: number }>) {
+    const fetch = { ...makeFetchResult(html, URL), redirectChain: hops };
+    return assemblePage(fetch, null);
+  }
+
+  it("stores clean on-blog hops and drops off-blog, junk, and self-redirect hops", async () => {
+    await storePage(
+      assembleWithRedirects([
+        // clean — kept
+        { from: `${ORIGIN}/blog/old-name/`, to: `${ORIGIN}/blog/new-name/`, status: 301 },
+        // off-blog — dropped (blog can't serve it)
+        {
+          from: `${ORIGIN}/statue-of-liberty-cruises-c-121/`,
+          to: `${ORIGIN}/statue-of-liberty-tickets-c-121/`,
+          status: 301,
+        },
+        // embedded URL junk — dropped
+        {
+          from: `${ORIGIN}/blog/disneyland-paris-tips/https://www.headout.com/blog/disneyland-paris-hotel/`,
+          to: `${ORIGIN}/blog/disneyland-paris-hotel/`,
+          status: 301,
+        },
+        // trailing quote junk — dropped
+        {
+          from: `${ORIGIN}/blog/best-broadway-shows-january/%22`,
+          to: `${ORIGIN}/blog/best-broadway-shows-january/`,
+          status: 301,
+        },
+        // self-redirect after slash-collapse — dropped (would loop)
+        { from: `${ORIGIN}/blog/loop//`, to: `${ORIGIN}/blog/loop/`, status: 301 },
+      ]),
+    );
+
+    expect(fakeDb.redirectRows).toEqual([
+      { fromPath: "/blog/old-name/", toPath: "/blog/new-name/" },
+    ]);
+  });
+
+  it("normalizes accidental repeated slashes into a serveable path", async () => {
+    await storePage(
+      assembleWithRedirects([
+        {
+          from: `${ORIGIN}/blog/acropolis-athens//tickets/`,
+          to: `${ORIGIN}/blog/acropolis-athens-tickets/`,
+          status: 301,
+        },
+      ]),
+    );
+
+    expect(fakeDb.redirectRows).toEqual([
+      { fromPath: "/blog/acropolis-athens/tickets/", toPath: "/blog/acropolis-athens-tickets/" },
+    ]);
   });
 });

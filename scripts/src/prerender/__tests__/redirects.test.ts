@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRedirectStub,
+  normalizeRedirectFromPath,
   redirectFilePaths,
   redirectTargetUrl,
   renderRedirectHtml,
@@ -32,6 +33,45 @@ describe("redirectFilePaths", () => {
       redirectFilePaths("/blog/x/google.com/maps/place/@40.7,!4m5"),
     ).toBeNull();
     expect(redirectFilePaths("/blog/with%20space/")).toBeNull();
+  });
+});
+
+describe("normalizeRedirectFromPath", () => {
+  it("keeps a clean on-blog path unchanged", () => {
+    expect(normalizeRedirectFromPath("/blog/old-name/")).toBe("/blog/old-name/");
+    expect(normalizeRedirectFromPath("/blog/web-stories/paris-3-day-itinerary")).toBe(
+      "/blog/web-stories/paris-3-day-itinerary",
+    );
+  });
+
+  it("collapses accidental repeated slashes into a serveable path", () => {
+    expect(normalizeRedirectFromPath("/blog/acropolis-athens//tickets/")).toBe(
+      "/blog/acropolis-athens/tickets/",
+    );
+    expect(normalizeRedirectFromPath("/blog/loop//")).toBe("/blog/loop/");
+  });
+
+  it("drops off-blog and bare-root paths", () => {
+    expect(normalizeRedirectFromPath("/statue-of-liberty-cruises-c-121/")).toBeNull();
+    expect(normalizeRedirectFromPath("/london-theatre-tickets/the-great-gatsby-e-6581/")).toBeNull();
+    expect(normalizeRedirectFromPath("/blog/")).toBeNull();
+  });
+
+  it("drops junk paths carrying embedded URLs, query strings, map links, or quotes", () => {
+    expect(normalizeRedirectFromPath("/blog/best-broadway-shows-january/%22")).toBeNull();
+    expect(
+      normalizeRedirectFromPath(
+        "/blog/disneyland-paris-tips/https://www.headout.com/blog/disneyland-paris-hotel/",
+      ),
+    ).toBeNull();
+    expect(
+      normalizeRedirectFromPath(
+        "/blog/off-broadway-week-2-for-1/google.com/maps/place/New+World+Stages/@40.76,-73.98,15z",
+      ),
+    ).toBeNull();
+    expect(
+      normalizeRedirectFromPath("/blog/where-to-stay-in-rome-for-jubilee/ist.it.s.elisabetta@libero.it"),
+    ).toBeNull();
   });
 });
 
