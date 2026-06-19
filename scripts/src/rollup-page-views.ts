@@ -29,6 +29,15 @@ import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
 
+/**
+ * Anything that can run the rollup's SQL: the shared `db` singleton in
+ * production, or a caller-supplied transaction in tests (so an integration
+ * test can drive a real rollup inside a transaction it later rolls back,
+ * leaving the live DB untouched). Both expose `execute` (dry-run preview) and
+ * `transaction` (the apply path opens its own unit-of-work).
+ */
+type RollupExecutor = Pick<typeof db, "execute" | "transaction">;
+
 interface Options {
   dryRun: boolean;
   /** Keep this many most-recent completed days as raw (not yet rolled up). */
@@ -68,7 +77,10 @@ export interface RollupResult {
  * past day) and deleted atomically, the rollup and raw tables never both hold
  * the same day.
  */
-export async function run(opts: Options): Promise<RollupResult> {
+export async function run(
+  opts: Options,
+  executor: RollupExecutor = db,
+): Promise<RollupResult> {
   // Exclusive cutoff: start of (today - retentionDays) in UTC. Rows strictly
   // before this are complete past days eligible for rollup. retentionDays is a
   // sanitized non-negative integer (parseArgs floors/clamps it), so inlining it
@@ -77,7 +89,7 @@ export async function run(opts: Options): Promise<RollupResult> {
   const cutoffSql = sql`(current_date - ${sql.raw(String(opts.retentionDays))})::timestamptz`;
 
   if (opts.dryRun) {
-    const previewRes = await db.execute<{
+    const previewRes = await executor.execute<{
       buckets: number;
       rolled_rows: number;
       days: number;
@@ -101,7 +113,7 @@ export async function run(opts: Options): Promise<RollupResult> {
     };
   }
 
-  return db.transaction(async (tx) => {
+  return executor.transaction(async (tx) => {
     // 1) Fold eligible raw rows into the rollup. Summing into existing buckets
     //    keeps the job safe to re-run and tolerant of a future where a day is
     //    partially present.

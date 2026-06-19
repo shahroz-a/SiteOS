@@ -31,6 +31,7 @@
     "verify:roundtrip": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/payload/__tests__/roundtrip-real-data.test.ts",
     "verify:redirects": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/prerender/__tests__/redirect-stubs-real-data.test.ts",
     "verify:redirect-health": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/prerender/__tests__/redirect-health-real-data.test.ts",
+    "verify:rollup": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/__tests__/rollup-page-views-real-data.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
