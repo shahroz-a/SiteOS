@@ -72,7 +72,7 @@ interface PublishBlock {
  * mutation error, or return null for any other failure so it falls through to
  * the generic toast.
  */
-function extractPublishBlock(err: unknown): PublishBlock | null {
+export function extractPublishBlock(err: unknown): PublishBlock | null {
   if (!err || typeof err !== "object") return null;
   if ((err as { status?: unknown }).status !== 422) return null;
   const data = (err as { data?: unknown }).data;
