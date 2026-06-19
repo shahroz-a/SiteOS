@@ -404,13 +404,16 @@ function ArticleDrawer({
         queryClient.invalidateQueries({
           queryKey: getListCmsHeldBackArticlesQueryKey(),
         });
+        const changedNote = current.changed
+          ? "Content changed."
+          : "Content unchanged.";
         toast({
           title: current.heldBack
             ? "Re-extracted — still held back"
             : "Re-extracted — article cleared the queue",
           description: current.heldBack
-            ? `Validation: ${current.validationStatus} (${current.validationScore}).`
-            : "It passed validation and was published.",
+            ? `Validation: ${current.validationStatus} (${current.validationScore}). ${changedNote}`
+            : `It passed validation and was published. ${changedNote}`,
         });
       }
       return current;
@@ -656,7 +659,10 @@ function ReextractPanel({
         <p className="mt-2 text-sm text-muted-foreground">
           {result.heldBack
             ? `Re-extracted — still held back (validation: ${result.validationStatus}, score ${result.validationScore}).`
-            : "Re-extracted successfully — it passed validation and left the queue."}
+            : "Re-extracted successfully — it passed validation and left the queue."}{" "}
+          {result.changed
+            ? "The extracted content changed."
+            : "The extracted content is unchanged."}
         </p>
       ) : (
         <p className="mt-2 text-xs text-muted-foreground">
