@@ -33,11 +33,13 @@ import { db, pool } from "@workspace/db";
  * lockstep with the `*_trgm` index declarations in the schema files — there are
  * 18 of them.
  */
-const TRIGRAM_INDEXES: Array<{
+export type TrigramIndex = {
   name: string;
   table: string;
   column: string;
-}> = [
+};
+
+export const TRIGRAM_INDEXES: TrigramIndex[] = [
   // lib/db/src/schema/pages.ts
   { name: "pages_title_trgm", table: "pages", column: "title" },
   { name: "pages_slug_trgm", table: "pages", column: "slug" },
