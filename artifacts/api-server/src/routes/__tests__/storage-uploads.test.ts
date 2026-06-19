@@ -142,3 +142,34 @@ describe("POST /api/storage/uploads/request-url (size guard)", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("POST /api/storage/uploads/request-url (content-type guard)", () => {
+  const permitted = ROLES.find(canList) as Role;
+
+  it("rejects a non-image declared contentType before issuing an upload URL", async () => {
+    const res = await request(app)
+      .post("/api/storage/uploads/request-url")
+      .set("Authorization", bearer(permitted))
+      .send({
+        name: "doc.pdf",
+        size: 1024,
+        contentType: "application/pdf",
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/image/i);
+    expect(res.body.uploadURL).toBeUndefined();
+  });
+
+  it("still enforces RBAC before the content-type guard", async () => {
+    const denied = ROLES.find((r) => !canList(r)) as Role;
+    const res = await request(app)
+      .post("/api/storage/uploads/request-url")
+      .set("Authorization", bearer(denied))
+      .send({
+        name: "doc.pdf",
+        size: 1024,
+        contentType: "application/pdf",
+      });
+    expect(res.status).toBe(403);
+  });
+});

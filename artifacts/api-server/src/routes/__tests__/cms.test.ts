@@ -679,7 +679,6 @@ describe("GET /api/cms/posts/:id/source", () => {
     expect(res.status).toBe(404);
   });
 });
-});
 
 describe("PATCH /api/cms/held-back-articles/:id", () => {
   const PERMITTED: Role[] = ["admin", "editor", "reviewer"];

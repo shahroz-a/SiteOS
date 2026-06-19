@@ -21,6 +21,9 @@ const tooLargeMessage = `Image is too large (max ${Math.floor(
   MAX_IMAGE_BYTES / (1024 * 1024),
 )} MB).`;
 
+/** Shared "not an image" message for the request-url contentType fail-fast. */
+const notAnImageMessage = "Only image uploads are allowed.";
+
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
@@ -47,6 +50,16 @@ router.post(
     }
 
     const { name, size, contentType } = parsed.data;
+
+    // Fail fast on a clearly non-image *declared* contentType: refuse to hand
+    // out an upload URL for e.g. application/pdf, so an honest client never
+    // starts transferring the bytes. Symmetric with the size guard below. A
+    // client that lies about its contentType is still caught after upload by
+    // the finalize magic-byte check, which stays the authoritative backstop.
+    if (!contentType.startsWith("image/")) {
+      res.status(400).json({ error: notAnImageMessage });
+      return;
+    }
 
     // Fail fast on an oversized *declared* size: refuse to hand out an upload
     // URL at all, so an honest client never starts transferring the bytes.
