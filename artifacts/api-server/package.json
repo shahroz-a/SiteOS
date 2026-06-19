@@ -14,6 +14,7 @@
     "verify:analytics-views": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/lib/__tests__/analytics-views-real-data.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seo:reports": "tsx ./src/lib/generate-seo-reports.ts",
+    "seo:reports:prod": "node ./dist/lib/generate-seo-reports.mjs",
     "verify:cms-io": "cd ../.. && VERIFY_CMS_IO=1 CMS_IO_VERIFY_LIMIT=3 vitest run artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts",
     "verify:cms-io:full": "cd ../.. && VERIFY_CMS_IO=1 vitest run artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts",
     "verify:cms-write": "cd ../.. && VERIFY_CMS_WRITE=1 vitest run artifacts/api-server/src/lib/__tests__/cms-publishing.integration.test.ts artifacts/api-server/src/lib/__tests__/cms-publishing-route.integration.test.ts"

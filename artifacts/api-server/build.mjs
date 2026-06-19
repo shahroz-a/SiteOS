@@ -15,7 +15,13 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    // index.ts is the server; generate-seo-reports.ts is bundled as a standalone
+    // scheduled-job entry point so production can run it with `node` directly
+    // (no tsx/pnpm at runtime) — same convention as the scripts/* jobs.
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      path.resolve(artifactDir, "src/lib/generate-seo-reports.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",
