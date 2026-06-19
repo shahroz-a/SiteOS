@@ -27,6 +27,7 @@
     "reclassify:non-blog": "tsx ./src/reclassify-non-blog-pages.ts",
     "ensure:search-indexes": "tsx ./src/ensure-search-indexes.ts",
     "ensure:analytics": "tsx ./src/ensure-analytics.ts",
+    "migrate:component-tree-key": "tsx ./src/migrate-component-tree-key.ts",
     "test": "vitest run",
     "verify:roundtrip": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/payload/__tests__/roundtrip-real-data.test.ts",
     "verify:redirects": "cd .. && VERIFY_REAL_DATA=1 vitest run scripts/src/prerender/__tests__/redirect-stubs-real-data.test.ts",

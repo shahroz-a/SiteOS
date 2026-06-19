@@ -439,13 +439,21 @@ function CTPlainTable({ node }: { node: CTNode }) {
 }
 
 function renderCTNode(node: CTNode, key: number): React.ReactNode {
-  // crawler array shape (`type`) -----------------------------------
-  switch (node.type) {
+  // Unified block vocabulary. `blockType` is the canonical discriminator (the
+  // crawler, importer and CMS editor all emit it); `?? node.type` is a
+  // defensive fallback for any legacy/not-yet-migrated stored tree that still
+  // carries the old crawler `type` key (e.g. a production corpus that hasn't
+  // been migrated yet). Overlapping block names (heading/list/section) branch
+  // on data shape so the single switch serves both the crawler's richer
+  // vocabulary and the importer's simpler one.
+  switch (node.blockType ?? node.type) {
     case "heading": {
       const level = node.data?.level ?? 2;
       const tag = `h${Math.min(Math.max(level, 1), 6)}` as keyof React.JSX.IntrinsicElements;
       return React.createElement(tag, { key, id: node.anchorId }, node.text ?? "");
     }
+    case "paragraph":
+      return node.text ? <p key={key}>{node.text}</p> : null;
     case "richText":
       return node.data?.richText
         ? renderLexBlock(node.data.richText as LexNode, key)
@@ -455,9 +463,22 @@ function renderCTNode(node: CTNode, key: number): React.ReactNode {
             ? <p key={key}>{node.text}</p>
             : null;
     case "list":
-      return node.data?.richText
-        ? renderLexList(node.data.richText as LexNode, key)
-        : null;
+      // crawler list carries a Lexical `richText`; importer list carries a
+      // plain `items` string array.
+      return node.data?.richText ? (
+        renderLexList(node.data.richText as LexNode, key)
+      ) : node.data?.items && node.data.items.length > 0 ? (
+        (() => {
+          const ListTag = node.data.ordered ? "ol" : "ul";
+          return (
+            <ListTag key={key}>
+              {node.data!.items!.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ListTag>
+          );
+        })()
+      ) : null;
     case "table":
       return node.data?.richText ? (
         renderLexTable(node.data.richText as LexNode, key)
@@ -498,36 +519,8 @@ function renderCTNode(node: CTNode, key: number): React.ReactNode {
     case "divider":
       return <hr key={key} className="my-8 border-border" />;
     case "section":
-      return (
-        <section key={key} id={node.anchorId}>
-          {(node.children ?? []).map((c, i) => renderCTNode(c, i))}
-        </section>
-      );
-  }
-
-  // importer root shape (`blockType`) ------------------------------
-  switch (node.blockType) {
-    case "heading":
-      return (
-        <h2 key={key} id={node.anchorId}>
-          {node.text}
-        </h2>
-      );
-    case "paragraph":
-      return node.text ? <p key={key}>{node.text}</p> : null;
-    case "list": {
-      const ordered = node.data?.ordered;
-      const ListTag = ordered ? "ol" : "ul";
-      const items = node.data?.items ?? [];
-      return (
-        <ListTag key={key}>
-          {items.map((item, i) => (
-            <li key={i}>{item}</li>
-          ))}
-        </ListTag>
-      );
-    }
-    case "section":
+      // importer sections carry a heading in `data.heading`; crawler sections
+      // are pure containers (their heading is a sibling `heading` block).
       return (
         <section key={key} id={node.anchorId}>
           {node.data?.heading ? <h2>{node.data.heading}</h2> : null}

@@ -314,14 +314,18 @@ export function tocFromComponentTree(nodes: CTNode[] | null): TocItem[] {
   const visit = (list: CTNode[]): void => {
     for (const node of list) {
       const id = node.anchorId;
+      const kind = node.blockType ?? node.type;
       if (id && !seen.has(id)) {
-        if (node.type === "heading" && node.data?.level === 2 && node.text) {
-          seen.add(id);
-          items.push({ id, label: node.text });
-        } else if (node.blockType === "section") {
+        if (kind === "section") {
           seen.add(id);
           items.push({ id, label: node.data?.heading ?? node.text ?? "" });
-        } else if (node.blockType === "heading" && node.text) {
+        } else if (
+          kind === "heading" &&
+          node.text &&
+          (node.data?.level == null || node.data.level === 2)
+        ) {
+          // Top-level (h2) headings only — crawler headings carry an explicit
+          // `data.level`; importer headings omit it (rendered as h2).
           seen.add(id);
           items.push({ id, label: node.text });
         }

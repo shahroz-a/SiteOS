@@ -169,7 +169,10 @@ function normalizeBlockNode(node: unknown): BlockNode {
   const children = Array.isArray(n.children)
     ? n.children.map(normalizeBlockNode)
     : undefined;
-  // The importer keys the discriminator `blockType`; the crawler keys it `type`.
+  // `blockType` is the unified discriminator emitted by the crawler, importer
+  // and CMS editor. `type` is a defensive fallback for any legacy stored tree
+  // that predates the unification and hasn't been migrated yet (e.g. a prod
+  // corpus before a re-publish).
   const blockType =
     typeof n.blockType === "string"
       ? n.blockType

@@ -83,11 +83,13 @@ export interface FetchResult {
 }
 
 /**
- * A node in the Payload-compatible component/block tree. `type` maps to a
- * Payload block type; `children` preserve nesting and ordering.
+ * A node in the Payload-compatible component/block tree. `blockType` maps to a
+ * Payload block type; `children` preserve nesting and ordering. This is the
+ * unified discriminator key shared with the importer and `@workspace/content`
+ * (see normalize.ts / `flattenBlocks`) — do NOT reintroduce a `type` key here.
  */
 export interface ComponentNode {
-  type: string;
+  blockType: string;
   anchorId?: string;
   text?: string;
   data?: Record<string, unknown>;

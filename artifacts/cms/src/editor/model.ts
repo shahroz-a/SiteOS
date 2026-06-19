@@ -182,12 +182,12 @@ function blockToNode(block: EditorBlock): CTNode {
   const d = block.data ?? {};
   switch (block.type) {
     case "heading":
-      return { type: "heading", text: block.text ?? "", data: { level: d.level ?? 2 } };
+      return { blockType: "heading", text: block.text ?? "", data: { level: d.level ?? 2 } };
     case "richText":
-      return { type: "richText", data: { html: d.html ?? "" } };
+      return { blockType: "richText", data: { html: d.html ?? "" } };
     case "hero":
       return {
-        type: "hero",
+        blockType: "hero",
         data: {
           title: d.title ?? "",
           subtitle: d.subtitle ?? "",
@@ -197,20 +197,20 @@ function blockToNode(block: EditorBlock): CTNode {
         },
       };
     case "image":
-      return { type: "image", data: { src: d.src ?? "", alt: d.alt ?? "", caption: d.caption ?? "" } };
+      return { blockType: "image", data: { src: d.src ?? "", alt: d.alt ?? "", caption: d.caption ?? "" } };
     case "gallery":
-      return { type: "gallery", data: { images: d.images ?? [], layout: d.layout ?? "grid" } };
+      return { blockType: "gallery", data: { images: d.images ?? [], layout: d.layout ?? "grid" } };
     case "quote":
-      return { type: "quote", text: block.text ?? "", data: { cite: d.cite ?? "" } };
+      return { blockType: "quote", text: block.text ?? "", data: { cite: d.cite ?? "" } };
     case "table":
-      return { type: "table", data: { rows: d.rows ?? [], hasHeader: d.hasHeader ?? false } };
+      return { blockType: "table", data: { rows: d.rows ?? [], hasHeader: d.hasHeader ?? false } };
     case "accordion":
-      return { type: "accordion", data: { entries: d.entries ?? [] } };
+      return { blockType: "accordion", data: { entries: d.entries ?? [] } };
     case "faq":
-      return { type: "faq", data: { heading: d.heading ?? "", entries: d.entries ?? [] } };
+      return { blockType: "faq", data: { heading: d.heading ?? "", entries: d.entries ?? [] } };
     case "cta":
       return {
-        type: "cta",
+        blockType: "cta",
         data: {
           heading: d.heading ?? "",
           body: d.body ?? "",
@@ -220,7 +220,7 @@ function blockToNode(block: EditorBlock): CTNode {
       };
     case "newsletter":
       return {
-        type: "newsletter",
+        blockType: "newsletter",
         data: {
           heading: d.heading ?? "",
           body: d.body ?? "",
@@ -229,19 +229,19 @@ function blockToNode(block: EditorBlock): CTNode {
         },
       };
     case "related":
-      return { type: "related", data: { heading: d.heading ?? "", entries: d.entries ?? [] } };
+      return { blockType: "related", data: { heading: d.heading ?? "", entries: d.entries ?? [] } };
     case "video":
-      return { type: "video", data: { url: d.url ?? "", caption: d.caption ?? "" } };
+      return { blockType: "video", data: { url: d.url ?? "", caption: d.caption ?? "" } };
     case "divider":
-      return { type: "divider" };
+      return { blockType: "divider" };
     case "section":
       return {
-        type: "section",
+        blockType: "section",
         data: { heading: d.heading ?? "" },
         children: (block.children ?? []).map(blockToNode),
       };
     default:
-      return { type: "richText", data: { html: d.html ?? "" } };
+      return { blockType: "richText", data: { html: d.html ?? "" } };
   }
 }
 
@@ -315,10 +315,12 @@ function listItemsToHtml(items: string[], ordered: boolean): string {
 }
 
 function nodeToBlock(node: CTNode): EditorBlock {
-  const type = (node.type ?? "") as string;
+  // `blockType` is the canonical discriminator; `?? node.type` is a defensive
+  // fallback for any legacy stored tree that still carries the crawler `type`.
+  const type = (node.blockType ?? node.type ?? "") as string;
   const d = node.data ?? {};
 
-  // crawler array shape, native editor types.
+  // Native editor block types (the unified `blockType` vocabulary).
   if (KNOWN_TYPES.has(type as BlockType)) {
     const t = type as BlockType;
     switch (t) {

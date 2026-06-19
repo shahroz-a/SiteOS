@@ -47,7 +47,8 @@ function countRichText(node: RichTextNode, acc: Record<string, number>): void {
 function countTree(nodes: ComponentNode[], acc: Record<string, number>): void {
   for (const node of nodes) {
     acc.components = (acc.components ?? 0) + 1;
-    if (node.type === "image" || node.type === "gallery") acc.treeImages = (acc.treeImages ?? 0) + 1;
+    if (node.blockType === "image" || node.blockType === "gallery")
+      acc.treeImages = (acc.treeImages ?? 0) + 1;
     if (node.children) countTree(node.children, acc);
   }
 }

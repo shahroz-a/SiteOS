@@ -194,7 +194,7 @@ function classifyComponent(
     // is often junk like `3a` and repeated across sections). Falls back to the
     // source id, then to a generic base, all deduped by the allocator.
     const anchorId = alloc(slugify(text) || sourceId);
-    return { type: "heading", anchorId, text, data: { level: Number(tag[1]) } };
+    return { blockType: "heading", anchorId, text, data: { level: Number(tag[1]) } };
   }
   // Non-heading nodes keep an anchor only when the source provided one, but it
   // is still deduped so the component tree never repeats an id.
@@ -202,7 +202,7 @@ function classifyComponent(
   if (tag === "p") {
     if (!text) return null;
     return {
-      type: "richText",
+      blockType: "richText",
       anchorId,
       text,
       data: { richText: { type: "paragraph", children: inlineToRichText($, $el.contents().toArray(), []) } },
@@ -210,22 +210,22 @@ function classifyComponent(
   }
   if (tag === "ul" || tag === "ol") {
     return {
-      type: "list",
+      blockType: "list",
       anchorId,
       data: { ordered: tag === "ol", richText: richList($, el) },
     };
   }
   if (tag === "table") {
-    return { type: "table", anchorId, data: { richText: richTable($, el) } };
+    return { blockType: "table", anchorId, data: { richText: richTable($, el) } };
   }
   if (tag === "blockquote") {
-    return { type: "quote", anchorId, text, data: { richText: richQuote($, el) } };
+    return { blockType: "quote", anchorId, text, data: { richText: richQuote($, el) } };
   }
   if (tag === "figure") {
     const $img = $el.find("img").first();
     if ($img.length)
       return {
-        type: "image",
+        blockType: "image",
         anchorId,
         data: {
           src: $img.attr("src") ?? $img.attr("data-src") ?? "",
@@ -236,24 +236,24 @@ function classifyComponent(
     const $iframe = $el.find("iframe").first();
     if ($iframe.length)
       return {
-        type: "embed",
+        blockType: "embed",
         anchorId,
         data: { src: $iframe.attr("src") ?? "", title: $iframe.attr("title") ?? null },
       };
   }
   if (tag === "img") {
     return {
-      type: "image",
+      blockType: "image",
       anchorId,
       data: { src: $el.attr("src") ?? $el.attr("data-src") ?? "", alt: $el.attr("alt") ?? "" },
     };
   }
   if (tag === "iframe") {
-    return { type: "embed", anchorId, data: { src: $el.attr("src") ?? "" } };
+    return { blockType: "embed", anchorId, data: { src: $el.attr("src") ?? "" } };
   }
   if (tag === "details") {
     return {
-      type: "accordion",
+      blockType: "accordion",
       anchorId,
       data: {
         title: $el.find("summary").first().text().trim(),
@@ -262,16 +262,16 @@ function classifyComponent(
     };
   }
   if (tag === "blockquote") {
-    return { type: "quote", anchorId, text };
+    return { blockType: "quote", anchorId, text };
   }
 
   // Structural containers: detect higher-order patterns or descend.
   if (tag === "div" || tag === "section" || tag === "article" || tag === "main") {
     const cls = ($el.attr("class") ?? "").toLowerCase();
     if (/newsletter|subscribe/.test(cls) && text)
-      return { type: "newsletter", anchorId, text };
-    if (/\bcta\b|call-to-action/.test(cls) && text) return { type: "cta", anchorId, text };
-    if (/banner|promo/.test(cls) && text) return { type: "banner", anchorId, text };
+      return { blockType: "newsletter", anchorId, text };
+    if (/\bcta\b|call-to-action/.test(cls) && text) return { blockType: "cta", anchorId, text };
+    if (/banner|promo/.test(cls) && text) return { blockType: "banner", anchorId, text };
     if (/gallery/.test(cls)) {
       const imgs = $el
         .find("img")
@@ -280,10 +280,10 @@ function classifyComponent(
           src: $(img).attr("src") ?? $(img).attr("data-src") ?? "",
           alt: $(img).attr("alt") ?? "",
         }));
-      if (imgs.length > 1) return { type: "gallery", anchorId, data: { images: imgs } };
+      if (imgs.length > 1) return { blockType: "gallery", anchorId, data: { images: imgs } };
     }
     if (/faq/.test(cls)) {
-      return { type: "faqSection", anchorId, children: buildComponentChildren($, el, alloc) };
+      return { blockType: "faqSection", anchorId, children: buildComponentChildren($, el, alloc) };
     }
     if (/related|read-more|more-stories/.test(cls)) {
       const links = $el
@@ -291,12 +291,12 @@ function classifyComponent(
         .toArray()
         .map((a) => ({ href: $(a).attr("href") ?? "", text: $(a).text().trim() }))
         .filter((l) => l.text);
-      if (links.length) return { type: "relatedArticles", anchorId, data: { links } };
+      if (links.length) return { blockType: "relatedArticles", anchorId, data: { links } };
     }
     // Generic container: descend so its children are captured in order.
     const children = buildComponentChildren($, el, alloc);
     if (children.length === 1) return children[0]!;
-    if (children.length > 1) return { type: "section", anchorId, children };
+    if (children.length > 1) return { blockType: "section", anchorId, children };
     return null;
   }
   return null;

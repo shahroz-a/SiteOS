@@ -132,7 +132,7 @@ describe("component tree (normalize)", () => {
 
   it("captures both ordered and unordered lists", () => {
     const page = assemblePage(makeFetchResult(html, URL), null);
-    const lists = page.componentTree.filter((n) => n.type === "list");
+    const lists = page.componentTree.filter((n) => n.blockType === "list");
     expect(lists.some((l) => l.data?.ordered === true)).toBe(true);
     expect(lists.some((l) => l.data?.ordered === false)).toBe(true);
   });

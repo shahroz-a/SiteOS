@@ -162,6 +162,7 @@ describe("ReviewBody — suggestion mapping across chunks", () => {
       initialItems: items,
       initialSkipped: [],
       total: items.length,
+      initialSkipped: [],
       fetchNext: vi.fn().mockResolvedValue([]),
       onClose: vi.fn(),
     });
@@ -215,6 +216,7 @@ describe("ReviewBody — approve & skip", () => {
       initialItems: items,
       initialSkipped: [],
       total: items.length,
+      initialSkipped: [],
       fetchNext,
       onClose: vi.fn(),
     });
@@ -290,6 +292,7 @@ describe("ReviewBody — failed chunk", () => {
       initialItems: items,
       initialSkipped: [],
       total: items.length,
+      initialSkipped: [],
       fetchNext: vi.fn().mockResolvedValue([]),
       onClose: vi.fn(),
     });

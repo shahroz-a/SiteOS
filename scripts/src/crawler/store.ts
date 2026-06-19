@@ -112,7 +112,7 @@ function flattenBlocks(
         id,
         pageId,
         parentId,
-        blockType: node.type,
+        blockType: node.blockType,
         position: index,
         depth,
         anchorId: node.anchorId ?? null,
