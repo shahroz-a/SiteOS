@@ -88,6 +88,95 @@ async function readSkipped() {
   };
 }
 
+interface ValidationReport {
+  total: number;
+  byStatus: Record<string, number>;
+  failures: Array<{ pageId: string; status: string; url: string | null }>;
+}
+async function readValidation() {
+  const raw = await readFile(path.join(REPORT_DIR, "validation-report.json"), "utf8");
+  return JSON.parse(raw) as ValidationReport;
+}
+
+interface HeldBackReport {
+  total: number;
+  articles: Array<{
+    id: string;
+    slug: string;
+    title: string | null;
+    url: string | null;
+    pageType: string;
+    validationStatus: string | null;
+    validationScore: number | null;
+    issues: Array<{ field: string; severity: string }> | null;
+  }>;
+}
+async function readHeldBack() {
+  const raw = await readFile(path.join(REPORT_DIR, "held-back-articles.json"), "utf8");
+  return JSON.parse(raw) as HeldBackReport;
+}
+
+interface ReadinessReport {
+  heldBackArticles: number;
+  validationFailures: number;
+  queuePending: number;
+  queueFailed: number;
+  ready: boolean;
+  blockingIssues: string[];
+}
+async function readReadiness() {
+  const raw = await readFile(path.join(REPORT_DIR, "migration-readiness.json"), "utf8");
+  return JSON.parse(raw) as ReadinessReport;
+}
+
+// An article URL that content-fidelity validation applies to (post + under /blog/).
+const ARTICLE_URL = "https://www.headout.com/blog/best-things-london/";
+// A taxonomy URL the validator exempts (non-article → always re-scores to pass).
+const CATEGORY_URL = "https://www.headout.com/blog/category/london/";
+
+// `issues` blob shape the re-scorer reads (`{ source, parsed }`). An empty
+// component tree despite source paragraphs is the canonical catastrophic FAIL.
+const FAIL_ISSUES = { source: { paragraphs: 5 }, parsed: { components: 0, paragraphs: 0 } };
+// Parsed tree matches source → clean PASS (no warn shortfall, no fail).
+const PASS_ISSUES = { source: { paragraphs: 5 }, parsed: { components: 6, paragraphs: 5 } };
+
+let pageSeq = 0;
+/** A `pages` row (carrying the joined columns the reports project off it). */
+function page(over: Row = {}): Row {
+  pageSeq += 1;
+  return {
+    id: `page-${pageSeq}`,
+    slug: `slug-${pageSeq}`,
+    title: `Title ${pageSeq}`,
+    canonicalUrl: ARTICLE_URL,
+    pageType: "post",
+    status: "published",
+    crawledAt: `2026-01-0${pageSeq}T00:00:00.000Z`,
+    ...over,
+  };
+}
+
+let validationSeq = 0;
+/**
+ * A `validation_reports` row. The fake DB projects the joined `pages` columns
+ * (pageType / canonicalUrl / title) straight off this same row, so they live
+ * here alongside the validation columns.
+ */
+function validationRow(over: Row = {}): Row {
+  validationSeq += 1;
+  return {
+    pageId: `page-${validationSeq}`,
+    status: "pass",
+    score: 100,
+    issues: PASS_ISSUES,
+    pageType: "post",
+    canonicalUrl: ARTICLE_URL,
+    title: `Title ${validationSeq}`,
+    createdAt: `2026-01-0${validationSeq}T00:00:00.000Z`,
+    ...over,
+  };
+}
+
 beforeEach(() => {
   setTables({});
   control.failTables = new Set();
@@ -227,5 +316,174 @@ describe("generateReports — redirect-skipped.json", () => {
       "self-redirect": 0,
     });
     expect(report.entries).toEqual([]);
+  });
+});
+
+describe("generateReports — validation-report.json", () => {
+  it("keeps only the latest row per page and re-scores it through the current validator", async () => {
+    setTables({
+      validation_reports: [
+        // p1 has two rows. The OLDER row currently re-scores to FAIL; the NEWER
+        // one to PASS. The latest-per-page logic (driven by desc(createdAt))
+        // must pick the newer row, so p1 lands in `pass`, not `fail`. Insertion
+        // order is deliberately oldest-first to prove the sort, not the order.
+        validationRow({
+          pageId: "p1",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          status: "fail",
+          issues: FAIL_ISSUES,
+        }),
+        validationRow({
+          pageId: "p1",
+          createdAt: "2026-02-01T00:00:00.000Z",
+          status: "pass",
+          issues: PASS_ISSUES,
+        }),
+        // p2: a single article row that genuinely re-scores to FAIL.
+        validationRow({
+          pageId: "p2",
+          createdAt: "2026-01-15T00:00:00.000Z",
+          status: "fail",
+          issues: FAIL_ISSUES,
+        }),
+        // p3: a stale row STORED as fail by an older validator, but it's a
+        // taxonomy page the current validator exempts → re-scores to PASS. The
+        // stored verdict must NOT be trusted.
+        validationRow({
+          pageId: "p3",
+          createdAt: "2026-01-10T00:00:00.000Z",
+          status: "fail",
+          pageType: "category",
+          canonicalUrl: CATEGORY_URL,
+          issues: FAIL_ISSUES,
+        }),
+      ],
+    });
+
+    await generateReports(EMPTY_QUEUE_STATS, REPORT_DIR);
+
+    const report = await readValidation();
+    // Three distinct pages after latest-per-page de-duplication.
+    expect(report.total).toBe(3);
+    // p1 (newer pass) + p3 (stale-fail re-scored to pass) = 2 pass; p2 = 1 fail.
+    expect(report.byStatus).toEqual({ pass: 2, fail: 1 });
+    expect(report.failures.map((f) => f.pageId)).toEqual(["p2"]);
+  });
+});
+
+describe("generateReports — held-back-articles.json", () => {
+  it("lists only draft posts and re-derives each verdict via the current validator", async () => {
+    setTables({
+      pages: [
+        // Draft post WITH a validation row → re-scored verdict shown.
+        page({
+          id: "draft-fail",
+          slug: "draft-fail",
+          title: "Draft Fail",
+          status: "draft",
+          pageType: "post",
+          crawledAt: "2026-03-02T00:00:00.000Z",
+        }),
+        // Draft post WITHOUT a validation row → null verdict fields.
+        page({
+          id: "draft-novalidation",
+          slug: "draft-novalidation",
+          title: "Draft No Validation",
+          status: "draft",
+          pageType: "post",
+          crawledAt: "2026-03-01T00:00:00.000Z",
+        }),
+        // Draft of a non-post type → excluded from the article review queue.
+        page({
+          id: "draft-category",
+          status: "draft",
+          pageType: "category",
+          canonicalUrl: CATEGORY_URL,
+        }),
+        // Published post → not held back at all.
+        page({ id: "published-post", status: "published", pageType: "post" }),
+      ],
+      validation_reports: [
+        validationRow({
+          pageId: "draft-fail",
+          status: "fail",
+          issues: FAIL_ISSUES,
+        }),
+      ],
+    });
+
+    await generateReports(EMPTY_QUEUE_STATS, REPORT_DIR);
+
+    const report = await readHeldBack();
+    expect(report.total).toBe(2);
+    // Ordered by crawledAt desc: the draft crawled on 03-02 comes first.
+    expect(report.articles.map((a) => a.id)).toEqual(["draft-fail", "draft-novalidation"]);
+
+    const failEntry = report.articles.find((a) => a.id === "draft-fail")!;
+    expect(failEntry.validationStatus).toBe("fail");
+    expect(typeof failEntry.validationScore).toBe("number");
+    expect(failEntry.issues?.some((i) => i.severity === "fail")).toBe(true);
+
+    const noValidationEntry = report.articles.find((a) => a.id === "draft-novalidation")!;
+    expect(noValidationEntry.validationStatus).toBeNull();
+    expect(noValidationEntry.validationScore).toBeNull();
+    expect(noValidationEntry.issues).toBeNull();
+  });
+});
+
+describe("generateReports — migration-readiness.json", () => {
+  it("blocks readiness on re-scored validation failures and failed crawl queue rows", async () => {
+    setTables({
+      pages: [
+        page({ id: "d1", status: "draft", pageType: "post" }),
+      ],
+      validation_reports: [
+        // One genuine article failure (re-scores to fail).
+        validationRow({ pageId: "p1", status: "fail", issues: FAIL_ISSUES }),
+        // One genuine article pass.
+        validationRow({ pageId: "p2", status: "pass", issues: PASS_ISSUES }),
+      ],
+    });
+
+    await generateReports(
+      { ...EMPTY_QUEUE_STATS, pending: 2, failed: 3, total: 5 },
+      REPORT_DIR,
+    );
+
+    const report = await readReadiness();
+    expect(report.validationFailures).toBe(1);
+    expect(report.heldBackArticles).toBe(1);
+    expect(report.queuePending).toBe(2);
+    expect(report.queueFailed).toBe(3);
+    expect(report.ready).toBe(false);
+    expect(report.blockingIssues).toEqual([
+      "1 pages failed content-fidelity validation",
+      "3 URLs permanently failed to crawl",
+    ]);
+  });
+
+  it("is ready when no failures remain and the queue is drained (stale fails ignored)", async () => {
+    setTables({
+      validation_reports: [
+        validationRow({ pageId: "p1", status: "pass", issues: PASS_ISSUES }),
+        // Stored fail on a taxonomy page → re-scores to pass, so it must NOT
+        // flip readiness to false on its own.
+        validationRow({
+          pageId: "p2",
+          status: "fail",
+          pageType: "category",
+          canonicalUrl: CATEGORY_URL,
+          issues: FAIL_ISSUES,
+        }),
+      ],
+    });
+
+    await generateReports(EMPTY_QUEUE_STATS, REPORT_DIR);
+
+    const report = await readReadiness();
+    expect(report.validationFailures).toBe(0);
+    expect(report.heldBackArticles).toBe(0);
+    expect(report.ready).toBe(true);
+    expect(report.blockingIssues).toEqual([]);
   });
 });

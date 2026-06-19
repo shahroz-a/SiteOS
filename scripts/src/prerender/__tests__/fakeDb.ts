@@ -52,9 +52,28 @@ function evalCond(cond: Cond, row: Row): boolean {
   }
 }
 
+/** An `orderBy` term — a column plus a direction. */
+type OrderTerm = { col: ColRef; dir: "asc" | "desc" };
+
+/** Coerce an `orderBy` argument (a bare column, or `desc(col)`/`asc(col)`) to a term. */
+function toOrderTerm(arg: unknown): OrderTerm | undefined {
+  if (isColRef(arg)) return { col: arg, dir: "asc" };
+  if (
+    typeof arg === "object" &&
+    arg !== null &&
+    "__op" in arg &&
+    ((arg as { __op: unknown }).__op === "desc" || (arg as { __op: unknown }).__op === "asc")
+  ) {
+    const node = arg as { __op: "asc" | "desc"; col: unknown };
+    if (isColRef(node.col)) return { col: node.col, dir: node.__op };
+  }
+  return undefined;
+}
+
 class SelectBuilder {
   private fromTable = "";
   private cond?: Cond;
+  private orders: OrderTerm[] = [];
 
   constructor(
     private tables: Tables,
@@ -70,11 +89,11 @@ class SelectBuilder {
     this.cond = cond;
     return this;
   }
-  // Chainable no-ops: the fake only ever reads `from` table rows, so joins,
-  // grouping and ordering are ignored. They exist so report/query code that
-  // builds richer chains (e.g. `reports.ts`) can run unmodified against the
-  // fake. Tests that need aggregated/joined output should populate the `from`
-  // table with rows already in the desired shape.
+  // Chainable no-ops: the fake only ever reads `from` table rows, so joins and
+  // grouping are ignored. They exist so report/query code that builds richer
+  // chains (e.g. `reports.ts`) can run unmodified against the fake. Tests that
+  // need aggregated/joined output should populate the `from` table with rows
+  // already in the desired shape (the join columns living on the same row).
   innerJoin(_table: { __table: string }, _cond?: Cond) {
     return this;
   }
@@ -84,8 +103,33 @@ class SelectBuilder {
   groupBy(..._cols: unknown[]) {
     return this;
   }
-  orderBy(..._cols: unknown[]) {
+  // `orderBy` IS honored (unlike joins/groupBy): the report generator relies on
+  // `desc(createdAt)`/`desc(crawledAt)` to pick the latest validation row per
+  // page and to order the held-back queue, so the fake must actually sort.
+  orderBy(...cols: unknown[]) {
+    for (const c of cols) {
+      const term = toOrderTerm(c);
+      if (term) this.orders.push(term);
+    }
     return this;
+  }
+
+  private sort(rows: Row[]): Row[] {
+    if (this.orders.length === 0) return rows;
+    return [...rows].sort((a, b) => {
+      for (const { col, dir } of this.orders) {
+        const av = a[col.__col];
+        const bv = b[col.__col];
+        if (av === bv) continue;
+        // nulls sort first ascending (last descending), matching Postgres' default.
+        let cmp: number;
+        if (av == null) cmp = -1;
+        else if (bv == null) cmp = 1;
+        else cmp = (av as never) < (bv as never) ? -1 : 1;
+        return dir === "desc" ? -cmp : cmp;
+      }
+      return 0;
+    });
   }
 
   private run(): Row[] {
@@ -98,6 +142,7 @@ class SelectBuilder {
       const cond = this.cond;
       rows = rows.filter((r) => evalCond(cond, r));
     }
+    rows = this.sort(rows);
 
     const proj = this.projection;
     if (proj) {
