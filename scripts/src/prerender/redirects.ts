@@ -114,18 +114,64 @@ export interface RedirectStub {
 }
 
 /**
+ * Why an active redirect produced no forwarding stub. These are the only reasons
+ * {@link buildRedirectStub} can return `null`, and they map one-to-one to the
+ * cleanup an operator would do:
+ *  - `non-blog-source`: the old path isn't under `/blog/` (the blog can't own
+ *    or serve it) — the redirect belongs on whatever host owns that prefix, not
+ *    here; deactivate or move it.
+ *  - `malformed-segment`: the old path is under `/blog/` but is the bare root or
+ *    carries an unsafe segment (embedded URL, query string, map link, `..`,
+ *    encoded punctuation, …) the crawler recorded as junk; fix or deactivate the
+ *    `from_path`.
+ *  - `self-redirect`: the resolved target equals the old path, which would loop;
+ *    deactivate it.
+ */
+export type RedirectSkipReason =
+  | "non-blog-source"
+  | "malformed-segment"
+  | "self-redirect";
+
+/**
+ * Discriminated outcome of evaluating a single redirect: either the stub to
+ * write, or the reason no stub could be produced. This is the single source of
+ * truth behind both {@link buildRedirectStub} (serving) and the operator-facing
+ * skipped-redirect report (`reports.ts`), so the "why was this dropped" grouping
+ * can never drift from the serving logic.
+ */
+export type RedirectStubResult =
+  | { stub: RedirectStub; reason: null }
+  | { stub: null; reason: RedirectSkipReason };
+
+/**
+ * Classify a single `{ fromPath, toPath }` redirect into either a writable stub
+ * or the precise reason it can't be served. See {@link RedirectSkipReason} for
+ * what each reason means and how an operator resolves it.
+ */
+export function classifyRedirect(
+  fromPath: string,
+  toPath: string,
+): RedirectStubResult {
+  if (!fromPath.startsWith(BLOG_PREFIX)) {
+    return { stub: null, reason: "non-blog-source" };
+  }
+  const files = redirectFilePaths(fromPath);
+  if (!files) return { stub: null, reason: "malformed-segment" };
+  const target = redirectTargetUrl(toPath);
+  if (target === fromPath) return { stub: null, reason: "self-redirect" };
+  return { stub: { files, html: renderRedirectHtml(target), target }, reason: null };
+}
+
+/**
  * Build the static redirect stub for a single `{ fromPath, toPath }` entry, or
  * `null` if the old path can't be served safely as static files. Self-redirects
  * (old path equals the resolved target) are skipped — they'd create a refresh
- * loop and add no value.
+ * loop and add no value. Use {@link classifyRedirect} when you need to know
+ * *why* a stub was skipped.
  */
 export function buildRedirectStub(
   fromPath: string,
   toPath: string,
 ): RedirectStub | null {
-  const files = redirectFilePaths(fromPath);
-  if (!files) return null;
-  const target = redirectTargetUrl(toPath);
-  if (target === fromPath) return null;
-  return { files, html: renderRedirectHtml(target), target };
+  return classifyRedirect(fromPath, toPath).stub;
 }

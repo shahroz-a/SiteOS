@@ -17,6 +17,7 @@ import {
   blocksTable,
 } from "@workspace/db";
 import { DEFAULT_CONFIG } from "./config";
+import { classifyRedirect, type RedirectSkipReason } from "../prerender/redirects";
 import { rescoreStoredValidation, type ValidationResult } from "./validate";
 import type { PageType } from "./types";
 import type { QueueStats } from "./queue";
@@ -273,6 +274,47 @@ export async function generateReports(
       generatedAt: new Date().toISOString(),
       total: redirects.length,
       redirects,
+    }),
+  );
+
+  // --- Skipped redirects (forwards-to-nowhere) ---
+  // Every ACTIVE redirect whose old path the prerender silently can't serve a
+  // forwarding stub for, grouped by reason. These rows quietly drop inbound
+  // links: an operator uses this report to fix or deactivate the junk
+  // `from_path` values (embedded URLs, query strings, map links, off-blog
+  // sources, self-loops). The classification reuses `classifyRedirect`, the same
+  // logic the prerender serves with, so it can never disagree with what is
+  // actually written.
+  const activeRedirects = redirects.filter((r) => r.isActive);
+  const skippedEntries = activeRedirects
+    .map((r) => ({
+      id: r.id,
+      fromPath: r.fromPath,
+      toPath: r.toPath,
+      reason: classifyRedirect(r.fromPath, r.toPath).reason,
+    }))
+    .filter(
+      (r): r is typeof r & { reason: RedirectSkipReason } => r.reason !== null,
+    );
+  const skippedByReason = skippedEntries.reduce<Record<string, number>>(
+    (acc, r) => {
+      acc[r.reason] = (acc[r.reason] ?? 0) + 1;
+      return acc;
+    },
+    {},
+  );
+  written.push(
+    await writeReport(outDir, "redirect-skipped.json", {
+      generatedAt: new Date().toISOString(),
+      totalActive: activeRedirects.length,
+      served: activeRedirects.length - skippedEntries.length,
+      skipped: skippedEntries.length,
+      byReason: {
+        "non-blog-source": skippedByReason["non-blog-source"] ?? 0,
+        "malformed-segment": skippedByReason["malformed-segment"] ?? 0,
+        "self-redirect": skippedByReason["self-redirect"] ?? 0,
+      },
+      entries: skippedEntries,
     }),
   );
 

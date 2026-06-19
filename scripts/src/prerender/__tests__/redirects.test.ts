@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRedirectStub,
+  classifyRedirect,
   normalizeRedirectFromPath,
   redirectFilePaths,
   redirectTargetUrl,
@@ -124,5 +125,41 @@ describe("buildRedirectStub", () => {
 
   it("returns null for a self-redirect (no refresh loop)", () => {
     expect(buildRedirectStub("/blog/loop/", "/blog/loop/")).toBeNull();
+  });
+});
+
+describe("classifyRedirect", () => {
+  it("returns a stub and no reason for a serveable entry", () => {
+    const result = classifyRedirect("/blog/old-name/", "/blog/new-name/");
+    expect(result.reason).toBeNull();
+    expect(result.stub).not.toBeNull();
+    expect(result.stub?.target).toBe("/blog/new-name/");
+  });
+
+  it("flags a non-blog source path", () => {
+    const result = classifyRedirect("/elsewhere/old/", "/blog/new/");
+    expect(result.stub).toBeNull();
+    expect(result.reason).toBe("non-blog-source");
+  });
+
+  it("flags a malformed segment (junk, encoded punctuation, bare root)", () => {
+    expect(
+      classifyRedirect(
+        "/blog/disneyland-paris-tips/https://www.headout.com/blog/x/",
+        "/blog/new/",
+      ).reason,
+    ).toBe("malformed-segment");
+    expect(classifyRedirect("/blog/with%20space/", "/blog/new/").reason).toBe(
+      "malformed-segment",
+    );
+    expect(classifyRedirect("/blog/", "/blog/new/").reason).toBe(
+      "malformed-segment",
+    );
+  });
+
+  it("flags a self-redirect", () => {
+    const result = classifyRedirect("/blog/loop/", "/blog/loop/");
+    expect(result.stub).toBeNull();
+    expect(result.reason).toBe("self-redirect");
   });
 });
