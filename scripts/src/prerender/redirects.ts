@@ -55,18 +55,52 @@ export function redirectFilePaths(fromPath: string): string[] | null {
 }
 
 /**
+ * Normalise ANY redirect `fromPath` (blog OR off-blog) into a clean, well-formed
+ * absolute path, or `null` if it can't be salvaged. Collapses accidental
+ * repeated slashes, then keeps the path only if it is a genuine site path:
+ * leading `/`, non-empty, and every segment safe (no traversal, embedded URLs,
+ * query strings, map links, or other junk the crawler recorded). It is
+ * prefix-agnostic — it does NOT require `/blog/` — so recording
+ * (`crawler/store.ts`) can preserve off-blog renames (e.g.
+ * `/statue-of-liberty-cruises-c-121/`) for the main Headout site's redirect
+ * config alongside the blog-serveable ones. `normalizeRedirectFromPath` layers
+ * the blog-serveable gate on top of this.
+ */
+export function normalizeRedirectPath(fromPath: string): string | null {
+  const collapsed = fromPath.replace(/\/{2,}/g, "/");
+  if (!collapsed.startsWith("/")) return null;
+  const rel = collapsed.slice(1).replace(/\/+$/, "");
+  if (rel === "") return null;
+  const segments = rel.split("/");
+  const safe = segments.every(
+    (s) => s !== "." && s !== ".." && SAFE_SEGMENT.test(s),
+  );
+  return safe ? collapsed : null;
+}
+
+/**
+ * True when a redirect `fromPath` lives under the `/blog/` prefix the blog
+ * deployment owns and can serve as a static forwarding stub. Off-blog paths
+ * (everything else) belong to the MAIN Headout site — the blog can never serve
+ * them, so they are exported for the main site's redirect config instead.
+ */
+export function isBlogRedirectPath(fromPath: string): boolean {
+  return fromPath.startsWith(BLOG_PREFIX);
+}
+
+/**
  * Normalise a redirect `fromPath` into the clean, blog-serveable form, or
- * `null` if it can't be salvaged. Collapses accidental repeated slashes, then
+ * `null` if it can't be salvaged. Builds on {@link normalizeRedirectPath}, then
  * keeps the path only if the serving step could actually emit a stub for it
  * (under `/blog/`, non-empty, every segment safe). This is the single source of
- * truth for "is this redirect serveable" — recording (`crawler/store.ts`) runs
- * it before persisting a `redirects` row so the table never stores a path the
- * prerender would later skip (off-blog paths, the bare blog root, or junk
- * carrying embedded URLs / query strings / map links).
+ * truth for "can the blog serve this redirect" — recording (`crawler/store.ts`)
+ * uses it to gate blog-prefixed rows so the table never stores a `/blog/` path
+ * the prerender would later skip (the bare blog root, or junk carrying embedded
+ * URLs / query strings / map links).
  */
 export function normalizeRedirectFromPath(fromPath: string): string | null {
-  const collapsed = fromPath.replace(/\/{2,}/g, "/");
-  return redirectFilePaths(collapsed) ? collapsed : null;
+  const normalized = normalizeRedirectPath(fromPath);
+  return normalized && redirectFilePaths(normalized) ? normalized : null;
 }
 
 /**

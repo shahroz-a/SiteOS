@@ -23,10 +23,11 @@ const fetchPage = vi.fn();
 const storePage = vi.fn();
 const storeValidation = vi.fn();
 const logCrawl = vi.fn();
+const recordRedirects = vi.fn();
 const enqueueOne = vi.fn();
 
 vi.mock("../fetcher", () => ({ fetchPage }));
-vi.mock("../store", () => ({ storePage, storeValidation, logCrawl }));
+vi.mock("../store", () => ({ storePage, storeValidation, logCrawl, recordRedirects }));
 vi.mock("../queue", () => ({
   enqueueOne,
   // Imported at pipeline module scope but unused by processItem itself.
@@ -179,14 +180,21 @@ describe("processItem validation gate", () => {
     expect(warnLog?.message).toContain("503");
   });
 
-  it("skips a blog URL that redirects off-blog instead of failing or storing it", async () => {
+  it("skips a blog URL that redirects off-blog but still records the forwarding redirect", async () => {
     // A retired web story 301'd to an off-blog product page that then 404s.
+    const redirectChain = [
+      {
+        from: "https://www.headout.com/blog/web-stories/amsterdam-day-trips/",
+        to: "https://www.headout.com/day-trips-amsterdam-ca-6~15096/",
+        status: 301,
+      },
+    ];
     fetchPage.mockResolvedValue({
       requestedUrl: "https://www.headout.com/blog/web-stories/amsterdam-day-trips/",
       finalUrl: "https://www.headout.com/day-trips-amsterdam-ca-6~15096/",
       httpStatus: 404,
       html: "",
-      redirectChain: ["https://www.headout.com/day-trips-amsterdam-ca-6~15096/"],
+      redirectChain,
       via: "http" as const,
       httpHeaders: {},
     });
@@ -202,6 +210,9 @@ describe("processItem validation gate", () => {
 
     expect(outcome.status).toBe("skipped");
     expect(storePage).not.toHaveBeenCalled();
+    // The page isn't stored, but the redirect must still be preserved so the old
+    // URL forwards instead of being lost on this skip branch.
+    expect(recordRedirects).toHaveBeenCalledWith(redirectChain);
     expect(crawlLogs().some((l) => /redirected off-blog/.test(l.message))).toBe(true);
   });
 

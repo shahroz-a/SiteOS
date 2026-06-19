@@ -4,10 +4,15 @@ import { makeFetchResult } from "./helpers";
 import type { RedirectHop } from "../types";
 
 /**
- * The page's redirect chain is filtered upstream (at assemble time) to hops
- * whose OLD path (`from`) is a clean, blog-serveable URL, using the same shared
- * predicate as frontier expansion. Off-blog / malformed source-markup junk is
- * dropped here so it can never reach the redirect list at storage.
+ * The page's redirect chain is filtered at assemble time to hops whose OLD path
+ * (`from`) is a clean, well-formed, BLOG-SERVEABLE (`/blog/…`) path. Off-blog
+ * `from` hops can't be served by the blog deployment, so they are NOT kept in a
+ * stored page's chain here — they're captured into `droppedRedirects` (reason
+ * `unserveable-from`). Off-blog renames are still preserved for the MAIN Headout
+ * site's redirect config, but via the pipeline's off-blog skip branch passing the
+ * RAW chain to `recordRedirects` — not through this assemble path. Malformed
+ * source-markup junk (embedded URLs, query strings, map links, traversal) is also
+ * dropped here, so junk can never reach the redirect list at storage.
  */
 describe("assemblePage redirect-chain filtering", () => {
   const ORIGIN = "https://www.headout.com";
@@ -18,10 +23,11 @@ describe("assemblePage redirect-chain filtering", () => {
     return assemblePage({ ...makeFetchResult(HTML, URL), redirectChain: hops }, null);
   }
 
-  it("keeps clean on-blog hops and drops off-blog/malformed ones", () => {
+  it("keeps clean on-blog hops, drops off-blog and malformed ones", () => {
     const page = assembleWith([
       { from: `${ORIGIN}/blog/old-name/`, to: `${ORIGIN}/blog/new-name/`, status: 301 },
-      // off-blog `from` — the blog can't serve it
+      // off-blog `from` — the blog can't serve it; captured into droppedRedirects,
+      // not the stored chain (preserved for the main site via the skip branch)
       {
         from: `${ORIGIN}/statue-of-liberty-cruises-c-121/`,
         to: `${ORIGIN}/statue-of-liberty-tickets-c-121/`,

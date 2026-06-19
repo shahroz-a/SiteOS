@@ -239,7 +239,7 @@ vi.mock("drizzle-orm", () => ({
 
 // Imported after the mocks are registered.
 const { assemblePage } = await import("../assemble");
-const { storePage } = await import("../store");
+const { storePage, recordRedirects } = await import("../store");
 const { loadFixture, makeFetchResult } = await import("./helpers");
 
 const URL = "https://www.headout.com/blog/idempotency-article/";
@@ -361,7 +361,7 @@ describe("storePage publication gating (hold back failed articles)", () => {
   });
 });
 
-describe("storePage redirect recording (only clean, serveable rows)", () => {
+describe("storePage redirect recording (blog-serveable + off-blog, dropping junk)", () => {
   beforeEach(() => {
     fakeDb.pages.clear();
     fakeDb.authors.clear();
@@ -381,36 +381,45 @@ describe("storePage redirect recording (only clean, serveable rows)", () => {
     return assemblePage(fetch, null);
   }
 
-  it("stores clean on-blog hops and drops off-blog, junk, and self-redirect hops", async () => {
-    await storePage(
-      assembleWithRedirects([
-        // clean — kept
-        { from: `${ORIGIN}/blog/old-name/`, to: `${ORIGIN}/blog/new-name/`, status: 301 },
-        // off-blog — dropped (blog can't serve it)
-        {
-          from: `${ORIGIN}/statue-of-liberty-cruises-c-121/`,
-          to: `${ORIGIN}/statue-of-liberty-tickets-c-121/`,
-          status: 301,
-        },
-        // embedded URL junk — dropped
-        {
-          from: `${ORIGIN}/blog/disneyland-paris-tips/https://www.headout.com/blog/disneyland-paris-hotel/`,
-          to: `${ORIGIN}/blog/disneyland-paris-hotel/`,
-          status: 301,
-        },
-        // trailing quote junk — dropped
-        {
-          from: `${ORIGIN}/blog/best-broadway-shows-january/%22`,
-          to: `${ORIGIN}/blog/best-broadway-shows-january/`,
-          status: 301,
-        },
-        // self-redirect after slash-collapse — dropped (would loop)
-        { from: `${ORIGIN}/blog/loop//`, to: `${ORIGIN}/blog/loop/`, status: 301 },
-      ]),
-    );
+  it("records clean on-blog AND off-blog hops, dropping junk and self-redirects", async () => {
+    // recordRedirects is prefix-agnostic: it preserves BOTH blog-serveable
+    // (`/blog/…`) renames and off-blog renames (e.g.
+    // `/statue-of-liberty-cruises-c-121/`) for the MAIN Headout site's redirect
+    // config. Off-blog hops never survive assemblePage's blog-serveable gate
+    // (they're captured into droppedRedirects there); in production they reach
+    // recordRedirects via the pipeline's off-blog skip branch, which passes the
+    // RAW redirect chain — exactly what we exercise directly here.
+    await recordRedirects([
+      // clean on-blog — kept (served as a stub by the prerender)
+      { from: `${ORIGIN}/blog/old-name/`, to: `${ORIGIN}/blog/new-name/`, status: 301 },
+      // clean off-blog rename — kept (exported for the main site, not serveable here)
+      {
+        from: `${ORIGIN}/statue-of-liberty-cruises-c-121/`,
+        to: `${ORIGIN}/statue-of-liberty-tickets-c-121/`,
+        status: 301,
+      },
+      // embedded URL junk — dropped
+      {
+        from: `${ORIGIN}/blog/disneyland-paris-tips/https://www.headout.com/blog/disneyland-paris-hotel/`,
+        to: `${ORIGIN}/blog/disneyland-paris-hotel/`,
+        status: 301,
+      },
+      // trailing quote junk — dropped
+      {
+        from: `${ORIGIN}/blog/best-broadway-shows-january/%22`,
+        to: `${ORIGIN}/blog/best-broadway-shows-january/`,
+        status: 301,
+      },
+      // self-redirect after slash-collapse — dropped (would loop)
+      { from: `${ORIGIN}/blog/loop//`, to: `${ORIGIN}/blog/loop/`, status: 301 },
+    ]);
 
     expect(fakeDb.redirectRows).toEqual([
       { fromPath: "/blog/old-name/", toPath: "/blog/new-name/" },
+      {
+        fromPath: "/statue-of-liberty-cruises-c-121/",
+        toPath: "/statue-of-liberty-tickets-c-121/",
+      },
     ]);
   });
 

@@ -88,6 +88,12 @@ export function assemblePage(
   // list. The raw `fetch.redirectChain` is still used above for off-blog/loop
   // detection.
   //
+  // NOTE: an off-blog `from` (a genuine rename the blog can't serve) is captured
+  // into droppedRedirects here, NOT kept in redirectChain. Off-blog renames are
+  // preserved for the MAIN Headout site via the pipeline's off-blog skip branch,
+  // which feeds recordRedirects the RAW chain — not through this assemble path
+  // (an off-blog `from` inside a STORED blog page's own chain is anomalous).
+  //
   // Each dropped hop is captured (with the precise reason it failed the gate) so
   // it can be surfaced in a migration report — an editor then fixes the broken
   // source link instead of leaving readers on a dead path. `classifyRedirectHop`

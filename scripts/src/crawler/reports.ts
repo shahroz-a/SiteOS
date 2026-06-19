@@ -18,7 +18,11 @@ import {
   blocksTable,
 } from "@workspace/db";
 import { DEFAULT_CONFIG } from "./config";
-import { classifyRedirect, type RedirectSkipReason } from "../prerender/redirects";
+import {
+  classifyRedirect,
+  isBlogRedirectPath,
+  type RedirectSkipReason,
+} from "../prerender/redirects";
 import { rescoreStoredValidation, type ValidationResult } from "./validate";
 import type { PageType } from "./types";
 import type { QueueStats } from "./queue";
@@ -269,11 +273,24 @@ export async function generateReports(
   );
 
   // --- Redirect map ---
+  // Redirects are recorded for BOTH the blog and the main Headout site, split by
+  // whether the old path is under the `/blog/` prefix the blog deployment owns:
+  //   - blog-serveable (`/blog/…`) → the prerender materialises forwarding stubs
+  //     in the static build, so the blog deployment handles these itself.
+  //   - off-blog (everything else, e.g. `/statue-of-liberty-cruises-c-121/`) →
+  //     the blog can NEVER serve these (it only owns `/blog/`), so they're
+  //     preserved here purely as an actionable export for the MAIN Headout site's
+  //     redirect config. Decision: the blog deployment does not own non-`/blog/`
+  //     redirects — they belong solely to the main site.
   const redirects = await db.select().from(redirectsTable);
+  const blogRedirects = redirects.filter((r) => isBlogRedirectPath(r.fromPath));
+  const offBlogRedirects = redirects.filter((r) => !isBlogRedirectPath(r.fromPath));
   written.push(
     await writeReport(outDir, "redirect-map.json", {
       generatedAt: new Date().toISOString(),
       total: redirects.length,
+      blogServeable: blogRedirects.length,
+      offBlog: offBlogRedirects.length,
       redirects,
     }),
   );
@@ -350,6 +367,23 @@ export async function generateReports(
       total: droppedRows.length,
       byReason: droppedByReason,
       entries: droppedRows,
+    }),
+  );
+
+  // --- Off-blog redirects (hand-off to the main Headout site) ---
+  // A standalone, actionable list the main site's redirect config can ingest.
+  // The blog deployment does not serve these; this report is the single place
+  // those genuine off-blog renames are preserved instead of being dropped.
+  written.push(
+    await writeReport(outDir, "off-blog-redirects.json", {
+      generatedAt: new Date().toISOString(),
+      note: "Old URLs that live OUTSIDE /blog/ and were renamed on the main Headout site. The static blog deployment only owns the /blog/ prefix and cannot serve these, so they must be configured on the main site (www.headout.com). Source paths here are the old (from) URLs; apply each as a 301 to its toPath.",
+      total: offBlogRedirects.length,
+      redirects: offBlogRedirects.map((r) => ({
+        fromPath: r.fromPath,
+        toPath: r.toPath,
+        statusCode: r.statusCode,
+      })),
     }),
   );
 

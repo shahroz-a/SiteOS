@@ -26,10 +26,14 @@ import {
   crawlLogsTable,
   validationReportsTable,
 } from "@workspace/db";
-import type { ComponentNode, ExtractedPage } from "./types";
+import type { ComponentNode, ExtractedPage, RedirectHop } from "./types";
 import type { ValidationResult } from "./validate";
 import { pathnameOf, domainOf, stripNul } from "./util";
-import { normalizeRedirectFromPath } from "../prerender/redirects";
+import {
+  isBlogRedirectPath,
+  normalizeRedirectFromPath,
+  normalizeRedirectPath,
+} from "../prerender/redirects";
 
 export interface StoreResult {
   pageId: string;
@@ -367,29 +371,8 @@ export async function storePage(
     await writeChildren(page, pageId, categoryIds, tagIds);
   }
 
-  // Persist redirect chain (idempotent on from_path). Only record hops whose old
-  // path is a clean, blog-serveable URL: the static prerender can only emit a
-  // forwarding stub for safe paths under /blog/, so storing malformed junk
-  // (embedded URLs, query strings, map links) or off-blog paths would just create
-  // rows the prerender later skips and that never forward. normalizeRedirectFromPath
-  // mirrors the serving contract so the stored table and the prerender can't drift.
-  for (const hop of page.redirectChain) {
-    const fromPath = normalizeRedirectFromPath(pathnameOf(hop.from));
-    if (!fromPath) continue;
-    const toPath = pathnameOf(hop.to).replace(/\/{2,}/g, "/");
-    // A row that forwards to itself is never served (it would loop), so don't
-    // store one — keeps every persisted redirect a genuine, forwarding entry.
-    if (toPath === fromPath) continue;
-    await db
-      .insert(redirectsTable)
-      .values({
-        fromPath,
-        toPath,
-        statusCode: hop.status || 301,
-        isActive: true,
-      })
-      .onConflictDoNothing({ target: redirectsTable.fromPath });
-  }
+  // Persist redirect chain (idempotent on from_path).
+  await recordRedirects(page.redirectChain);
 
   // Persist the hops dropped at crawl time (junk source links) for operator
   // visibility. These never forward anyone — they exist so an editor can find
@@ -409,6 +392,55 @@ export async function storePage(
   }
 
   return { pageId, created: !existing, changed, versionNumber };
+}
+
+/**
+ * Idempotently persist the clean redirect hops from a crawled chain into the
+ * `redirects` table (one row per old path; conflicts on `from_path` are no-ops).
+ *
+ * Two kinds of hop are preserved, distinguished by whether `from_path` is under
+ * the `/blog/` prefix:
+ *   - **Blog-serveable** (`/blog/…`): the static prerender materialises a
+ *     forwarding stub at the old path. These are gated through
+ *     {@link normalizeRedirectFromPath} so a `/blog/` path that the prerender
+ *     could never serve (the bare blog root) is not stored.
+ *   - **Off-blog** (everything else, e.g. `/statue-of-liberty-cruises-c-121/`):
+ *     the blog can't serve these — it only owns `/blog/` — but they are genuine
+ *     renames captured during the crawl, so they're kept for the MAIN Headout
+ *     site's redirect config (exported by the reports, never served as a blog
+ *     stub; the prerender's `buildRedirectStub` returns null for them).
+ *
+ * Both kinds are normalised through {@link normalizeRedirectPath}, which drops
+ * malformed junk (embedded URLs, query strings, map links, traversal) so the
+ * table never stores a path no consumer can use. Self-redirects (after slash
+ * collapse) are skipped — they would loop and forward nowhere.
+ *
+ * Called from {@link storePage} for stored pages AND from the pipeline's
+ * off-blog skip branch (a blog URL that 301s straight off the blog is never
+ * stored as a page, but its forwarding redirect must still be preserved).
+ */
+export async function recordRedirects(redirectChain: RedirectHop[]): Promise<void> {
+  for (const hop of redirectChain) {
+    const fromPath = normalizeRedirectPath(pathnameOf(hop.from));
+    if (!fromPath) continue;
+    // A blog-prefixed source must additionally be serveable as a stub (this
+    // rejects the bare /blog/ root); off-blog sources are kept verbatim for the
+    // main site's redirect config.
+    if (isBlogRedirectPath(fromPath) && !normalizeRedirectFromPath(fromPath)) continue;
+    const toPath = pathnameOf(hop.to).replace(/\/{2,}/g, "/");
+    // A row that forwards to itself is never served (it would loop), so don't
+    // store one — keeps every persisted redirect a genuine, forwarding entry.
+    if (toPath === fromPath) continue;
+    await db
+      .insert(redirectsTable)
+      .values({
+        fromPath,
+        toPath,
+        statusCode: hop.status || 301,
+        isActive: true,
+      })
+      .onConflictDoNothing({ target: redirectsTable.fromPath });
+  }
 }
 
 export async function logCrawl(opts: {

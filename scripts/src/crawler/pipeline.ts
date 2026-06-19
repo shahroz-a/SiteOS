@@ -16,7 +16,7 @@ import {
 import { fetchPage } from "./fetcher";
 import { assemblePage } from "./assemble";
 import { validateExtraction } from "./validate";
-import { logCrawl, storePage, storeValidation } from "./store";
+import { logCrawl, recordRedirects, storePage, storeValidation } from "./store";
 import { closeBrowser, isBrowserAvailable } from "./browser";
 import { generateReports } from "./reports";
 import { runRedirectCleanup } from "../cleanup-redirects";
@@ -109,6 +109,12 @@ export async function processItem(
       isBlogUrl(item.url) &&
       !isBlogUrl(fetchResult.finalUrl)
     ) {
+      // The off-blog destination page isn't stored, but the forwarding redirect
+      // itself is a genuine rename worth preserving: the blog can serve a stub
+      // for the old `/blog/` source, and any off-blog hops in the chain are kept
+      // for the main Headout site's redirect config. Without this they'd be lost,
+      // since storePage (the other recorder) is never reached on this branch.
+      await recordRedirects(fetchResult.redirectChain);
       await logCrawl({
         url: item.url,
         level: "info",

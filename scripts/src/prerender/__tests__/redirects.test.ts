@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildRedirectStub,
   classifyRedirect,
+  isBlogRedirectPath,
   normalizeRedirectFromPath,
+  normalizeRedirectPath,
   redirectFilePaths,
   redirectTargetUrl,
   renderRedirectHtml,
@@ -73,6 +75,46 @@ describe("normalizeRedirectFromPath", () => {
     expect(
       normalizeRedirectFromPath("/blog/where-to-stay-in-rome-for-jubilee/ist.it.s.elisabetta@libero.it"),
     ).toBeNull();
+  });
+});
+
+describe("normalizeRedirectPath (prefix-agnostic — blog + off-blog)", () => {
+  it("keeps a clean on-blog path unchanged", () => {
+    expect(normalizeRedirectPath("/blog/old-name/")).toBe("/blog/old-name/");
+  });
+
+  it("keeps a clean off-blog rename (for the main Headout site)", () => {
+    expect(normalizeRedirectPath("/statue-of-liberty-cruises-c-121/")).toBe(
+      "/statue-of-liberty-cruises-c-121/",
+    );
+    expect(
+      normalizeRedirectPath("/london-theatre-tickets/the-great-gatsby-e-6581/"),
+    ).toBe("/london-theatre-tickets/the-great-gatsby-e-6581/");
+  });
+
+  it("collapses accidental repeated slashes", () => {
+    expect(normalizeRedirectPath("/blog/acropolis-athens//tickets/")).toBe(
+      "/blog/acropolis-athens/tickets/",
+    );
+  });
+
+  it("rejects the bare root, relative paths, and junk", () => {
+    expect(normalizeRedirectPath("/")).toBeNull();
+    expect(normalizeRedirectPath("statue-of-liberty-cruises-c-121/")).toBeNull();
+    expect(normalizeRedirectPath("/blog/best-broadway-shows-january/%22")).toBeNull();
+    expect(
+      normalizeRedirectPath(
+        "/blog/disneyland-paris-tips/https:/www.headout.com/blog/disneyland-paris-hotel/",
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("isBlogRedirectPath", () => {
+  it("is true only for paths under the blog prefix", () => {
+    expect(isBlogRedirectPath("/blog/old-name/")).toBe(true);
+    expect(isBlogRedirectPath("/statue-of-liberty-cruises-c-121/")).toBe(false);
+    expect(isBlogRedirectPath("/london-theatre-tickets/foo/")).toBe(false);
   });
 });
 
