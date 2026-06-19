@@ -461,16 +461,20 @@ export function SourceDiff({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, hasSource, hasParsed]);
 
-  // Re-apply highlights (and the active ring) after every commit that changes
-  // the diff or the selected difference. Because React can reset the
-  // `dangerouslySetInnerHTML` source subtree on re-render — wiping our
-  // out-of-band classes — restoring them here (in a layout effect, pre-paint)
-  // is what makes the highlighting actually persist on screen.
+  // Re-apply highlights (and the active ring) after *every* commit. Because
+  // React can reset OR remount the `dangerouslySetInnerHTML` source subtree on
+  // any re-render — wiping our out-of-band classes — restoring them here (in a
+  // layout effect, pre-paint) on every commit is what makes the highlighting
+  // actually persist on screen. This matters in large host surfaces (e.g. the
+  // held-back review drawer) whose unrelated state changes re-commit the source
+  // pane after the initial paint without changing `diff`/`active`; scoping this
+  // to `[diff, active]` would let those re-commits silently drop the highlights.
+  // Safe to run unconditionally: `applyHighlights` only reads/writes DOM (it
+  // never sets state), so there is no render loop.
   useLayoutEffect(() => {
     applyHighlights(active, scrollPendingRef.current);
     scrollPendingRef.current = false;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diff, active]);
+  });
 
   function jumpTo(index: number) {
     const plan = planRef.current;
