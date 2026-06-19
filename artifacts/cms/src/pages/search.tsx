@@ -127,6 +127,36 @@ function toParams(state: SearchState, page: number): SearchCmsContentParams {
   return params;
 }
 
+/** Human-readable summary of the active filters in the current UI state. */
+function describeFilters(state: SearchState): { label: string; value: string }[] {
+  const out: { label: string; value: string }[] = [];
+  if (state.q.trim()) out.push({ label: "Search", value: state.q.trim() });
+  if (state.status !== ANY) {
+    const o = STATUS_OPTIONS.find((s) => s.value === state.status);
+    out.push({ label: "Status", value: o?.label ?? state.status });
+  }
+  if (state.pageType !== ANY) {
+    const o = PAGE_TYPE_OPTIONS.find((p) => p.value === state.pageType);
+    out.push({ label: "Type", value: o?.label ?? state.pageType });
+  }
+  if (state.language.trim())
+    out.push({ label: "Language", value: state.language.trim() });
+  if (state.category.trim())
+    out.push({ label: "Category", value: state.category.trim() });
+  if (state.author.trim())
+    out.push({ label: "Author", value: state.author.trim() });
+  const tags = state.tag
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (tags.length > 0) out.push({ label: "Tags", value: tags.join(", ") });
+  if (state.sort !== "relevance") {
+    const sort = SORT_OPTIONS.find((s) => s.value === state.sort);
+    out.push({ label: "Sort", value: sort?.label ?? state.sort });
+  }
+  return out;
+}
+
 /** Coerce a persisted saved-view query blob back into UI state. */
 function fromQuery(query: Record<string, unknown>): SearchState {
   const str = (v: unknown): string => (typeof v === "string" ? v : "");
@@ -158,6 +188,7 @@ export default function SearchPage() {
   const [editView, setEditView] = useState<SavedView | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [confirmUpdateFilters, setConfirmUpdateFilters] = useState(false);
 
   const params = useMemo(() => toParams(applied, page), [applied, page]);
 
@@ -245,6 +276,12 @@ export default function SearchPage() {
     setEditView(view);
     setEditName(view.name);
     setEditDescription(view.description ?? "");
+    setConfirmUpdateFilters(false);
+  }
+
+  function closeEditView() {
+    setEditView(null);
+    setConfirmUpdateFilters(false);
   }
 
   function saveEditedView() {
@@ -261,7 +298,7 @@ export default function SearchPage() {
       },
       {
         onSuccess: () => {
-          setEditView(null);
+          closeEditView();
           toast({ title: "View updated" });
         },
       },
@@ -278,7 +315,7 @@ export default function SearchPage() {
       },
       {
         onSuccess: () => {
-          setEditView(null);
+          closeEditView();
           toast({ title: "View updated to current filters" });
         },
       },
@@ -648,7 +685,7 @@ export default function SearchPage() {
       <Dialog
         open={editView !== null}
         onOpenChange={(open) => {
-          if (!open) setEditView(null);
+          if (!open) closeEditView();
         }}
       >
         <DialogContent>
@@ -683,23 +720,69 @@ export default function SearchPage() {
             </div>
             <div className="rounded-md border border-border/60 bg-muted/30 p-3">
               <p className="text-sm font-medium">Filters</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Overwrite this view's saved filters with the search and filters
-                currently in the form above.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={updateViewToCurrentFilters}
-                disabled={updateView.isPending}
-              >
-                Update to current filters
-              </Button>
+              {confirmUpdateFilters ? (
+                <>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    This replaces the view's saved filters with the ones below.
+                    Saving the name or description alone won't touch them.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {describeFilters(draft).length === 0 ? (
+                      <span className="text-sm text-muted-foreground">
+                        No filters — saves an empty view (all content).
+                      </span>
+                    ) : (
+                      describeFilters(draft).map((f) => (
+                        <Badge
+                          key={f.label}
+                          variant="secondary"
+                          className="font-normal"
+                        >
+                          <span className="font-medium">{f.label}:</span>&nbsp;
+                          {f.value}
+                        </Badge>
+                      ))
+                    )}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={updateViewToCurrentFilters}
+                      disabled={updateView.isPending}
+                    >
+                      Confirm overwrite
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirmUpdateFilters(false)}
+                      disabled={updateView.isPending}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    Overwrite this view's saved filters with the search and
+                    filters currently in the form above.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => setConfirmUpdateFilters(true)}
+                    disabled={updateView.isPending}
+                  >
+                    Update to current filters
+                  </Button>
+                </>
+              )}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditView(null)}>
+            <Button variant="outline" onClick={closeEditView}>
               Cancel
             </Button>
             <Button
