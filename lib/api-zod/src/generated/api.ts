@@ -3446,8 +3446,19 @@ export const ListContentExplorerResponse = zod.object({
   "scheduledFor": zod.coerce.date().nullish(),
   "updatedAt": zod.coerce.date().nullish(),
   "seoScore": zod.number().describe('SEO completeness, 0-100 (20 points per present SEO field).'),
+  "seoFactors": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "present": zod.boolean()
+}).describe('One contributing field to an article\'s SEO completeness score.')).describe('Per-field breakdown behind seoScore (20 points each), for the drill-down.'),
   "validationScore": zod.number().nullish().describe('Latest validation score (0-100), or null if never validated.'),
-  "validationStatus": zod.union([zod.enum(['pass', 'warn', 'fail']),zod.null()]).optional()
+  "validationStatus": zod.union([zod.enum(['pass', 'warn', 'fail']),zod.null()]).optional(),
+  "validationIssues": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "severity": zod.enum(['error', 'warn', 'info']),
+  "message": zod.string()
+}).describe('A single failing check from an article\'s latest validation report.')).describe('Failed checks from the latest validation report (empty when none\/never run).')
 }).describe('One article row for the Airtable-style content explorer, including the derived SEO completeness score (0-100) and the latest validation score and status.')),
   "pagination": zod.object({
   "page": zod.number(),

@@ -38,6 +38,11 @@ import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
 import { Checkbox } from "@workspace/ui/checkbox";
 import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@workspace/ui/hover-card";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -138,6 +143,159 @@ function scoreClass(score: number): string {
   if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
   if (score >= 40) return "text-amber-600 dark:text-amber-400";
   return "text-rose-600 dark:text-rose-400";
+}
+
+const SEVERITY_LABEL: Record<string, string> = {
+  error: "Critical",
+  warn: "Warning",
+  info: "Suggestion",
+};
+
+const SEVERITY_DOT: Record<string, string> = {
+  error: "bg-rose-500",
+  warn: "bg-amber-500",
+  info: "bg-sky-500",
+};
+
+const VALIDATION_STATUS_LABEL: Record<string, string> = {
+  pass: "Passing",
+  warn: "Has warnings",
+  fail: "Failing",
+};
+
+/** Hover drill-down for a row's SEO completeness score. */
+function SeoScoreCell({ item }: { item: ContentExplorerItem }) {
+  const missing = item.seoFactors.filter((f) => !f.present);
+  return (
+    <HoverCard openDelay={120} closeDelay={60}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          className={`w-20 shrink-0 text-right font-medium underline decoration-dotted decoration-muted-foreground/40 underline-offset-4 ${scoreClass(item.seoScore)}`}
+        >
+          {item.seoScore}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align="end" className="w-72">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-sm font-medium">SEO completeness</span>
+          <span className={`text-sm font-semibold ${scoreClass(item.seoScore)}`}>
+            {item.seoScore}/100
+          </span>
+        </div>
+        <ul className="space-y-1.5">
+          {item.seoFactors.map((f) => (
+            <li key={f.id} className="flex items-center gap-2 text-xs">
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                  f.present
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                }`}
+              >
+                {f.present ? "✓" : "✕"}
+              </span>
+              <span className={f.present ? "text-muted-foreground" : "font-medium"}>
+                {f.label}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {missing.length === 0
+            ? "All SEO fields are filled in."
+            : `${missing.length} field${missing.length === 1 ? "" : "s"} missing · 20 points each.`}
+        </p>
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+/** Hover drill-down for a row's latest validation score / failing checks. */
+function ValidationScoreCell({ item }: { item: ContentExplorerItem }) {
+  const score = item.validationScore;
+  const trigger =
+    score == null ? (
+      <span className="text-muted-foreground">—</span>
+    ) : (
+      <span className={scoreClass(score)}>{score}</span>
+    );
+
+  if (score == null) {
+    return (
+      <HoverCard openDelay={120} closeDelay={60}>
+        <HoverCardTrigger asChild>
+          <button
+            type="button"
+            className="w-20 shrink-0 text-right font-medium underline decoration-dotted decoration-muted-foreground/40 underline-offset-4"
+          >
+            {trigger}
+          </button>
+        </HoverCardTrigger>
+        <HoverCardContent align="end" className="w-72">
+          <p className="text-sm font-medium">Not validated yet</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            No validation report exists for this article. It runs automatically on
+            the next publish attempt.
+          </p>
+        </HoverCardContent>
+      </HoverCard>
+    );
+  }
+
+  const issues = item.validationIssues;
+  const statusLabel = item.validationStatus
+    ? VALIDATION_STATUS_LABEL[item.validationStatus] ?? item.validationStatus
+    : null;
+
+  return (
+    <HoverCard openDelay={120} closeDelay={60}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          className="w-20 shrink-0 text-right font-medium underline decoration-dotted decoration-muted-foreground/40 underline-offset-4"
+        >
+          {trigger}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align="end" className="w-80">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-sm font-medium">
+            Validation{statusLabel ? ` · ${statusLabel}` : ""}
+          </span>
+          <span className={`text-sm font-semibold ${scoreClass(score)}`}>
+            {score}/100
+          </span>
+        </div>
+        {issues.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            All checks passed in the latest report.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {issues.map((issue) => (
+              <li key={issue.id} className="flex items-start gap-2 text-xs">
+                <span
+                  className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
+                    SEVERITY_DOT[issue.severity] ?? "bg-muted-foreground"
+                  }`}
+                />
+                <span>
+                  <span className="font-medium">{issue.label}</span>
+                  <span className="ml-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {SEVERITY_LABEL[issue.severity] ?? issue.severity}
+                  </span>
+                  {issue.message ? (
+                    <span className="block text-muted-foreground">{issue.message}</span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 /** Summarize a bulk action's per-id result as a toast description. */
@@ -673,18 +831,8 @@ export default function ContentExplorerPage() {
                         ? `→ ${fmtDate(item.scheduledFor)}`
                         : fmtDate(item.publishedAt)}
                     </div>
-                    <div className={`w-20 shrink-0 text-right font-medium ${scoreClass(item.seoScore)}`}>
-                      {item.seoScore}
-                    </div>
-                    <div className="w-20 shrink-0 text-right font-medium">
-                      {item.validationScore == null ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        <span className={scoreClass(item.validationScore)}>
-                          {item.validationScore}
-                        </span>
-                      )}
-                    </div>
+                    <SeoScoreCell item={item} />
+                    <ValidationScoreCell item={item} />
                   </div>
                 );
               })}

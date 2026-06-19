@@ -37,6 +37,21 @@ export interface ContentExplorerOpts {
   limit: number;
 }
 
+/** A single contributing factor to the SEO completeness score. */
+export interface SeoFactor {
+  id: string;
+  label: string;
+  present: boolean;
+}
+
+/** A failing validation check from the latest report, for the drill-down. */
+export interface ValidationIssue {
+  id: string;
+  label: string;
+  severity: "error" | "warn" | "info";
+  message: string;
+}
+
 export interface ContentExplorerItemOut {
   id: string;
   slug: string;
@@ -57,8 +72,12 @@ export interface ContentExplorerItemOut {
   scheduledFor: string | null;
   updatedAt: string | null;
   seoScore: number;
+  /** Per-field breakdown behind `seoScore` (20 points each), for the drill-down. */
+  seoFactors: SeoFactor[];
   validationScore: number | null;
   validationStatus: "pass" | "warn" | "fail" | null;
+  /** Failed checks from the latest validation report (empty when none/never run). */
+  validationIssues: ValidationIssue[];
 }
 
 export interface ContentExplorerResult {
@@ -66,14 +85,30 @@ export interface ContentExplorerResult {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
+/**
+ * The five SEO fields that each contribute 20 points to `seoScore`, with the
+ * SQL presence test and the human label shown in the explorer drill-down. The
+ * score SQL is derived from these so the number and its breakdown can't drift.
+ */
+const SEO_FACTORS: { id: string; col: string; label: string; presentSql: SQL }[] = [
+  { id: "metaTitle", col: "seo_meta_title", label: "Meta title", presentSql: sql`(s.meta_title is not null and s.meta_title <> '')` },
+  { id: "metaDescription", col: "seo_meta_description", label: "Meta description", presentSql: sql`(s.meta_description is not null and s.meta_description <> '')` },
+  { id: "ogImage", col: "seo_og_image", label: "Social image (og:image)", presentSql: sql`(s.og_image is not null and s.og_image <> '')` },
+  { id: "focusKeyword", col: "seo_focus_keyword", label: "Focus keyword", presentSql: sql`(s.focus_keyword is not null and s.focus_keyword <> '')` },
+  { id: "canonicalUrl", col: "seo_canonical_url", label: "Canonical URL", presentSql: sql`(s.canonical_url is not null and s.canonical_url <> '')` },
+];
+
 /** SQL expression computing the 0-100 SEO completeness score for the joined `seo` row. */
-const SEO_SCORE_SQL = sql`(
-  case when s.meta_title is not null and s.meta_title <> '' then 20 else 0 end
-  + case when s.meta_description is not null and s.meta_description <> '' then 20 else 0 end
-  + case when s.og_image is not null and s.og_image <> '' then 20 else 0 end
-  + case when s.focus_keyword is not null and s.focus_keyword <> '' then 20 else 0 end
-  + case when s.canonical_url is not null and s.canonical_url <> '' then 20 else 0 end
-)`;
+const SEO_SCORE_SQL = sql.join(
+  SEO_FACTORS.map((f) => sql`case when ${f.presentSql} then 20 else 0 end`),
+  sql` + `,
+);
+
+/** One selected boolean column per SEO factor, aliased with its snake_case `col`. */
+const SEO_FACTOR_COLUMNS = sql.join(
+  SEO_FACTORS.map((f) => sql`${f.presentSql} as ${sql.raw(f.col)}`),
+  sql`, `,
+);
 
 /** Map the sort key to the underlying SQL ordering expression. */
 const SORT_EXPR: Record<ExplorerSort, SQL> = {
@@ -107,8 +142,87 @@ type ExplorerRow = {
   category_name: string | null;
   category_slug: string | null;
   seo_score: number;
+  seo_meta_title: boolean;
+  seo_meta_description: boolean;
+  seo_og_image: boolean;
+  seo_focus_keyword: boolean;
+  seo_canonical_url: boolean;
   validation_score: number | null;
   validation_status: "pass" | "warn" | "fail" | null;
+  validation_issues: unknown;
+}
+
+/** A SEO-validation check stored inside a `seo` report's `issues.checks`. */
+type StoredSeoCheck = {
+  id?: unknown;
+  label?: unknown;
+  severity?: unknown;
+  message?: unknown;
+  passed?: unknown;
+};
+
+/** A content-fidelity diff stored inside a `content-fidelity` report's `issues.issues`. */
+type StoredFidelityIssue = {
+  field?: unknown;
+  severity?: unknown;
+  message?: unknown;
+};
+
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
+
+/** Capitalize a content-fidelity field name (e.g. "headings" → "Headings"). */
+function humanizeField(field: string): string {
+  if (!field) return "Content";
+  return field.charAt(0).toUpperCase() + field.slice(1);
+}
+
+/** Map any stored severity onto the explorer's error/warn/info scale. */
+function normalizeSeverity(raw: unknown): ValidationIssue["severity"] {
+  if (raw === "error" || raw === "fail") return "error";
+  if (raw === "warn") return "warn";
+  if (raw === "info") return "info";
+  return "info";
+}
+
+/**
+ * Extract the failing issues from a stored validation report's `issues` blob.
+ * Handles BOTH report shapes the explorer can surface: `seo` reports (failed
+ * `issues.checks`) and `content-fidelity` reports (every `issues.issues` entry
+ * is a problem). Returns an empty list for clean or unrecognized reports.
+ */
+function extractValidationIssues(raw: unknown): ValidationIssue[] {
+  if (!raw || typeof raw !== "object") return [];
+  const obj = raw as { checks?: unknown; issues?: unknown };
+
+  // SEO validation report — surface the checks that did not pass.
+  if (Array.isArray(obj.checks)) {
+    const out: ValidationIssue[] = [];
+    for (const c of obj.checks as StoredSeoCheck[]) {
+      if (c?.passed === true) continue;
+      out.push({
+        id: str(c?.id),
+        label: str(c?.label),
+        severity: normalizeSeverity(c?.severity),
+        message: str(c?.message),
+      });
+    }
+    return out;
+  }
+
+  // Content-fidelity report — every recorded issue is already a problem.
+  if (Array.isArray(obj.issues)) {
+    return (obj.issues as StoredFidelityIssue[]).map((i) => {
+      const field = str(i?.field);
+      return {
+        id: field,
+        label: humanizeField(field),
+        severity: normalizeSeverity(i?.severity),
+        message: str(i?.message),
+      };
+    });
+  }
+
+  return [];
 }
 
 function toIso(v: Date | string | null): string | null {
@@ -147,7 +261,7 @@ export async function listContentExplorer(
     left join categories c on c.id = p.primary_category_id
     left join seo s on s.page_id = p.id
     left join (
-      select distinct on (page_id) page_id, score, status
+      select distinct on (page_id) page_id, score, status, issues
       from validation_reports
       where page_id is not null
       order by page_id, created_at desc
@@ -172,8 +286,10 @@ export async function listContentExplorer(
       a.avatar_url as author_avatar_url, a.role as author_role,
       c.id as category_id, c.name as category_name, c.slug as category_slug,
       ${SEO_SCORE_SQL} as seo_score,
+      ${SEO_FACTOR_COLUMNS},
       lv.score as validation_score,
-      lv.status as validation_status
+      lv.status as validation_status,
+      lv.issues as validation_issues
     ${joins}
     where ${whereSql}
     order by ${orderExpr} ${dir} nulls last, p.id asc
@@ -210,8 +326,16 @@ export async function listContentExplorer(
     scheduledFor: toIso(r.scheduled_for),
     updatedAt: toIso(r.updated_at),
     seoScore: Number(r.seo_score ?? 0),
+    seoFactors: [
+      { id: "metaTitle", label: "Meta title", present: Boolean(r.seo_meta_title) },
+      { id: "metaDescription", label: "Meta description", present: Boolean(r.seo_meta_description) },
+      { id: "ogImage", label: "Social image (og:image)", present: Boolean(r.seo_og_image) },
+      { id: "focusKeyword", label: "Focus keyword", present: Boolean(r.seo_focus_keyword) },
+      { id: "canonicalUrl", label: "Canonical URL", present: Boolean(r.seo_canonical_url) },
+    ],
     validationScore: r.validation_score == null ? null : Number(r.validation_score),
     validationStatus: r.validation_status ?? null,
+    validationIssues: extractValidationIssues(r.validation_issues),
   }));
 
   return {

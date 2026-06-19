@@ -1096,6 +1096,34 @@ export interface CmsPostListResponse {
 }
 
 /**
+ * One contributing field to an article's SEO completeness score.
+ */
+export interface SeoFactor {
+  id: string;
+  label: string;
+  present: boolean;
+}
+
+export type ValidationIssueSeverity = typeof ValidationIssueSeverity[keyof typeof ValidationIssueSeverity];
+
+
+export const ValidationIssueSeverity = {
+  error: 'error',
+  warn: 'warn',
+  info: 'info',
+} as const;
+
+/**
+ * A single failing check from an article's latest validation report.
+ */
+export interface ValidationIssue {
+  id: string;
+  label: string;
+  severity: ValidationIssueSeverity;
+  message: string;
+}
+
+/**
  * One article row for the Airtable-style content explorer, including the derived SEO completeness score (0-100) and the latest validation score and status.
  */
 export interface ContentExplorerItem {
@@ -1117,12 +1145,16 @@ export interface ContentExplorerItem {
   updatedAt?: string | null;
   /** SEO completeness, 0-100 (20 points per present SEO field). */
   seoScore: number;
+  /** Per-field breakdown behind seoScore (20 points each), for the drill-down. */
+  seoFactors: SeoFactor[];
   /**
      * Latest validation score (0-100), or null if never validated.
      * @nullable
      */
   validationScore?: number | null;
   validationStatus?: 'pass' | 'warn' | 'fail' | null;
+  /** Failed checks from the latest validation report (empty when none/never run). */
+  validationIssues: ValidationIssue[];
 }
 
 export interface ContentExplorerResponse {

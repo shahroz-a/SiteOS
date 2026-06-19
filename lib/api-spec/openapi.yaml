@@ -4788,6 +4788,11 @@ components:
         seoScore:
           type: integer
           description: SEO completeness, 0-100 (20 points per present SEO field).
+        seoFactors:
+          type: array
+          description: Per-field breakdown behind seoScore (20 points each), for the drill-down.
+          items:
+            $ref: "#/components/schemas/SeoFactor"
         validationScore:
           type: ["integer", "null"]
           description: Latest validation score (0-100), or null if never validated.
@@ -4796,6 +4801,11 @@ components:
             - type: string
               enum: [pass, warn, fail]
             - type: "null"
+        validationIssues:
+          type: array
+          description: Failed checks from the latest validation report (empty when none/never run).
+          items:
+            $ref: "#/components/schemas/ValidationIssue"
       required:
         - id
         - slug
@@ -4804,6 +4814,42 @@ components:
         - pathname
         - status
         - seoScore
+        - seoFactors
+        - validationIssues
+
+    SeoFactor:
+      type: object
+      description: One contributing field to an article's SEO completeness score.
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        present:
+          type: boolean
+      required:
+        - id
+        - label
+        - present
+
+    ValidationIssue:
+      type: object
+      description: A single failing check from an article's latest validation report.
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        severity:
+          type: string
+          enum: [error, warn, info]
+        message:
+          type: string
+      required:
+        - id
+        - label
+        - severity
+        - message
 
     ContentExplorerResponse:
       type: object
