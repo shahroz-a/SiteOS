@@ -20,6 +20,13 @@
  *    BEFORE and AFTER the rollup (a day lives in exactly one tier);
  *  - **idempotent** — a second rollup in the same unit-of-work folds zero rows.
  *
+ * A second test pins the rollup's OBSERVABILITY side effects: after a real
+ * rollup that actually folded rows it writes exactly one `audit_logs` row
+ * (action `analytics.rollup.auto`, entityType `analytics`, no human actor, the
+ * rows/days/buckets summary in `after`) and one durable `crawl_logs` info line —
+ * and a follow-up no-op run (nothing eligible) writes NEITHER, so the activity
+ * feed never gets spammed by empty runs.
+ *
  * OPT-IN + NON-DESTRUCTIVE. Like the payload round-trip and redirect-health
  * checks it touches the real DB, so it only runs when `VERIFY_REAL_DATA=1`; the
  * normal suite skips it. Every mutation happens inside an OUTER transaction that
@@ -181,6 +188,139 @@ describe.skipIf(!RUN)(
           select count(*)::int as n from page_view_daily where slug = ${slug}
         `);
         expect(Number(leftoverRollup.rows[0]?.n ?? -1)).toBe(0);
+      },
+      300_000,
+    );
+
+    it(
+      "writes an audit_logs + crawl_logs row after a real rollup and stays quiet on a no-op run",
+      async () => {
+        const { db, pageViewsTable } = await import("@workspace/db");
+
+        const slug = `__verify-rollup-obs-${Date.now()}`;
+
+        // Seed only completed-past-day raw rows so the rollup is guaranteed to
+        // fold > 0 rows and therefore emit the observability rows.
+        const SEEDED_PAST = 5;
+
+        try {
+          await db.transaction(async (tx) => {
+            const midDayUtc = (daysAgo: number) => {
+              const d = new Date();
+              d.setUTCDate(d.getUTCDate() - daysAgo);
+              d.setUTCHours(12, 0, 0, 0);
+              return d;
+            };
+            await tx.insert(pageViewsTable).values(
+              Array.from({ length: SEEDED_PAST }, () => ({
+                slug,
+                pageId: null,
+                viewedAt: midDayUtc(1),
+              })),
+            );
+
+            // Count the observability rows BEFORE the rollup. The live DB may
+            // already carry historical rows from real scheduled runs, so we
+            // assert on the DELTA this rollup introduces, not absolute counts.
+            const auditCount = async () => {
+              const r = await tx.execute<{ n: number }>(sql`
+                select count(*)::int as n from audit_logs
+                where action = 'analytics.rollup.auto'
+              `);
+              return Number(r.rows[0]?.n ?? 0);
+            };
+            const crawlCount = async () => {
+              const r = await tx.execute<{ n: number }>(sql`
+                select count(*)::int as n from crawl_logs
+                where url = 'page-views-rollup'
+              `);
+              return Number(r.rows[0]?.n ?? 0);
+            };
+            const auditBefore = await auditCount();
+            const crawlBefore = await crawlCount();
+
+            // --- Real rollup: it folds our seeded past rows (at least). ---
+            const result = await run({ dryRun: false, retentionDays: 0 }, tx);
+            expect(result.dryRun).toBe(false);
+            expect(result.rolledRows).toBeGreaterThanOrEqual(SEEDED_PAST);
+
+            // Exactly one new audit + one new crawl row were written.
+            expect(await auditCount()).toBe(auditBefore + 1);
+            expect(await crawlCount()).toBe(crawlBefore + 1);
+
+            // Inspect the audit row this rollup just wrote: no human actor,
+            // correct action/entity, and the run summary mirrored into `after`.
+            const auditRow = await tx.execute<{
+              actor_id: string | null;
+              actor_email: string | null;
+              actor_role: string | null;
+              entity_type: string | null;
+              after: {
+                rolledRows?: number;
+                days?: number;
+                buckets?: number;
+                referrerBuckets?: number;
+                cutoff?: string;
+              } | null;
+              metadata: { source?: string } | null;
+            }>(sql`
+              select actor_id, actor_email, actor_role, entity_type, after, metadata
+              from audit_logs
+              where action = 'analytics.rollup.auto'
+              order by created_at desc
+              limit 1
+            `);
+            const audit = auditRow.rows[0];
+            expect(audit?.actor_id).toBeNull();
+            expect(audit?.actor_email).toBeNull();
+            expect(audit?.actor_role).toBeNull();
+            expect(audit?.entity_type).toBe("analytics");
+            expect(audit?.metadata?.source).toBe("page-views-rollup-job");
+            expect(audit?.after?.rolledRows).toBe(result.rolledRows);
+            expect(audit?.after?.days).toBe(result.days);
+            expect(audit?.after?.buckets).toBe(result.buckets);
+            expect(audit?.after?.referrerBuckets).toBe(result.referrerBuckets);
+            expect(audit?.after?.cutoff).toBe(result.cutoff);
+
+            // Inspect the crawl row: durable info line with the rollup summary.
+            const crawlRow = await tx.execute<{
+              level: string;
+              message: string | null;
+              details: { action?: string } | null;
+            }>(sql`
+              select level, message, details
+              from crawl_logs
+              where url = 'page-views-rollup'
+              order by created_at desc
+              limit 1
+            `);
+            const crawl = crawlRow.rows[0];
+            expect(crawl?.level).toBe("info");
+            expect(crawl?.message).toContain("Rolled up");
+            expect(crawl?.message).toContain(String(result.rolledRows));
+            expect(crawl?.details?.action).toBe("page-views-rollup");
+
+            // --- No-op run: nothing eligible remains (the first run folded
+            // every completed past day in the tx), so NEITHER table grows. ---
+            const auditAfterFirst = await auditCount();
+            const crawlAfterFirst = await crawlCount();
+            const second = await run({ dryRun: false, retentionDays: 0 }, tx);
+            expect(second.rolledRows).toBe(0);
+            expect(await auditCount()).toBe(auditAfterFirst);
+            expect(await crawlCount()).toBe(crawlAfterFirst);
+
+            throw ROLLBACK;
+          });
+        } catch (err) {
+          if (err !== ROLLBACK) throw err;
+        }
+
+        // The rollback really happened: no observability rows for our slug's
+        // run leaked (the seeded raw rows are gone too).
+        const leftoverRaw = await db.execute<{ n: number }>(sql`
+          select count(*)::int as n from page_views where slug = ${slug}
+        `);
+        expect(Number(leftoverRaw.rows[0]?.n ?? -1)).toBe(0);
       },
       300_000,
     );
