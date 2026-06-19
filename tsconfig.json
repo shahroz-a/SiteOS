@@ -26,6 +26,9 @@
     },
     {
       "path": "./lib/blog-renderer"
+    },
+    {
+      "path": "./lib/ui"
     }
   ]
 }
