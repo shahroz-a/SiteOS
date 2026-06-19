@@ -1,11 +1,18 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Bookmark, BookmarkPlus, Search as SearchIcon, Trash2 } from "lucide-react";
+import {
+  Bookmark,
+  BookmarkPlus,
+  Pencil,
+  Search as SearchIcon,
+  Trash2,
+} from "lucide-react";
 import {
   useSearchCmsContent,
   useListSavedViews,
   useCreateSavedView,
+  useUpdateSavedView,
   useDeleteSavedView,
   getListSavedViewsQueryKey,
   type SavedView,
@@ -148,6 +155,9 @@ export default function SearchPage() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [viewName, setViewName] = useState("");
   const [viewDescription, setViewDescription] = useState("");
+  const [editView, setEditView] = useState<SavedView | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const params = useMemo(() => toParams(applied, page), [applied, page]);
 
@@ -166,6 +176,21 @@ export default function SearchPage() {
       onError: () => {
         toast({
           title: "Could not save view",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const updateView = useUpdateSavedView({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListSavedViewsQueryKey() });
+      },
+      onError: () => {
+        toast({
+          title: "Could not update view",
           description: "Please try again.",
           variant: "destructive",
         });
@@ -214,6 +239,50 @@ export default function SearchPage() {
         query,
       },
     });
+  }
+
+  function openEditView(view: SavedView) {
+    setEditView(view);
+    setEditName(view.name);
+    setEditDescription(view.description ?? "");
+  }
+
+  function saveEditedView() {
+    if (!editView) return;
+    const name = editName.trim();
+    if (!name) return;
+    updateView.mutate(
+      {
+        id: editView.id,
+        data: {
+          name,
+          description: editDescription.trim() || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          setEditView(null);
+          toast({ title: "View updated" });
+        },
+      },
+    );
+  }
+
+  function updateViewToCurrentFilters() {
+    if (!editView) return;
+    const { page: _omit, limit: _omit2, ...query } = toParams(draft, 1);
+    updateView.mutate(
+      {
+        id: editView.id,
+        data: { query },
+      },
+      {
+        onSuccess: () => {
+          setEditView(null);
+          toast({ title: "View updated to current filters" });
+        },
+      },
+    );
   }
 
   const items = data?.items ?? [];
@@ -391,11 +460,21 @@ export default function SearchPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                  onClick={() => openEditView(view)}
+                  title="Edit view"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="h-6 w-6 text-muted-foreground hover:text-destructive"
                   disabled={
                     deleteView.isPending && deleteView.variables?.id === view.id
                   }
                   onClick={() => deleteView.mutate({ id: view.id })}
+                  title="Delete view"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -561,6 +640,73 @@ export default function SearchPage() {
               disabled={!viewName.trim() || createView.isPending}
             >
               Save view
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editView !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditView(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit view</DialogTitle>
+            <DialogDescription>
+              Rename this view or update its description. You can also overwrite
+              its saved filters with the ones currently in the form above.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-view-name">Name</Label>
+              <Input
+                id="edit-view-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. Draft posts needing SEO"
+                maxLength={120}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-view-description">
+                Description (optional)
+              </Label>
+              <Textarea
+                id="edit-view-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+              <p className="text-sm font-medium">Filters</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Overwrite this view's saved filters with the search and filters
+                currently in the form above.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={updateViewToCurrentFilters}
+                disabled={updateView.isPending}
+              >
+                Update to current filters
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditView(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={saveEditedView}
+              disabled={!editName.trim() || updateView.isPending}
+            >
+              Save changes
             </Button>
           </DialogFooter>
         </DialogContent>
