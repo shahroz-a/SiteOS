@@ -23,14 +23,16 @@ import {
   saveSkipped,
   clearSkipped,
 } from "@/lib/bulk-alt-progress";
+import {
+  gatherFlaggedWindow,
+  buildBulkSuggestSession,
+  BULK_SUGGEST_CEILING,
+} from "@/lib/bulk-alt-gather";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useToast } from "@workspace/ui";
 import { ImagePlus, Sparkles } from "lucide-react";
 
 const PAGE_SIZE = 24;
-
-/** Max flagged images gathered into a single bulk-suggestion review pass. */
-const BULK_SUGGEST_CEILING = 200;
 
 export default function MediaPage() {
   const { toast } = useToast();
@@ -69,34 +71,6 @@ export default function MediaPage() {
   // sanity), then hand the full set to the review queue.
   const totalIssues = summary?.withAltIssues ?? 0;
 
-  // Gather one bounded window of still-flagged images for the current search
-  // filter, excluding any URLs already handled in this session. Each window is
-  // capped at BULK_SUGGEST_CEILING for cost/review sanity; the review dialog
-  // calls this repeatedly to walk the whole backlog one window at a time.
-  const gatherFlagged = async (
-    exclude: Set<string>,
-  ): Promise<MediaItem[]> => {
-    const gathered: MediaItem[] = [];
-    const limit = 100;
-    let pageNum = 1;
-    while (gathered.length < BULK_SUGGEST_CEILING) {
-      const res = await listCmsMedia({
-        q: q || undefined,
-        onlyIssues: true,
-        page: pageNum,
-        limit,
-      });
-      for (const it of res.items) {
-        if (exclude.has(it.url)) continue;
-        gathered.push(it);
-        if (gathered.length >= BULK_SUGGEST_CEILING) break;
-      }
-      if (pageNum >= res.pagination.totalPages) break;
-      pageNum += 1;
-    }
-    return gathered;
-  };
-
   const startBulkSuggest = async () => {
     setBulkLoading(true);
     // Snapshot the filter for the whole session so debounce settling or a
@@ -106,14 +80,20 @@ export default function MediaPage() {
       // Resume an interrupted pass: skipped images from a prior run (for this
       // search filter) stay flagged but shouldn't be re-shown.
       const skipped = loadSkipped(filter);
-      const first = await gatherFlagged(new Set(skipped));
-      if (first.length === 0) {
+      const session = await buildBulkSuggestSession({
+        listMedia: listCmsMedia,
+        filter,
+        skipped,
+        total: totalIssues,
+        ceiling: BULK_SUGGEST_CEILING,
+      });
+      if (!session) {
         // Nothing left to review — any leftover skip state is stale.
         clearSkipped(filter);
         toast({ title: "No flagged images to suggest for." });
         return;
       }
-      setBulkSession({ filter, items: first, total: totalIssues, skipped });
+      setBulkSession(session);
     } catch {
       toast({
         title: "Couldn't load flagged images",
@@ -257,7 +237,14 @@ export default function MediaPage() {
         onOpenChange={(open) => {
           if (!open) setBulkSession(null);
         }}
-        fetchNext={(exclude) => gatherFlagged(new Set(exclude))}
+        fetchNext={(exclude) =>
+          gatherFlaggedWindow({
+            listMedia: listCmsMedia,
+            q,
+            exclude: new Set(exclude),
+            ceiling: BULK_SUGGEST_CEILING,
+          })
+        }
         onSkippedChange={(skipped) => {
           if (bulkSession) saveSkipped(bulkSession.filter, skipped);
         }}
