@@ -622,6 +622,65 @@ describe("POST /api/cms/held-back-articles/:id/reparse", () => {
   });
 });
 
+describe("GET /api/cms/posts/:id/source", () => {
+  beforeEach(() => {
+    const fresh = seedHeldBack();
+    for (const k of Object.keys(tables)) delete tables[k];
+    for (const [k, v] of Object.entries(fresh)) tables[k] = v;
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app).get("/api/cms/posts/p-fail/source");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns the source for a DRAFT post (cleaned body)", async () => {
+    const res = await request(app)
+      .get("/api/cms/posts/p-fail/source")
+      .set("Authorization", bearer("viewer"));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: "p-fail",
+      slug: "broken-article",
+      sourceKind: "cleaned",
+    });
+    expect(res.body.sourceHtml).toContain("the importer dropped");
+    expect(res.body.componentTree).toEqual([]);
+  });
+
+  it("returns the source for a PUBLISHED post (any status, not queue-gated)", async () => {
+    const res = await request(app)
+      .get("/api/cms/posts/p-pub/source")
+      .set("Authorization", bearer("viewer"));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: "p-pub", slug: "live-article" });
+  });
+
+  it("falls back to the raw original HTML when there is no cleaned body", async () => {
+    const res = await request(app)
+      .get("/api/cms/posts/p-pass/source")
+      .set("Authorization", bearer("viewer"));
+    expect(res.status).toBe(200);
+    expect(res.body.sourceKind).toBe("original");
+    expect(res.body.sourceHtml).toContain("raw original fallback");
+  });
+
+  it("returns 404 for a non-post page", async () => {
+    const res = await request(app)
+      .get("/api/cms/posts/p-cat/source")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for an unknown id", async () => {
+    const res = await request(app)
+      .get("/api/cms/posts/does-not-exist/source")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(404);
+  });
+});
+});
+
 describe("PATCH /api/cms/held-back-articles/:id", () => {
   const PERMITTED: Role[] = ["admin", "editor", "reviewer"];
 

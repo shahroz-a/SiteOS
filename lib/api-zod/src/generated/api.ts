@@ -1715,6 +1715,30 @@ export const DeleteCmsPostResponse = zod.object({
 
 
 /**
+ * The faithful source body (cleaned article HTML, falling back to the raw original HTML when no cleaned body exists) alongside the parsed structured representations (componentTree and richText) the importer extracted, for ANY article regardless of status (published or draft). Lets an editor render the source next to the parsed output and visually spot what the importer dropped or garbled, on any imported article — not only those held back by failing validation. Restricted to posts (page_type="post").
+ * @summary Source vs parsed bodies for any imported article (requires content.view)
+ */
+export const GetCmsPostSourceParams = zod.object({
+  "id": zod.string().describe('The page id of the article.')
+})
+
+export const GetCmsPostSourceHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsPostSourceResponse = zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "title": zod.string().nullable(),
+  "url": zod.string().nullable(),
+  "sourceHtml": zod.string().nullable().describe('The faithful source body — cleaned article HTML, or the raw original HTML when no cleaned body exists. Null when the article has no stored HTML at all.'),
+  "sourceKind": zod.union([zod.literal('cleaned'),zod.literal('original'),zod.literal(null)]).nullable().describe('Which column sourceHtml was taken from. Null when no source HTML exists.'),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).describe('The parsed Payload-style block tree the importer extracted.'),
+  "richText": zod.record(zod.string(), zod.unknown()).nullable().describe('The parsed Lexical rich-text tree the importer extracted.')
+})
+
+
+/**
  * @summary Duplicate an article as a new draft with SEO flagged for review (requires content.create)
  */
 export const DuplicateCmsPostParams = zod.object({

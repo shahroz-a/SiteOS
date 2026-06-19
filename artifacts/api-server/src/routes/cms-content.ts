@@ -6,6 +6,8 @@ import {
   ScaffoldCmsPostBody,
   GetCmsPostParams,
   GetCmsPostResponse,
+  GetCmsPostSourceParams,
+  GetCmsPostSourceResponse,
   UpdateCmsPostResponse,
   DeleteCmsPostParams,
   DeleteCmsPostResponse,
@@ -24,6 +26,7 @@ import {
   scaffoldPost,
   duplicatePost,
   serializeCmsPostDetail,
+  loadPostSource,
   listCmsPosts,
 } from "../lib/cms-content";
 
@@ -111,6 +114,27 @@ router.get(
       return;
     }
     res.json(GetCmsPostResponse.parse(detail));
+  },
+);
+
+// Source-vs-parsed bodies for ONE article (any status), powering the importer
+// diff preview in the editor. Returns the faithful source body (cleaned article
+// HTML, falling back to the raw original HTML) next to the parsed structured
+// trees (componentTree + richText) the importer extracted, so an editor can
+// sanity-check fidelity on ANY imported article — not just held-back ones.
+// Restricted to posts (page_type="post"). Requires content.view.
+router.get(
+  "/cms/posts/:id/source",
+  requireAuth,
+  requirePermission("content.view"),
+  async (req: Request, res: Response) => {
+    const { id } = GetCmsPostSourceParams.parse(req.params);
+    const source = await loadPostSource(id);
+    if (!source) {
+      res.status(404).json({ error: "Post not found" });
+      return;
+    }
+    res.json(GetCmsPostSourceResponse.parse(source));
   },
 );
 

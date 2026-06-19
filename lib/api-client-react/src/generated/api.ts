@@ -3563,6 +3563,84 @@ export const useDeleteCmsPost = <TError = ErrorType<CmsUnauthorizedResponse | Cm
       return useMutation(getDeleteCmsPostMutationOptions(options));
     }
 
+export const getGetCmsPostSourceUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/source`
+}
+
+/**
+ * The faithful source body (cleaned article HTML, falling back to the raw original HTML when no cleaned body exists) alongside the parsed structured representations (componentTree and richText) the importer extracted, for ANY article regardless of status (published or draft). Lets an editor render the source next to the parsed output and visually spot what the importer dropped or garbled, on any imported article — not only those held back by failing validation. Restricted to posts (page_type="post").
+ * @summary Source vs parsed bodies for any imported article (requires content.view)
+ */
+export const getCmsPostSource = async (id: string, options?: RequestInit): Promise<HeldBackArticleSource> => {
+
+  return customFetch<HeldBackArticleSource>(getGetCmsPostSourceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsPostSourceQueryKey = (id: string,) => {
+    return [
+    `/api/cms/posts/${id}/source`
+    ] as const;
+    }
+
+
+export const getGetCmsPostSourceQueryOptions = <TData = Awaited<ReturnType<typeof getCmsPostSource>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPostSource>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsPostSourceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsPostSource>>> = ({ signal }) => getCmsPostSource(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsPostSource>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsPostSourceQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsPostSource>>>
+export type GetCmsPostSourceQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+
+/**
+ * @summary Source vs parsed bodies for any imported article (requires content.view)
+ */
+
+export function useGetCmsPostSource<TData = Awaited<ReturnType<typeof getCmsPostSource>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPostSource>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsPostSourceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getDuplicateCmsPostUrl = (id: string,) => {
 
 

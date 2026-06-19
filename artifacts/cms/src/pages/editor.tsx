@@ -3,10 +3,12 @@ import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetCmsPost,
+  useGetCmsPostSource,
   useUpdateCmsPost,
   useGetCmsPostAnalytics,
   getGetCmsPostAnalyticsQueryKey,
   getGetCmsPostQueryKey,
+  getGetCmsPostSourceQueryKey,
   getListCmsPostQueryKey,
   type CmsPostDetail,
 } from "@workspace/api-client-react";
@@ -15,6 +17,7 @@ import {
   ArrowLeft,
   Check,
   Eye,
+  GitCompareArrows,
   Loader2,
   Redo2,
   Trash2,
@@ -25,8 +28,16 @@ import { Button } from "@workspace/ui/button";
 import { Input } from "@workspace/ui/input";
 import { Textarea } from "@workspace/ui/textarea";
 import { Skeleton } from "@workspace/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@workspace/ui/sheet";
 import { useToast } from "@workspace/ui";
 import { useCmsAuth } from "@/lib/cms-auth-context";
+import { SourceDiff } from "@/components/source-diff";
 import { useEditor } from "@/editor/use-editor";
 import { EditorCanvas } from "@/editor/canvas";
 import { EditorPreview } from "@/editor/preview";
@@ -62,6 +73,7 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   const [bannerAlt, setBannerAlt] = useState(detail.featuredImageAlt ?? "");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [bannerWarningDismissed, setBannerWarningDismissed] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
 
   // Non-blocking nudge: a published article with no banner image looks bare on
   // the public blog and weak in social/SEO previews. Drafts/archived are exempt.
@@ -174,6 +186,14 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
         />
         <SaveIndicator state={saveState} />
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            title="Compare the imported article against its original source"
+            onClick={() => setDiffOpen(true)}
+          >
+            <GitCompareArrows className="mr-1 h-4 w-4" /> Import diff
+          </Button>
           <Button variant="ghost" size="icon" title="Undo" disabled={!editor.canUndo} onClick={editor.undo}>
             <Undo2 className="h-4 w-4" />
           </Button>
@@ -237,7 +257,60 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
           />
         </div>
       </div>
+
+      <ImportDiffSheet
+        articleId={detail.id}
+        open={diffOpen}
+        onOpenChange={setDiffOpen}
+      />
     </div>
+  );
+}
+
+/**
+ * Drawer showing the source-vs-parsed importer diff for the current article.
+ * Lazily fetches the source body only while open (lifted to its own component
+ * so the large source HTML is never loaded until an editor asks for it), then
+ * hands it to the shared `SourceDiff` — the same component the held-back review
+ * queue uses, so the fidelity view can't drift between the two surfaces. Works
+ * for published or draft articles alike.
+ */
+function ImportDiffSheet({
+  articleId,
+  open,
+  onOpenChange,
+}: {
+  articleId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const source = useGetCmsPostSource(articleId, {
+    query: { enabled: open, queryKey: getGetCmsPostSourceQueryKey(articleId) },
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="flex h-[92vh] flex-col gap-0 p-0"
+      >
+        <SheetHeader className="border-b border-border/60 px-6 py-4">
+          <SheetTitle>Importer diff</SheetTitle>
+          <SheetDescription>
+            The original crawled article on the left, and what the importer
+            extracted on the right. Anything highlighted on the left is missing
+            or garbled in the parsed content.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <SourceDiff
+            data={source.data}
+            isLoading={source.isLoading}
+            isError={source.isError}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

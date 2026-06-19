@@ -481,6 +481,75 @@ export async function listCmsPosts(
   return { items, pagination: { page: opts.page, limit: opts.limit, total, totalPages } };
 }
 
+export interface PostSource {
+  id: string;
+  slug: string;
+  title: string | null;
+  url: string | null;
+  sourceHtml: string | null;
+  sourceKind: "cleaned" | "original" | null;
+  componentTree: unknown;
+  richText: unknown;
+}
+
+/**
+ * Load the source-vs-parsed bodies for one article (any status), powering the
+ * importer-diff preview. Returns the faithful source body (cleaned article
+ * HTML, falling back to the raw original HTML) next to the parsed structured
+ * trees (componentTree + richText) the importer extracted. Restricted to posts
+ * (page_type="post"). Returns null when the id is not a post.
+ *
+ * `original_html` is large (~500KB/row), so it is fetched only as a fallback in
+ * a second query when the cleaned body is empty — never eagerly.
+ */
+export async function loadPostSource(
+  id: string,
+  exec: Executor = db,
+): Promise<PostSource | null> {
+  const [page] = await exec
+    .select({
+      id: pagesTable.id,
+      slug: pagesTable.slug,
+      title: pagesTable.title,
+      url: pagesTable.canonicalUrl,
+      cleanedHtml: pagesTable.cleanedHtml,
+      componentTree: pagesTable.componentTree,
+      richText: pagesTable.richText,
+    })
+    .from(pagesTable)
+    .where(and(eq(pagesTable.id, id), eq(pagesTable.pageType, "post")))
+    .limit(1);
+
+  if (!page) return null;
+
+  const cleaned = page.cleanedHtml?.trim() ? page.cleanedHtml : null;
+  let sourceHtml: string | null = cleaned;
+  let sourceKind: "cleaned" | "original" | null = cleaned ? "cleaned" : null;
+
+  if (!sourceHtml) {
+    const [raw] = await exec
+      .select({ originalHtml: pagesTable.originalHtml })
+      .from(pagesTable)
+      .where(eq(pagesTable.id, id))
+      .limit(1);
+    if (raw?.originalHtml?.trim()) {
+      sourceHtml = raw.originalHtml;
+      sourceKind = "original";
+    }
+  }
+
+  return {
+    id: page.id,
+    slug: page.slug,
+    title: page.title,
+    url: page.url,
+    sourceHtml,
+    sourceKind,
+    componentTree: page.componentTree ?? null,
+    richText: page.richText ?? null,
+  };
+}
+
 /**
  * Load and serialize a page and all nested content into the CmsPostDetail
  * shape (no published/pageType filter — the CMS sees drafts and every type).

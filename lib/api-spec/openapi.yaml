@@ -1417,6 +1417,43 @@ paths:
         "404":
           $ref: "#/components/responses/CmsNotFound"
 
+  /cms/posts/{id}/source:
+    get:
+      tags: [cms]
+      operationId: getCmsPostSource
+      summary: Source vs parsed bodies for any imported article (requires content.view)
+      description: >-
+        The faithful source body (cleaned article HTML, falling back to the raw
+        original HTML when no cleaned body exists) alongside the parsed
+        structured representations (componentTree and richText) the importer
+        extracted, for ANY article regardless of status (published or draft).
+        Lets an editor render the source next to the parsed output and visually
+        spot what the importer dropped or garbled, on any imported article — not
+        only those held back by failing validation. Restricted to posts
+        (page_type="post").
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The page id of the article.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The article's source and parsed bodies.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeldBackArticleSource"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
   /cms/posts/{id}/duplicate:
     post:
       tags: [cms]
