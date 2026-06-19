@@ -430,6 +430,29 @@ export const GetCmsAnalyticsResponse = zod.object({
 
 
 /**
+ * View totals for a single post identified by its public slug: all-time, last 7 days and last 30 days. Counts off the immutable `slug` column on page views, so totals survive renames. Returns zeros for a slug that has never been viewed. Requires content.view.
+ * @summary Per-post view totals for the CMS editor
+ */
+
+
+
+export const GetCmsPostAnalyticsParams = zod.object({
+  "slug": zod.string().min(1).describe('The post\'s public slug.')
+})
+
+export const GetCmsPostAnalyticsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsPostAnalyticsResponse = zod.object({
+  "slug": zod.string(),
+  "total": zod.number().describe('All-time view count.'),
+  "last7Days": zod.number().describe('Views in the last 7 days.'),
+  "last30Days": zod.number().describe('Views in the last 30 days.')
+}).describe('View totals for a single post.')
+
+
+/**
  * Full-text-ish search across post titles, excerpts and content.
  * @summary Search posts
  */

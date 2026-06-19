@@ -396,6 +396,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /cms/analytics/posts/{slug}:
+    get:
+      operationId: getCmsPostAnalytics
+      tags: [analytics]
+      summary: Per-post view totals for the CMS editor
+      description: >-
+        View totals for a single post identified by its public slug: all-time,
+        last 7 days and last 30 days. Counts off the immutable `slug` column on
+        page views, so totals survive renames. Returns zeros for a slug that has
+        never been viewed. Requires content.view.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: The post's public slug.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The post's view totals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostAnalytics"
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Insufficient permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /search:
     get:
       operationId: searchPosts
@@ -4823,6 +4863,27 @@ components:
           description: Views per day for the last 30 days (gap-filled).
           items:
             $ref: '#/components/schemas/AnalyticsTimePoint'
+
+    PostAnalytics:
+      type: object
+      description: View totals for a single post.
+      required:
+        - slug
+        - total
+        - last7Days
+        - last30Days
+      properties:
+        slug:
+          type: string
+        total:
+          type: integer
+          description: All-time view count.
+        last7Days:
+          type: integer
+          description: Views in the last 7 days.
+        last30Days:
+          type: integer
+          description: Views in the last 30 days.
 
     AnalyticsLeader:
       type: object

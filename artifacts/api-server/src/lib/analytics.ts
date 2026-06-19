@@ -70,6 +70,39 @@ const COMBINED_VIEWS = sql`
 `;
 
 /**
+ * Per-post view totals for a single slug — all-time, last 7 days, last 30 days.
+ * Unifies the `page_view_daily` rollup and the raw `page_views` log via
+ * COMBINED_VIEWS, so totals stay correct after the rollup job retires raw rows
+ * (a direct page_views-only count would undercount rolled-up days). Counts key
+ * off the immutable `slug` column so they survive renames/deletes; windows are
+ * calendar-day based, consistent with the dashboard's last7/last30. Returns
+ * zeros for a slug that has never been viewed.
+ */
+export async function buildPostAnalytics(slug: string) {
+  const trimmed = slug.trim();
+  const res = await db.execute<{
+    total: number;
+    last7: number;
+    last30: number;
+  }>(sql`
+    with combined as (${COMBINED_VIEWS})
+    select
+      coalesce(sum(views), 0)::int as total,
+      coalesce(sum(views) filter (where day >= current_date - 6), 0)::int as last7,
+      coalesce(sum(views) filter (where day >= current_date - 29), 0)::int as last30
+    from combined
+    where slug = ${trimmed}
+  `);
+  const row = res.rows[0];
+  return {
+    slug: trimmed,
+    total: Number(row?.total ?? 0),
+    last7Days: Number(row?.last7 ?? 0),
+    last30Days: Number(row?.last30 ?? 0),
+  };
+}
+
+/**
  * Build every content-analytics aggregate in one concurrent pass. Each query is
  * a single targeted aggregate (no N+1, no `select *`); independent queries run
  * via Promise.all so the whole snapshot resolves in roughly one round-trip's

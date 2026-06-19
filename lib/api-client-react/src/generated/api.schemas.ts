@@ -1548,6 +1548,19 @@ export interface AnalyticsViews {
 }
 
 /**
+ * View totals for a single post.
+ */
+export interface PostAnalytics {
+  slug: string;
+  /** All-time view count. */
+  total: number;
+  /** Views in the last 7 days. */
+  last7Days: number;
+  /** Views in the last 30 days. */
+  last30Days: number;
+}
+
+/**
  * A leaderboard row ranked by page views.
  */
 export interface AnalyticsLeader {

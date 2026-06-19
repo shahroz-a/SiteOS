@@ -137,6 +137,7 @@ export * from './payloadFieldMapping';
 export * from './payloadMappingResponse';
 export * from './payloadMigrationReport';
 export * from './payloadMigrationReportTotals';
+export * from './postAnalytics';
 export * from './postDetail';
 export * from './postDetailComponentTree';
 export * from './postDetailRichText';

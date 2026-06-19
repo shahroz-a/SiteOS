@@ -74,6 +74,7 @@ import type {
   PageVersionDetail,
   PageVersionListResponse,
   PayloadMappingResponse,
+  PostAnalytics,
   PostDetail,
   PostListResponse,
   RecordPageViewRequest,
@@ -1187,6 +1188,84 @@ export function useGetCmsAnalytics<TData = Awaited<ReturnType<typeof getCmsAnaly
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetCmsAnalyticsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCmsPostAnalyticsUrl = (slug: string,) => {
+
+
+
+
+  return `/api/cms/analytics/posts/${slug}`
+}
+
+/**
+ * View totals for a single post identified by its public slug: all-time, last 7 days and last 30 days. Counts off the immutable `slug` column on page views, so totals survive renames. Returns zeros for a slug that has never been viewed. Requires content.view.
+ * @summary Per-post view totals for the CMS editor
+ */
+export const getCmsPostAnalytics = async (slug: string, options?: RequestInit): Promise<PostAnalytics> => {
+
+  return customFetch<PostAnalytics>(getGetCmsPostAnalyticsUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsPostAnalyticsQueryKey = (slug: string,) => {
+    return [
+    `/api/cms/analytics/posts/${slug}`
+    ] as const;
+    }
+
+
+export const getGetCmsPostAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getCmsPostAnalytics>>, TError = ErrorType<ErrorEnvelope>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPostAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsPostAnalyticsQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsPostAnalytics>>> = ({ signal }) => getCmsPostAnalytics(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsPostAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsPostAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsPostAnalytics>>>
+export type GetCmsPostAnalyticsQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Per-post view totals for the CMS editor
+ */
+
+export function useGetCmsPostAnalytics<TData = Awaited<ReturnType<typeof getCmsPostAnalytics>>, TError = ErrorType<ErrorEnvelope>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPostAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsPostAnalyticsQueryOptions(slug,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

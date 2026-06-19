@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetCmsPost,
   useUpdateCmsPost,
+  useGetCmsPostAnalytics,
+  getGetCmsPostAnalyticsQueryKey,
   getGetCmsPostQueryKey,
   getListCmsPostQueryKey,
   type CmsPostDetail,
@@ -12,6 +14,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Check,
+  Eye,
   Loader2,
   Redo2,
   Trash2,
@@ -70,6 +73,10 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   useEffect(() => {
     if (bannerUrl.trim()) setBannerWarningDismissed(false);
   }, [bannerUrl]);
+
+  const analytics = useGetCmsPostAnalytics(detail.slug, {
+    query: { queryKey: getGetCmsPostAnalyticsQueryKey(detail.slug) },
+  });
 
   const update = useUpdateCmsPost({
     mutation: {
@@ -160,6 +167,11 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
             className="h-9 border-0 bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:ring-0"
           />
         </div>
+        <ViewCounts
+          data={analytics.data}
+          isLoading={analytics.isLoading}
+          isError={analytics.isError}
+        />
         <SaveIndicator state={saveState} />
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" title="Undo" disabled={!editor.canUndo} onClick={editor.undo}>
@@ -296,6 +308,39 @@ function BannerImageField({
           ) : null}
         </div>
       )}
+    </div>
+  );
+}
+
+interface ViewCountsProps {
+  data: { total: number; last7Days: number; last30Days: number } | undefined;
+  isLoading: boolean;
+  isError: boolean;
+}
+
+function ViewCounts({ data, isLoading, isError }: ViewCountsProps) {
+  if (isError) return null;
+  if (isLoading || !data) {
+    return <Skeleton className="h-5 w-40" />;
+  }
+  const fmt = (n: number) => n.toLocaleString();
+  return (
+    <div
+      className="flex items-center gap-3 text-xs text-muted-foreground"
+      title="Page views: all-time · last 7 days · last 30 days"
+    >
+      <Eye className="h-3.5 w-3.5 shrink-0" />
+      <span>
+        <span className="font-medium text-foreground">{fmt(data.total)}</span> all-time
+      </span>
+      <span className="text-border">·</span>
+      <span>
+        <span className="font-medium text-foreground">{fmt(data.last7Days)}</span> 7d
+      </span>
+      <span className="text-border">·</span>
+      <span>
+        <span className="font-medium text-foreground">{fmt(data.last30Days)}</span> 30d
+      </span>
     </div>
   );
 }

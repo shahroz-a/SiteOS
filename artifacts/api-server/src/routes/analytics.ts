@@ -1,7 +1,16 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { RecordPageViewBody, GetCmsAnalyticsResponse } from "@workspace/api-zod";
+import {
+  RecordPageViewBody,
+  GetCmsAnalyticsResponse,
+  GetCmsPostAnalyticsResponse,
+} from "@workspace/api-zod";
 import { requireAuth, requirePermission } from "../middlewares/rbac";
-import { recordPageView, refererHost, buildAnalytics } from "../lib/analytics";
+import {
+  recordPageView,
+  refererHost,
+  buildAnalytics,
+  buildPostAnalytics,
+} from "../lib/analytics";
 
 const router: IRouter = Router();
 
@@ -31,6 +40,18 @@ router.get(
   async (_req: Request, res: Response) => {
     const analytics = await buildAnalytics();
     res.json(GetCmsAnalyticsResponse.parse(analytics));
+  },
+);
+
+// Per-post view totals for the editor screen. Same content.view gate as the
+// dashboard aggregates.
+router.get(
+  "/cms/analytics/posts/:slug",
+  requireAuth,
+  requirePermission("content.view"),
+  async (req: Request, res: Response) => {
+    const analytics = await buildPostAnalytics(String(req.params.slug));
+    res.json(GetCmsPostAnalyticsResponse.parse(analytics));
   },
 );
 
