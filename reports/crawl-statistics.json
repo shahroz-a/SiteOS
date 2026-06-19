@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-06-19T12:58:58.959Z",
+  "generatedAt": "2026-06-19T13:26:46.733Z",
   "queue": {
     "pending": 0,
     "in_progress": 0,
-    "completed": 4010,
-    "failed": 0,
-    "skipped": 116,
-    "total": 4126
+    "completed": 3970,
+    "failed": 145,
+    "skipped": 2,
+    "total": 4117
   },
-  "pages": 3710,
+  "pages": 3698,
   "pagesByType": {
     "post": 2941,
-    "page": 136,
+    "page": 124,
     "category": 568,
     "author": 65
   },
@@ -19,12 +19,12 @@
     "post": 2941,
     "category": 568,
     "author": 65,
-    "page": 136,
-    "webStory": 136
+    "page": 124,
+    "webStory": 0
   },
-  "webStories": 136,
+  "webStories": 0,
   "authors": 97,
   "categories": 2212,
   "tags": 0,
-  "images": 65889
+  "images": 65569
 }

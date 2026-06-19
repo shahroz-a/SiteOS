@@ -83,7 +83,11 @@ export async function generateReports(
   );
 
   // --- Validation report ---
-  const validations = await db
+  // Validation reports accumulate one row per (re)validation, so a page can have
+  // several historical rows. Join to pages (dropping orphan rows for deleted
+  // pages) and keep only the latest row per page so counts reflect each page's
+  // CURRENT state rather than its full history.
+  const validationRows = await db
     .select({
       pageId: validationReportsTable.pageId,
       status: validationReportsTable.status,
@@ -91,7 +95,13 @@ export async function generateReports(
       issues: validationReportsTable.issues,
     })
     .from(validationReportsTable)
+    .innerJoin(pagesTable, eq(validationReportsTable.pageId, pagesTable.id))
     .orderBy(desc(validationReportsTable.createdAt));
+  const latestValidationByPage = new Map<string, (typeof validationRows)[number]>();
+  for (const v of validationRows) {
+    if (v.pageId && !latestValidationByPage.has(v.pageId)) latestValidationByPage.set(v.pageId, v);
+  }
+  const validations = [...latestValidationByPage.values()];
   const byStatus = validations.reduce<Record<string, number>>((acc, v) => {
     acc[v.status] = (acc[v.status] ?? 0) + 1;
     return acc;
@@ -218,10 +228,6 @@ export async function generateReports(
   // Articles kept out of the public read API because content-fidelity
   // validation failed (pages.status="draft"). Editors use this queue to review
   // and republish them. Reuses pages + the latest validation_reports row per page.
-  const latestValidationByPage = new Map<string, (typeof validations)[number]>();
-  for (const v of validations) {
-    if (v.pageId && !latestValidationByPage.has(v.pageId)) latestValidationByPage.set(v.pageId, v);
-  }
   const draftPages = await db
     .select({
       id: pagesTable.id,

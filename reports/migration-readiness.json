@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-06-19T12:59:03.757Z",
-  "totalPages": 3710,
+  "generatedAt": "2026-06-19T13:26:50.425Z",
+  "totalPages": 3698,
   "heldBackArticles": 0,
-  "validationFailures": 1044,
+  "validationFailures": 0,
   "pagesMissingCanonical": 0,
   "queuePending": 0,
-  "queueFailed": 0,
+  "queueFailed": 145,
   "ready": false,
   "blockingIssues": [
-    "1044 pages failed content-fidelity validation"
+    "145 URLs permanently failed to crawl"
   ]
 }

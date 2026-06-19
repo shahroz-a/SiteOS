@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T12:59:06.014Z",
+  "generatedAt": "2026-06-19T13:27:02.221Z",
   "collections": {
     "pages": {
       "source": "pages + page_versions",
@@ -64,17 +64,17 @@
     },
     {
       "type": "image",
-      "count": 18340,
+      "count": 18224,
       "payloadBlock": "MediaBlock (external URL)"
     },
     {
       "type": "list",
-      "count": 11283,
+      "count": 11271,
       "payloadBlock": "RichText list / List block"
     },
     {
       "type": "newsletter",
-      "count": 91,
+      "count": 79,
       "payloadBlock": "NewsletterBlock"
     },
     {
@@ -89,12 +89,12 @@
     },
     {
       "type": "richText",
-      "count": 80656,
+      "count": 80540,
       "payloadBlock": "RichText (Lexical) block"
     },
     {
       "type": "section",
-      "count": 61558,
+      "count": 61418,
       "payloadBlock": "Group/Container block"
     },
     {
@@ -106,7 +106,7 @@
   "richText": "Stored as structured JSON (Lexical-compatible) in pages.rich_text",
   "urlPreservation": {
     "strategy": "canonical_url is the public identifier; slug derived from URL; redirects preserved",
-    "redirectsPreserved": 231
+    "redirectsPreserved": 217
   },
   "blockingIssues": []
 }

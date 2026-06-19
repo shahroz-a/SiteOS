@@ -8,6 +8,7 @@
     "seed": "tsx ./src/seed.ts",
     "import": "tsx ./src/import.ts",
     "crawl": "tsx ./src/crawl.ts",
+    "revalidate": "tsx ./src/revalidate.ts",
     "discover": "tsx ./src/crawl.ts --discover",
     "export:payload": "tsx ./src/export-payload.ts",
     "import:payload": "tsx ./src/import-payload.ts",
