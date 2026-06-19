@@ -223,7 +223,7 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
           </Button>
         </div>
         <div className="ml-1 border-l border-border/60 pl-2">
-          <PublishPanel detail={detail} />
+          <PublishPanel detail={detail} onOpenSeoPanel={() => setSeoOpen(true)} />
         </div>
       </header>
 

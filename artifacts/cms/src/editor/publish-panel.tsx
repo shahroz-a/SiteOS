@@ -9,6 +9,7 @@ import {
   type CmsPostDetail,
   type PageStatus,
 } from "@workspace/api-client-react";
+import type { SeoCheck } from "@workspace/seo-validation";
 import {
   ChevronDown,
   Send,
@@ -20,6 +21,8 @@ import {
   Copy,
   Check,
   AlertTriangle,
+  XCircle,
+  Search,
 } from "lucide-react";
 import { Button } from "@workspace/ui/button";
 import { Input } from "@workspace/ui/input";
@@ -58,7 +61,41 @@ function toLocalInputValue(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function PublishPanel({ detail }: { detail: CmsPostDetail }) {
+/** The 422 body the publish gate returns when critical SEO checks fail. */
+interface PublishBlock {
+  message: string;
+  blocking: SeoCheck[];
+}
+
+/**
+ * Pull the publish-gate block (status 422 + `{ error, blocking[] }`) out of a
+ * mutation error, or return null for any other failure so it falls through to
+ * the generic toast.
+ */
+function extractPublishBlock(err: unknown): PublishBlock | null {
+  if (!err || typeof err !== "object") return null;
+  if ((err as { status?: unknown }).status !== 422) return null;
+  const data = (err as { data?: unknown }).data;
+  if (!data || typeof data !== "object") return null;
+  const blocking = (data as { blocking?: unknown }).blocking;
+  if (!Array.isArray(blocking) || blocking.length === 0) return null;
+  const error = (data as { error?: unknown }).error;
+  return {
+    message:
+      typeof error === "string" && error.trim()
+        ? error
+        : "This article has critical SEO issues that must be fixed before publishing.",
+    blocking: blocking as SeoCheck[],
+  };
+}
+
+export function PublishPanel({
+  detail,
+  onOpenSeoPanel,
+}: {
+  detail: CmsPostDetail;
+  onOpenSeoPanel?: () => void;
+}) {
   const { can } = useCmsAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -67,6 +104,7 @@ export function PublishPanel({ detail }: { detail: CmsPostDetail }) {
   const canManageUrl = can("url.manage");
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [block, setBlock] = useState<PublishBlock | null>(null);
   const [scheduleAt, setScheduleAt] = useState(() => {
     const base = detail.scheduledFor
       ? new Date(detail.scheduledFor)
@@ -87,6 +125,12 @@ export function PublishPanel({ detail }: { detail: CmsPostDetail }) {
         setScheduleOpen(false);
       },
       onError: (err: unknown) => {
+        const publishBlock = extractPublishBlock(err);
+        if (publishBlock) {
+          setScheduleOpen(false);
+          setBlock(publishBlock);
+          return;
+        }
         toast({
           title: "Transition failed",
           description: err instanceof Error ? err.message : "Please try again.",
@@ -189,6 +233,46 @@ export function PublishPanel({ detail }: { detail: CmsPostDetail }) {
             >
               Schedule
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={block !== null} onOpenChange={(open) => !open && setBlock(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              SEO issues blocking publish
+            </DialogTitle>
+            <DialogDescription>
+              {block?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-2">
+            {block?.blocking.map((c) => (
+              <li key={c.id} className="flex items-start gap-2 text-sm">
+                <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <span className="flex-1">
+                  <span className="font-medium">{c.label}.</span>{" "}
+                  <span className="text-muted-foreground">{c.message}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBlock(null)}>
+              Dismiss
+            </Button>
+            {onOpenSeoPanel && (
+              <Button
+                onClick={() => {
+                  setBlock(null);
+                  onOpenSeoPanel();
+                }}
+              >
+                <Search className="mr-1 h-4 w-4" /> Open SEO panel
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
