@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
-import { Platform, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ScreenHeader } from "@/components/cms/CmsCommon";
@@ -48,29 +48,20 @@ export default function SourceDiffScreen() {
         paddingTop={paddingTop}
       />
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + 40 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {sourceQuery.isLoading ? (
-          <LoadingView label="Loading source…" />
-        ) : sourceQuery.isError ? (
-          <ErrorView
-            message="Failed to load the source comparison."
-            onRetry={sourceQuery.refetch}
-          />
-        ) : diff ? (
-          <SourceDiffView diff={diff} />
-        ) : null}
-      </ScrollView>
+      {sourceQuery.isLoading ? (
+        <LoadingView label="Loading source…" />
+      ) : sourceQuery.isError ? (
+        <ErrorView
+          message="Failed to load the source comparison."
+          onRetry={sourceQuery.refetch}
+        />
+      ) : diff ? (
+        <SourceDiffView diff={diff} bottomInset={insets.bottom + 40} />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 16, gap: 16 },
 });

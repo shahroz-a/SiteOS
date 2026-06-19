@@ -63,6 +63,66 @@ export interface SourceDiffResult {
   total: number;
 }
 
+/** The kinds of fidelity loss a reviewer can step through. */
+export type DiffMarkerType = "removed" | "changed" | "image" | "link";
+
+/**
+ * One navigable difference, in top-to-bottom reading order. `index` points into
+ * the relevant `SourceDiffResult` array so a renderer can locate the element to
+ * highlight/scroll to:
+ *  - `removed` / `changed` → `sourceBlocks`
+ *  - `image` → `missingImages`
+ *  - `link` → `droppedLinks`
+ */
+export interface DiffMarker {
+  type: DiffMarkerType;
+  /** Short human label for the marker list / counter. */
+  label: string;
+  index: number;
+}
+
+/** Collapse whitespace and clip a label so the marker list stays compact. */
+export function truncateLabel(s: string, n = 80): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length > n ? `${t.slice(0, n)}…` : t;
+}
+
+/**
+ * Flatten a `SourceDiffResult` into the ordered list of differences a reviewer
+ * steps through (Prev/Next). The order — dropped/changed source blocks first
+ * (in document order), then missing images, then dropped links — matches the
+ * order the mobile companion renders these sections, so stepping walks the
+ * screen top-to-bottom. Importer-added blocks are intentionally excluded (they
+ * are not content lost from the source).
+ */
+export function buildDiffMarkers(result: SourceDiffResult): DiffMarker[] {
+  const markers: DiffMarker[] = [];
+  result.sourceBlocks.forEach((block, index) => {
+    if (block.kind === "removed" || block.kind === "changed") {
+      markers.push({
+        type: block.kind,
+        label: truncateLabel(block.text),
+        index,
+      });
+    }
+  });
+  result.missingImages.forEach((img, index) => {
+    markers.push({
+      type: "image",
+      label: truncateLabel(img.alt || img.url),
+      index,
+    });
+  });
+  result.droppedLinks.forEach((link, index) => {
+    markers.push({
+      type: "link",
+      label: truncateLabel(link.text || link.url),
+      index,
+    });
+  });
+  return markers;
+}
+
 export function computeSourceDiff(data: SourceDiffInput): SourceDiffResult {
   const source = extractHtmlContent(data.sourceHtml);
 
