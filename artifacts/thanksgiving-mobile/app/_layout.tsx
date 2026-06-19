@@ -22,6 +22,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FavoritesProvider } from "@/hooks/useFavorites";
+import { ToastProvider } from "@/hooks/useToast";
 import { setBaseUrl } from "@workspace/api-client-react";
 
 // Route all generated API calls (paths like `/api/...`) through the shared
@@ -70,7 +71,9 @@ export default function RootLayout() {
           <FavoritesProvider>
             <GestureHandlerRootView>
               <KeyboardProvider>
-                <RootLayoutNav />
+                <ToastProvider>
+                  <RootLayoutNav />
+                </ToastProvider>
               </KeyboardProvider>
             </GestureHandlerRootView>
           </FavoritesProvider>

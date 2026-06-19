@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -26,14 +26,10 @@ import { CollectionFormModal } from "@/components/CollectionFormModal";
 import { CollectionsModal } from "@/components/CollectionsModal";
 import { PostCard } from "@/components/PostCard";
 import { EmptyView, LoadingView } from "@/components/StateViews";
-import { UndoToast } from "@/components/UndoToast";
 import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
-import {
-  useFavorites,
-  type Collection,
-  type RemovedFromCollection,
-} from "@/hooks/useFavorites";
+import { useFavorites, type Collection } from "@/hooks/useFavorites";
+import { useToast } from "@/hooks/useToast";
 import type { PostSummary } from "@workspace/api-client-react";
 
 /**
@@ -160,6 +156,7 @@ export default function SavedScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { showUndoToast } = useToast();
 
   const {
     favorites,
@@ -180,19 +177,6 @@ export default function SavedScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [managingPost, setManagingPost] = useState<PostSummary | null>(null);
   const [form, setForm] = useState<FormState>(null);
-  const [undo, setUndo] = useState<RemovedFromCollection | null>(null);
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // The undo snackbar self-dismisses after a few seconds. Restart the timer
-  // whenever a new removal happens, and clear it on unmount.
-  useEffect(() => {
-    if (undo === null) return;
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    undoTimer.current = setTimeout(() => setUndo(null), 4000);
-    return () => {
-      if (undoTimer.current) clearTimeout(undoTimer.current);
-    };
-  }, [undo]);
 
   // The selected collection may have been deleted; fall back to "All".
   const activeSelected =
@@ -236,25 +220,21 @@ export default function SavedScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }
       const snapshot = removeFromCollection(post.id, activeSelected);
-      setUndo(snapshot);
+      const name = collections.find((c) => c.id === snapshot.collectionId)?.name;
+      showUndoToast({
+        message: name ? `Removed from ${name}` : "Removed from collection",
+        onAction: () => {
+          if (Platform.OS !== "web") {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
+              () => {},
+            );
+          }
+          restoreToCollection(snapshot);
+        },
+      });
     },
-    [activeSelected, removeFromCollection],
+    [activeSelected, removeFromCollection, restoreToCollection, collections, showUndoToast],
   );
-
-  const handleUndoRemove = useCallback(() => {
-    if (undo === null) return;
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-    restoreToCollection(undo);
-    setUndo(null);
-  }, [undo, restoreToCollection]);
-
-  const undoMessage = useMemo(() => {
-    if (undo === null) return "";
-    const name = collections.find((c) => c.id === undo.collectionId)?.name;
-    return name ? `Removed from ${name}` : "Removed from collection";
-  }, [undo, collections]);
 
   const countFor = useCallback(
     (id: string | null) => (id === null ? count : collectionCount(id)),
@@ -409,12 +389,6 @@ export default function SavedScreen() {
         initialName={form?.mode === "rename" ? form.collection.name : ""}
         onSubmit={handleFormSubmit}
         onClose={() => setForm(null)}
-      />
-
-      <UndoToast
-        visible={undo !== null}
-        message={undoMessage}
-        onAction={handleUndoRemove}
       />
     </View>
   );
