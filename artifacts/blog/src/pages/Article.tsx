@@ -248,7 +248,11 @@ export function ArticleView({
 
         <div
           className={cn(
-            "flex flex-col lg:flex-row gap-16 relative items-start",
+            // items-start only from lg up: on mobile (flex-col) the default
+            // `stretch` makes the body column fill the viewport width. Forcing
+            // flex-start on the column cross-axis let the body size to its
+            // max-width (max-w-3xl) instead, overflowing narrow screens.
+            "flex flex-col lg:flex-row gap-16 relative lg:items-start",
             // No headings → no TOC column; center the body instead of leaving a
             // large empty gap on the right.
             tocItems.length === 0 && "lg:justify-center",
@@ -256,7 +260,7 @@ export function ArticleView({
         >
           <TableOfContents items={tocItems} />
 
-          <div className="flex-1 min-w-0 max-w-3xl">
+          <div className="w-full flex-1 min-w-0 max-w-3xl">
             <ContentRenderer post={post} />
             <FaqAccordion items={post.faq} />
           </div>

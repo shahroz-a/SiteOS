@@ -223,6 +223,63 @@ function repairImg(imgTag: string): string {
   return out;
 }
 
+/**
+ * Repair malformed "day-by-day itinerary" widgets whose `<div class="days">`
+ * blocks are missing their closing `</div>`.
+ *
+ * The migrated WordPress/Thrive itinerary widget (`.page-card > .days+`) is
+ * meant to render each day as a *sibling* div. Part of the source corpus is
+ * malformed: from roughly the third day onward the `</div>` that should close
+ * one `.days` block is absent, so the next `<div class="days">` is parsed as a
+ * *child* of the previous one. Because `<div>` is not a formatting element the
+ * browser (and any spec HTML parser) nests them verbatim — each day indenting
+ * one "day" column further right — which pushes the widget, and the whole
+ * article, past the viewport on mobile (a runaway horizontal scrollbar).
+ *
+ * Browsers and `DOMParser` reproduce this nesting faithfully, so it cannot be
+ * fixed by parse-and-reserialize: the missing tags must be re-inserted into the
+ * markup *before* it is parsed. This isomorphic (no-DOM) string pass tracks div
+ * nesting and, whenever a `.days` div opens while an ancestor `.days` is still
+ * open, closes the open block(s) first so the days become proper siblings.
+ */
+export function balanceItineraryDays(html: string): string {
+  if (!html || !/\sclass\s*=\s*["'][^"']*\bdays\b/i.test(html)) return html;
+  const isDays = (openTag: string): boolean => {
+    const m = openTag.match(/\sclass\s*=\s*("([^"]*)"|'([^']*)')/i);
+    const cls = m ? (m[2] ?? m[3] ?? "") : "";
+    return cls.split(/\s+/).includes("days");
+  };
+  const tokenRe = /<div\b[^>]*>|<\/div>/gi;
+  const stack: boolean[] = []; // one entry per open <div>; true = a `.days` div
+  let out = "";
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(html))) {
+    out += html.slice(last, m.index);
+    last = tokenRe.lastIndex;
+    const tok = m[0];
+    if (tok[1] === "/") {
+      stack.pop();
+      out += tok;
+      continue;
+    }
+    const days = isDays(tok);
+    if (days && stack.includes(true)) {
+      // Close down to and including the nearest still-open `.days` so this new
+      // day can't nest inside it (also closes any intervening unclosed divs).
+      while (stack.length) {
+        const wasDays = stack.pop();
+        out += "</div>";
+        if (wasDays) break;
+      }
+    }
+    out += tok;
+    stack.push(days);
+  }
+  out += html.slice(last);
+  return out;
+}
+
 function stripTags(html: string): string {
   return html.replace(/<[^>]+>/g, "");
 }
@@ -276,6 +333,7 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
     .replace(/<style\b[\s\S]*?<\/style>/gi, "")
     .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, "");
 
+  html = balanceItineraryDays(html);
   html = html.replace(/<img\b[^>]*>/gi, (m) => repairImg(m));
   html = html.replace(ON_ATTR_RE, "");
 

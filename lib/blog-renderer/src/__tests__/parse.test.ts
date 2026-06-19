@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { prepareArticleHtml, sanitizeContentHtml } from "../parse";
+import {
+  balanceItineraryDays,
+  prepareArticleHtml,
+  sanitizeContentHtml,
+} from "../parse";
 
 describe("sanitizeContentHtml (DOM path)", () => {
   it("strips the mod_pagespeed onload handler that crashed the blog", () => {
@@ -104,5 +108,95 @@ describe("prepareArticleHtml (the live render path)", () => {
     expect(html).toContain('height="90"');
     // The CSS `style` width keeps its unit — only the HTML attributes are fixed.
     expect(html).toContain("width: 90px;");
+  });
+});
+
+/** Count `.days` blocks that are nested inside another `.days` block. */
+function countNestedDays(html: string): number {
+  const tokenRe = /<div\b[^>]*>|<\/div>/gi;
+  const stack: boolean[] = [];
+  let nested = 0;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(html))) {
+    const tok = m[0];
+    if (tok[1] === "/") {
+      stack.pop();
+      continue;
+    }
+    const clsM = tok.match(/\sclass\s*=\s*("([^"]*)"|'([^']*)')/i);
+    const cls = clsM ? (clsM[2] ?? clsM[3] ?? "") : "";
+    const isDays = cls.split(/\s+/).includes("days");
+    if (isDays && stack.includes(true)) nested += 1;
+    stack.push(isDays);
+  }
+  return nested;
+}
+
+const dayBlock = (n: number, closed: boolean) =>
+  `<div class="days"><div class="itn-day">Day ${n}</div>` +
+  `<div class="itn-flex-row-container"><div class="itn-body">x</div></div>` +
+  (closed ? "</div>" : "");
+
+describe("balanceItineraryDays", () => {
+  it("leaves well-formed itineraries untouched", () => {
+    const html =
+      `<div class="page-card">${dayBlock(1, true)}${dayBlock(2, true)}</div>`;
+    expect(balanceItineraryDays(html)).toBe(html);
+    expect(countNestedDays(html)).toBe(0);
+  });
+
+  it("de-nests days whose closing </div> is missing", () => {
+    // Days 1-2 closed, days 3-5 missing their close (the real corpus defect).
+    const malformed =
+      `<div class="page-card">` +
+      dayBlock(1, true) +
+      dayBlock(2, true) +
+      dayBlock(3, false) +
+      dayBlock(4, false) +
+      dayBlock(5, false) +
+      `</div>`;
+    expect(countNestedDays(malformed)).toBeGreaterThan(0);
+
+    const fixed = balanceItineraryDays(malformed);
+    expect(countNestedDays(fixed)).toBe(0);
+    // All five days survive as siblings.
+    expect((fixed.match(/class="days"/g) ?? []).length).toBe(5);
+    // No content is lost.
+    for (let n = 1; n <= 5; n++) expect(fixed).toContain(`Day ${n}`);
+  });
+
+  it("distinguishes `days` from look-alike classes (itn-day)", () => {
+    const html = `<div class="itn-day">Morning</div><div class="itn-day">Noon</div>`;
+    // No `.days` blocks at all → returned unchanged.
+    expect(balanceItineraryDays(html)).toBe(html);
+  });
+
+  it("is a no-op for HTML without itinerary widgets", () => {
+    const html = `<p>Hello <a href="/x">link</a></p><div class="foo">bar</div>`;
+    expect(balanceItineraryDays(html)).toBe(html);
+  });
+
+  it("keeps trailing content out of the nested days and preserves it", () => {
+    // The real defect: the last day is unclosed, then article content follows.
+    // De-nesting must not swallow or drop that trailing content.
+    const malformed =
+      `<div class="page-card">` +
+      dayBlock(1, false) +
+      dayBlock(2, false) +
+      `</div>` +
+      `<h2>What to pack</h2><p>Comfortable shoes.</p>`;
+    const fixed = balanceItineraryDays(malformed);
+    expect(countNestedDays(fixed)).toBe(0);
+    expect((fixed.match(/class="days"/g) ?? []).length).toBe(2);
+    // Trailing content survives verbatim and stays after the widget markup.
+    expect(fixed).toContain("<h2>What to pack</h2><p>Comfortable shoes.</p>");
+    expect(fixed.indexOf("Day 2")).toBeLessThan(fixed.indexOf("What to pack"));
+  });
+
+  it("runs inside prepareArticleHtml so injected markup is balanced", () => {
+    const malformed =
+      `<div class="page-card">${dayBlock(1, false)}${dayBlock(2, false)}</div>`;
+    const { html } = prepareArticleHtml(malformed);
+    expect(countNestedDays(html)).toBe(0);
   });
 });

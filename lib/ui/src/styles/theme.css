@@ -808,13 +808,17 @@
   .blog-prose .itn-flex-row-container {
     flex: 1;
     min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    /* auto-fit + min(9rem, 100%) lets the activities sit several-across on wide
+       viewports but collapse to a single column on mobile instead of forcing a
+       fixed min-width floor that overflows the page (flex-wrap with flex:1 1 0
+       never wraps — the wrap decision is made on the 0 basis, so items stayed on
+       one line and overflowed via their min-width). */
+    grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
     gap: 1rem;
   }
   .blog-prose .itn-body {
-    flex: 1 1 0;
-    min-width: 9rem;
+    min-width: 0;
   }
   .blog-prose .itn-body br {
     display: none;
@@ -845,7 +849,10 @@
   /* --- Related posts grid (.post-list) ----------------------------- */
   .blog-prose .post-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    /* min(13rem, 100%) keeps the column's minimum from ever exceeding the
+       container, so on narrow/mobile widths the grid collapses to one column
+       instead of overflowing the page. */
+    grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
     gap: 1.25rem;
     margin: 1.5rem 0 2rem;
   }
