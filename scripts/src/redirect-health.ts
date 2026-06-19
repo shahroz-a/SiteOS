@@ -325,6 +325,22 @@ export async function main(): Promise<void> {
         `deactivated ${result.deactivated.length}, ${result.atRisk.length} off-blog at-risk${tag}.`,
     );
     console.log(`[redirect-health] Report: ${result.reportFile}`);
+    // Echo the per-redirect outcomes to stdout so a scheduled run is fully
+    // observable from the deployment logs alone — the JSON report file lives on
+    // ephemeral storage in a scheduled deployment and is gone after the run,
+    // while the deactivations are also persisted to `crawl_logs` in the DB.
+    for (const e of result.deactivated) {
+      console.log(
+        `[redirect-health] deactivated ${e.fromPath} -> ${e.toPath} ` +
+          `(${e.kind}, reason=${e.reason}, status=${e.status ?? "n/a"})`,
+      );
+    }
+    for (const e of result.atRisk) {
+      console.log(
+        `[redirect-health] at-risk ${e.fromPath} -> ${e.toPath} ` +
+          `(off-blog dead, failures=${e.failures}, status=${e.status ?? "n/a"})`,
+      );
+    }
   } finally {
     await pool.end().catch(() => {});
   }

@@ -8,9 +8,21 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/scripts run redirect:health` — auto-deactivate redirects whose targets are confirmed dead (`--dry-run` to preview)
+- `pnpm --filter @workspace/scripts run redirect:health` — auto-deactivate redirects whose targets are confirmed dead (`--dry-run` to preview). For unattended/scheduled runs use the prebuilt bundle instead (see below).
+- `pnpm --filter @workspace/scripts run build:jobs` — esbuild-bundle the scheduled jobs to `scripts/dist/*.mjs` (no `tsx`/pnpm needed at runtime; same production convention as the api-server)
+- `pnpm --filter @workspace/scripts run redirect:health:prod` — run the prebuilt redirect-health bundle with `node` (the scheduled-deployment run command)
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+
+### Scheduled redirect-health (Scheduled Deployment)
+
+The redirect target-health cleanup only delivers full value when run *repeatedly* over time: off-blog targets are only deactivated once consecutive confirmed-dead readings accumulate to `OFF_BLOG_DEAD_THRESHOLD` (2) across separate runs. Run it as a **Replit Scheduled Deployment** so dead destinations actually get retired without anyone remembering to run it. The agent cannot create the deployment — set it up once from the **Publish** pane (Scheduled type), then it runs itself.
+
+- **Deployment type:** Scheduled. **Schedule:** daily is a sensible cadence (e.g. `0 6 * * *`); each run is one increment toward the off-blog corroboration threshold, so ~2 days to retire a confirmed-dead off-blog target.
+- **Build command:** `pnpm install && pnpm --filter @workspace/scripts run build:jobs`
+- **Run command:** `pnpm --filter @workspace/scripts run redirect:health:prod` (runs from the `scripts/` package dir so the `reports/` report path resolves to the repo root). Defaults are already gentle on the target origin (concurrency 5, per-probe timeout 15s); tune with `-- --concurrency=N --timeout=MS` if needed. Use `-- --dry-run` for a no-write preview run.
+- **Env:** `DATABASE_URL` must point at the **production** Postgres so deactivations persist where the live blog reads them.
+- **Observability:** every deactivation is written to `crawl_logs` (a `warn` line, durable in the prod DB) and the full run summary — deactivated + off-blog "at-risk" rows — is printed to stdout, visible in the deployment logs (`fetchDeploymentLogs`). The `redirect-deactivations.json` report is also written, but a scheduled container's filesystem is ephemeral, so treat `crawl_logs` + the stdout summary as the retained record. Each deactivation is reversible by flipping `redirects.isActive` back to true.
 
 ## Stack
 

@@ -16,6 +16,8 @@
     "migrate:payload": "tsx ./src/migrate-payload.ts",
     "prerender:blog": "tsx ./src/prerender-blog.ts",
     "redirect:health": "tsx ./src/redirect-health.ts",
+    "build:jobs": "node ./build.mjs",
+    "redirect:health:prod": "node ./dist/redirect-health.mjs",
     "categories:backfill": "tsx ./src/derive-categories.ts",
     "cleanup:redirects": "tsx ./src/cleanup-redirects.ts",
     "reclassify:non-blog": "tsx ./src/reclassify-non-blog-pages.ts",
@@ -39,6 +41,7 @@
   "devDependencies": {
     "@payloadcms/db-sqlite": "^3.85.1",
     "@types/node": "catalog:",
+    "esbuild": "0.27.3",
     "graphql": "^16.14.2",
     "payload": "^3.85.1",
     "tsx": "catalog:"
