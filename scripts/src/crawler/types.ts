@@ -28,6 +28,8 @@ export interface FetchResult {
   /** "browser" when rendered with Playwright, "http" for the fallback. */
   via: "browser" | "http";
   httpHeaders: Record<string, string>;
+  /** True when the response was a non-HTML resource (image, PDF, …) and must not be parsed/stored as a page. */
+  nonHtml?: boolean;
 }
 
 /**

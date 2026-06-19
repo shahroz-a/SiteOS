@@ -18,7 +18,7 @@ import { validateExtraction } from "./validate";
 import { logCrawl, storePage, storeValidation } from "./store";
 import { closeBrowser, isBrowserAvailable } from "./browser";
 import { generateReports } from "./reports";
-import { isBlogUrl, sleep } from "./util";
+import { isAssetUrl, isBlogUrl, sleep } from "./util";
 import type { CrawlQueueItem } from "@workspace/db";
 
 export interface DiscoverResult {
@@ -61,6 +61,20 @@ export async function processItem(
     attempt += 1;
     const fetchResult = await fetchPage(item.url, config);
 
+    // Non-HTML resources (images, PDFs, …) reached via frontier links must
+    // never be parsed/stored as pages — their bytes contain NULs Postgres
+    // rejects. Skip them cleanly instead of failing.
+    if (fetchResult.nonHtml) {
+      await logCrawl({
+        url: item.url,
+        level: "info",
+        httpStatus: fetchResult.httpStatus,
+        message: "skipped non-HTML resource",
+        durationMs: Date.now() - started,
+      });
+      return { status: "skipped" };
+    }
+
     // Non-2xx with no body: treat as a failure to retry/record.
     if (fetchResult.httpStatus >= 400 || (!fetchResult.html && fetchResult.httpStatus !== 200)) {
       await logCrawl({
@@ -100,7 +114,7 @@ export async function processItem(
 
     // Frontier expansion: enqueue internal blog links discovered on the page.
     for (const link of page.internalLinks) {
-      if (isBlogUrl(link.href)) await enqueueOne(link.href, item.url, 10);
+      if (isBlogUrl(link.href) && !isAssetUrl(link.href)) await enqueueOne(link.href, item.url, 10);
     }
 
     return { status: "completed", pageId: stored.pageId, changed: stored.changed, validation };
@@ -126,7 +140,7 @@ export async function runCrawl(opts: CrawlRunOptions = {}): Promise<QueueStats> 
   const log = opts.log ?? console.log;
   const limit = opts.limit ?? 0;
 
-  const recovered = await recoverStaleInProgress();
+  const recovered = await recoverStaleInProgress(config.maxAttempts);
   if (recovered > 0) log(`Recovered ${recovered} stale in-progress items.`);
 
   const browser = await isBrowserAvailable();

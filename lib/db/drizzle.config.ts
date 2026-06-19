@@ -1,21 +1,17 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
+import { resolveConnectionString, needsSupabaseSsl } from "./src/connection";
 
-const connectionString =
-  process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error(
-    "SUPABASE_DATABASE_URL or DATABASE_URL must be set; ensure the database is provisioned",
-  );
-}
+// Shares lib/db's selection: default to the Replit-managed DATABASE_URL and only
+// use SUPABASE_DATABASE_URL when explicitly opted in via USE_SUPABASE, so a stale
+// leftover SUPABASE_DATABASE_URL can't hijack schema pushes to a paused database.
+const connectionString = resolveConnectionString();
 
 // Ensure TLS for Supabase pooled connections during schema push. Use
 // `no-verify`: newer pg-connection-string treats `require` as `verify-full`,
 // and Supabase's pooler certificate does not chain to a public CA here.
 const needsSsl =
-  /supabase\.(co|com)/.test(connectionString) &&
-  !/sslmode=/.test(connectionString);
+  needsSupabaseSsl(connectionString) && !/sslmode=/.test(connectionString);
 const url = needsSsl
   ? `${connectionString}${connectionString.includes("?") ? "&" : "?"}sslmode=no-verify`
   : connectionString;

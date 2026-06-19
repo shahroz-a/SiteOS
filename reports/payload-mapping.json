@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T19:23:40.965Z",
+  "generatedAt": "2026-06-19T07:24:57.904Z",
   "collections": {
     "pages": {
       "source": "pages + page_versions",
@@ -34,71 +34,79 @@
   "blockTypes": [
     {
       "type": "banner",
-      "count": 6,
+      "count": 1246,
       "payloadBlock": "BannerBlock"
     },
     {
-      "type": "paragraph",
-      "count": 453,
-      "payloadBlock": "UNMAPPED — needs custom Payload block"
-    },
-    {
-      "type": "richText",
-      "count": 573,
-      "payloadBlock": "RichText (Lexical) block"
-    },
-    {
       "type": "cta",
-      "count": 8,
+      "count": 2351,
       "payloadBlock": "CallToActionBlock"
     },
     {
-      "type": "list",
-      "count": 143,
-      "payloadBlock": "RichText list / List block"
-    },
-    {
-      "type": "section",
-      "count": 605,
-      "payloadBlock": "Group/Container block"
-    },
-    {
-      "type": "faqSection",
-      "count": 508,
-      "payloadBlock": "FAQBlock"
-    },
-    {
-      "type": "heading",
-      "count": 558,
-      "payloadBlock": "Heading block"
-    },
-    {
-      "type": "table",
-      "count": 9,
-      "payloadBlock": "Table block"
-    },
-    {
-      "type": "quote",
-      "count": 25,
-      "payloadBlock": "Quote block"
-    },
-    {
       "type": "embed",
-      "count": 8,
+      "count": 925,
       "payloadBlock": "EmbedBlock / VideoBlock"
     },
     {
+      "type": "faqSection",
+      "count": 31855,
+      "payloadBlock": "FAQBlock"
+    },
+    {
+      "type": "gallery",
+      "count": 1,
+      "payloadBlock": "GalleryBlock"
+    },
+    {
+      "type": "heading",
+      "count": 61736,
+      "payloadBlock": "Heading block"
+    },
+    {
       "type": "image",
-      "count": 138,
+      "count": 18224,
       "payloadBlock": "MediaBlock (external URL)"
+    },
+    {
+      "type": "list",
+      "count": 11271,
+      "payloadBlock": "RichText list / List block"
+    },
+    {
+      "type": "newsletter",
+      "count": 79,
+      "payloadBlock": "NewsletterBlock"
+    },
+    {
+      "type": "quote",
+      "count": 826,
+      "payloadBlock": "Quote block"
+    },
+    {
+      "type": "relatedArticles",
+      "count": 32,
+      "payloadBlock": "RelatedPostsBlock"
+    },
+    {
+      "type": "richText",
+      "count": 80540,
+      "payloadBlock": "RichText (Lexical) block"
+    },
+    {
+      "type": "section",
+      "count": 61418,
+      "payloadBlock": "Group/Container block"
+    },
+    {
+      "type": "table",
+      "count": 555,
+      "payloadBlock": "Table block"
     }
   ],
   "richText": "Stored as structured JSON (Lexical-compatible) in pages.rich_text",
   "urlPreservation": {
     "strategy": "canonical_url is the public identifier; slug derived from URL; redirects preserved",
-    "redirectsPreserved": 2
+    "redirectsPreserved": 217
   },
-  "blockingIssues": [
-    "Block types without a Payload mapping: paragraph"
-  ]
+  "blockingIssues": []
 }

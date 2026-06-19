@@ -1,6 +1,7 @@
 import { DEFAULT_CONFIG, type CrawlerConfig } from "./config";
 import type { FetchResult, RedirectHop } from "./types";
 import { renderPage } from "./browser";
+import { stripNul } from "./util";
 
 /**
  * HTTP fetch with manual redirect following so the full redirect chain (and
@@ -51,7 +52,26 @@ async function httpFetch(url: string, config: CrawlerConfig): Promise<FetchResul
       continue;
     }
 
-    const html = await res.text();
+    // Only HTML is a crawlable page. Non-HTML responses (images, PDFs, …) are
+    // returned flagged so the pipeline skips them without decoding the binary
+    // body — whose bytes (NULs) would otherwise crash the page insert.
+    const contentType = res.headers.get("content-type") ?? "";
+    const isHtmlResponse =
+      contentType === "" || /text\/html|application\/xhtml\+xml/i.test(contentType);
+    if (!isHtmlResponse) {
+      return {
+        requestedUrl: url,
+        finalUrl: current,
+        httpStatus: status,
+        html: "",
+        redirectChain,
+        via: "http",
+        httpHeaders: headers,
+        nonHtml: true,
+      };
+    }
+
+    const html = stripNul(await res.text());
     return {
       requestedUrl: url,
       finalUrl: current,

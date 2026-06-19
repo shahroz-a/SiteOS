@@ -1,6 +1,7 @@
 import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { db, crawlQueueTable, type CrawlQueueItem } from "@workspace/db";
 import type { DiscoveredUrl } from "./types";
+import { stripNul } from "./util";
 
 /**
  * Idempotently enqueue discovered URLs. Existing rows are left untouched
@@ -44,12 +45,20 @@ export async function enqueueOne(
 
 /**
  * Recover orphaned work: any item left `in_progress` (e.g. from a crashed run)
- * is reset to `pending` so the crawl resumes cleanly instead of restarting.
+ * is moved out of `in_progress` so the crawl resumes cleanly instead of
+ * restarting. Items whose `attempts` already hit `maxAttempts` are marked
+ * `failed` (claimBatch requires `attempts < maxAttempts`, so resetting them to
+ * `pending` would strand them un-reclaimable); everything else returns to
+ * `pending`. The CASE result is `text`, which Postgres won't implicitly assign
+ * to the `crawl_status` enum column, so cast it.
  */
-export async function recoverStaleInProgress(): Promise<number> {
+export async function recoverStaleInProgress(maxAttempts: number): Promise<number> {
   const reset = await db
     .update(crawlQueueTable)
-    .set({ status: "pending", startedAt: null })
+    .set({
+      status: sql`(CASE WHEN ${crawlQueueTable.attempts} >= ${maxAttempts} THEN 'failed' ELSE 'pending' END)::crawl_status`,
+      startedAt: null,
+    })
     .where(eq(crawlQueueTable.status, "in_progress"))
     .returning({ id: crawlQueueTable.id });
   return reset.length;
@@ -89,11 +98,13 @@ export async function markFailed(
   maxAttempts: number,
 ): Promise<void> {
   // Permanently fail once attempts are exhausted; otherwise return to pending.
+  // The CASE result is `text`, which Postgres won't implicitly assign to the
+  // `crawl_status` enum column (unlike a bare string literal), so cast it.
   await db
     .update(crawlQueueTable)
     .set({
-      status: sql`CASE WHEN ${crawlQueueTable.attempts} >= ${maxAttempts} THEN 'failed' ELSE 'pending' END`,
-      lastError: error.slice(0, 2000),
+      status: sql`(CASE WHEN ${crawlQueueTable.attempts} >= ${maxAttempts} THEN 'failed' ELSE 'pending' END)::crawl_status`,
+      lastError: stripNul(error).slice(0, 2000),
     })
     .where(eq(crawlQueueTable.id, id));
 }
@@ -101,7 +112,7 @@ export async function markFailed(
 export async function markSkipped(id: string, reason: string): Promise<void> {
   await db
     .update(crawlQueueTable)
-    .set({ status: "skipped", lastError: reason.slice(0, 500), completedAt: new Date() })
+    .set({ status: "skipped", lastError: stripNul(reason).slice(0, 500), completedAt: new Date() })
     .where(eq(crawlQueueTable.id, id));
 }
 

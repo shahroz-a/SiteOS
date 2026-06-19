@@ -37,6 +37,30 @@ export function isBlogUrl(url: string): boolean {
   return url.startsWith(BLOG_PREFIX);
 }
 
+/**
+ * Strip NUL (`\u0000`) bytes, which Postgres `text`/`jsonb` columns reject
+ * (error 22021 for text, 22P05 for jsonb). Scraped binary or malformed bytes
+ * can carry NULs; left in, a single one aborts the whole insert.
+ */
+export function stripNul(input: string): string {
+  return input.includes("\u0000") ? input.replace(/\u0000/g, "") : input;
+}
+
+const ASSET_EXT =
+  /\.(?:jpe?g|png|gif|webp|avif|svg|ico|bmp|tiff?|mp4|webm|mov|avi|mp3|wav|ogg|pdf|zip|gz|rar|7z|css|js|mjs|woff2?|ttf|eot|otf|doc|docx|xls|xlsx|ppt|pptx|csv)$/i;
+
+/**
+ * True for non-page resources (media/static assets, WordPress internals) that
+ * must never be crawled and stored as articles. Frontier links on a page often
+ * point at uploaded images (`/wp-content/uploads/…/foo.jpg`); fetching those
+ * returns binary whose bytes Postgres can't store as page content.
+ */
+export function isAssetUrl(url: string): boolean {
+  const path = pathnameOf(url).replace(/\/+$/, "");
+  if (/\/wp-content\/|\/wp-json\/|\/wp-includes\//.test(path)) return true;
+  return ASSET_EXT.test(path);
+}
+
 export function isInternalUrl(url: string): boolean {
   try {
     return new URL(url).origin === SITE_ORIGIN;

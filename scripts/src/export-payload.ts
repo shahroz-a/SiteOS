@@ -59,7 +59,35 @@ export async function buildExport(): Promise<PayloadExport> {
     db.select().from(authorsTable),
     db.select().from(categoriesTable),
     db.select().from(tagsTable),
-    db.select().from(pagesTable).orderBy(asc(pagesTable.publishedAt)),
+    // Project only the columns the export consumes. Selecting `*` also pulls
+    // `original_html` (~500MB across the corpus) which the Payload export never
+    // uses (it emits `cleanedHtml`), and loading it OOMs the Node heap.
+    db
+      .select({
+        id: pagesTable.id,
+        slug: pagesTable.slug,
+        title: pagesTable.title,
+        subtitle: pagesTable.subtitle,
+        excerpt: pagesTable.excerpt,
+        status: pagesTable.status,
+        language: pagesTable.language,
+        canonicalUrl: pagesTable.canonicalUrl,
+        pathname: pagesTable.pathname,
+        parentPath: pagesTable.parentPath,
+        featuredImageUrl: pagesTable.featuredImageUrl,
+        featuredImageAlt: pagesTable.featuredImageAlt,
+        cleanedHtml: pagesTable.cleanedHtml,
+        richText: pagesTable.richText,
+        componentTree: pagesTable.componentTree,
+        readingTimeMinutes: pagesTable.readingTimeMinutes,
+        wordCount: pagesTable.wordCount,
+        publishedAt: pagesTable.publishedAt,
+        modifiedAt: pagesTable.modifiedAt,
+        authorId: pagesTable.authorId,
+        primaryCategoryId: pagesTable.primaryCategoryId,
+      })
+      .from(pagesTable)
+      .orderBy(asc(pagesTable.publishedAt)),
     db.select().from(imagesTable).orderBy(asc(imagesTable.position)),
   ]);
 

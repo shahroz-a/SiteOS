@@ -27,7 +27,7 @@ import {
 } from "@workspace/db";
 import type { ComponentNode, ExtractedPage } from "./types";
 import type { ValidationResult } from "./validate";
-import { pathnameOf, domainOf } from "./util";
+import { pathnameOf, domainOf, stripNul } from "./util";
 
 export interface StoreResult {
   pageId: string;
@@ -382,15 +382,25 @@ export async function logCrawl(opts: {
   details?: unknown;
   durationMs?: number;
 }): Promise<void> {
-  await db.insert(crawlLogsTable).values({
-    url: opts.url,
-    pageId: opts.pageId ?? null,
-    level: opts.level,
-    httpStatus: opts.httpStatus ?? null,
-    message: opts.message,
-    details: opts.details ?? null,
-    durationMs: opts.durationMs ?? null,
-  });
+  // Logging is best-effort: it must NEVER abort a worker. Strip NUL bytes from
+  // the text sinks (a binary/garbage error string would otherwise throw Postgres
+  // 22021 on insert and reject the worker's promise), and swallow any remaining
+  // write error rather than letting the crawl die over a log line.
+  try {
+    await db.insert(crawlLogsTable).values({
+      url: stripNul(opts.url),
+      pageId: opts.pageId ?? null,
+      level: opts.level,
+      httpStatus: opts.httpStatus ?? null,
+      message: stripNul(opts.message),
+      details: opts.details ?? null,
+      durationMs: opts.durationMs ?? null,
+    });
+  } catch (err) {
+    console.warn(
+      `logCrawl failed for ${opts.url}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 export async function storeValidation(
