@@ -1,8 +1,19 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
-import { Alert, FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable";
 import ReorderableList, {
   reorderItems,
   useReorderableDrag,
@@ -51,6 +62,86 @@ function DraggablePostCard({
       onRemoveFromCollection={onRemoveFromCollection}
       onLongPress={handleLongPress}
     />
+  );
+}
+
+/**
+ * The red "Remove from collection" panel revealed by swiping a card left. The
+ * whole panel is tappable; tapping it removes the article from the current
+ * collection (it stays saved under "All").
+ */
+function RemoveAction({ onRemove }: { onRemove: () => void }) {
+  const colors = useColors();
+  return (
+    <View style={styles.swipeActionWrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Remove from this collection"
+        onPress={onRemove}
+        style={({ pressed }) => [
+          styles.swipeAction,
+          {
+            backgroundColor: colors.destructive,
+            borderRadius: colors.radius * 1.75,
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
+      >
+        <Feather name="trash-2" size={20} color={colors.destructiveForeground} />
+        <Text
+          style={[styles.swipeActionText, { color: colors.destructiveForeground }]}
+        >
+          Remove
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * A reorderable card that ALSO supports swipe-to-remove. Swiping a card left
+ * reveals a red "Remove from collection" action, an alternative to the inline
+ * ✕ button. The swipe uses a horizontal-only gesture, so it coexists with the
+ * list's long-press drag-to-reorder and vertical scroll without conflicts.
+ */
+function SwipeableDraggablePostCard({
+  post,
+  onPress,
+  onManageCollections,
+  onRemoveFromCollection,
+}: {
+  post: PostSummary;
+  onPress: (slug: string) => void;
+  onManageCollections: (post: PostSummary) => void;
+  onRemoveFromCollection: (post: PostSummary) => void;
+}) {
+  const swipeRef = useRef<SwipeableMethods>(null);
+
+  const handleRemove = useCallback(() => {
+    swipeRef.current?.close();
+    onRemoveFromCollection(post);
+  }, [onRemoveFromCollection, post]);
+
+  const renderRightActions = useCallback(
+    () => <RemoveAction onRemove={handleRemove} />,
+    [handleRemove],
+  );
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeRef}
+      friction={2}
+      rightThreshold={48}
+      overshootRight={false}
+      renderRightActions={renderRightActions}
+    >
+      <DraggablePostCard
+        post={post}
+        onPress={onPress}
+        onManageCollections={onManageCollections}
+        onRemoveFromCollection={onRemoveFromCollection}
+      />
+    </ReanimatedSwipeable>
   );
 }
 
@@ -207,8 +298,8 @@ export default function SavedScreen() {
           <Feather name="x" size={13} color={colors.mutedForeground} />
           <Text style={[styles.reorderHintText, { color: colors.mutedForeground }]}>
             {visiblePosts.length > 1
-              ? "Tap ✕ to remove from this collection · long-press and drag to reorder"
-              : "Tap ✕ to remove from this collection"}
+              ? "Swipe left or tap ✕ to remove · long-press and drag to reorder"
+              : "Swipe left or tap ✕ to remove from this collection"}
           </Text>
         </View>
       ) : null}
@@ -248,7 +339,7 @@ export default function SavedScreen() {
           data={visiblePosts}
           onReorder={handleReorder}
           renderItem={({ item }) => (
-            <DraggablePostCard
+            <SwipeableDraggablePostCard
               post={item}
               onPress={handleOpen}
               onManageCollections={handleManage}
@@ -309,6 +400,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginBottom: 14,
+  },
+  swipeActionWrap: {
+    // Match the card's bottom margin so the red panel aligns with the card
+    // body rather than bleeding into the gap between cards.
+    marginBottom: 18,
+    paddingLeft: 12,
+  },
+  swipeAction: {
+    flex: 1,
+    width: 104,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  swipeActionText: {
+    fontFamily: fonts.sansBold,
+    fontSize: 13,
   },
   reorderHintText: {
     fontFamily: fonts.sansMedium,
