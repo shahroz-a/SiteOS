@@ -39,6 +39,7 @@ All under `/api`. Slugs are the public identifier — internal UUIDs never appea
 
 ## Architecture decisions
 
+- **Crawl mode = HTTP (no browser).** Headout's blog is server-rendered WordPress, so plain HTTP returns the full article HTML. An HTTP-vs-Playwright comparison over representative pages (`scripts/src/crawl-compare.ts`) found identical *editorial* content (text, headings, FAQs, links, images, component tree) at ~100–600× the speed, while a real browser was slow and fragile here (`networkidle` never settles; some pages stall). The only browser-only images are JS-injected commerce/recommendation widgets and social-share icons — not article content — so the full crawl runs with `config.useBrowser=false`. (Bundled Playwright Chromium can't download in this env; a Nix `chromium` via `executablePath` is required for any browser work.)
 - **DB connection uses the Supabase Session Pooler URL** (port 5432, `*.pooler.supabase.com`), not the direct `db.*.supabase.co` host which is IPv6-only and unreachable here. SSL uses `rejectUnauthorized:false` (pooler cert doesn't chain to a public CA); `drizzle.config.ts` appends `sslmode=no-verify` (NOT `require`).
 - **Lossless page storage**: `pages` keeps `originalHtml`, `cleanedHtml`, `richText` (JSON) and `componentTree` (Payload-compatible nested blocks) so future parser changes never require recrawling.
 - **No nested `/{slug}/posts` endpoints**: orval names the zod value and TS type identically for path+query operations (TS2308). "A category's posts" is served by `GET /posts?category={slug}` instead.
