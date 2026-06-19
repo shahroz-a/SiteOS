@@ -84,7 +84,7 @@ export function BulkAltReviewDialog({
   );
 }
 
-function ReviewBody({
+export function ReviewBody({
   initialItems,
   total,
   fetchNext,
