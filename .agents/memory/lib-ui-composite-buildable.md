@@ -14,38 +14,41 @@ It is NOT in the root `typecheck` script's `--filter` list and has no standalone
 ## The dual `@types/react` identity hazard (the important one)
 
 `lib/ui` resolves its own `@types/react` to the workspace 19.2.x (via the global
-override). But several of its deps declare `@types/react` only as an *optional*
-peer and, with `.npmrc auto-install-peers=false`, pnpm leaves that peer
-**uninjected** for them (lockfile shows e.g. `react-day-picker@…(react@19.1.0)`
-with no `@types/react` in the variant key). Affected: `react-day-picker`,
-`lucide-react`, `input-otp`, `react-hook-form`, `react-resizable-panels` (and
-`vaul`/`cmdk` partially). When `tsc` compiles those `.d.ts` inside `lib/ui`,
-their `import "react"` falls back to the **hoisted** `@types/react`.
+override). The hazard is a handful of its React-typed deps that **do not declare
+`@types/react` as a peer at all** — `react-day-picker`, `lucide-react`,
+`input-otp`, `react-hook-form`, `react-resizable-panels`. (NB: `@radix-ui/*`,
+`vaul`, `cmdk` DO declare the optional peer, so pnpm resolves it from the
+consuming lib and pins a `…(@types/react@19.2.14)…` variant — they were never the
+problem.) Because the five no-peer packages declare nothing, pnpm creates no
+variant; their bundled `.d.ts` `import "react"` falls back to whichever
+`@types/react` is **hoisted** into `node_modules/.pnpm/node_modules/@types/react`.
 
 The hoisted version is non-deterministic: the global override pins everything to
 19.2.x EXCEPT the mobile scoped override (`@workspace/thanksgiving-mobile>@types/react: ~19.1.10`),
-so 19.1.17 also exists, and **any `pnpm install` can flip which one lands in
-`node_modules/.pnpm/node_modules/@types/react`**. When it flips to 19.1.17, it
-no longer matches `lib/ui`'s own 19.2.14 → two unrelated `@types/react`
-identities → declaration emit fails with `TS2742` ("cannot be named without a
-reference to .pnpm/@types+react@19.1.17") across many components (command,
-drawer, form, input-otp, resizable, …) plus `TS2322` ref mismatches in
-`calendar.tsx`/`spinner.tsx`. This stays latent because `tsc --build` caches a
+so 19.1.17 also exists, and **any `pnpm install` can flip which one lands in the
+hoist slot**. When it flips to 19.1.17, it no longer matches `lib/ui`'s own
+19.2.14 → two unrelated `@types/react` identities → declaration emit fails with
+`TS2742` across many components (command, drawer, form, input-otp, resizable, …)
+plus `TS2322` ref mismatches. This stays latent because `tsc --build` caches a
 green `lib/ui/tsconfig.tsbuildinfo`; the next install invalidates the cache and
 the failure surfaces all at once.
 
-**Fix (durable):** a `paths` redirect in `lib/ui/tsconfig.json` forcing
-`react` / `react/jsx-runtime` / `react/jsx-dev-runtime` / `react-dom` to
-`lib/ui`'s own `./node_modules/@types/react(-dom)` symlink (which points at
-19.2.x). Because `paths` is program-wide, every dependency `.d.ts` then resolves
-`react` to the SAME identity, killing all the TS2742/TS2322 regardless of which
-version is hoisted. Same single-identity trick as the `scripts`→`drizzle-orm`
-`paths` redirect documented in `replit.md`.
-**Why prefer this over per-file casts:** the cast/annotation approach is
-whack-a-mole (every exported component needs an explicit type) and `input-otp`'s
-forwardRef typing *still* failed; the `paths` redirect is one principled change.
-Do NOT try to "fix" this by regenerating the lockfile to re-hoist 19.2.x — it's
-not reliably reproducible and a clean reinstall here exceeds the 120s bash cap.
+**Fix (durable, workspace-level):** a `packageExtensions` block in
+`pnpm-workspace.yaml` that declares `@types/react` (and `@types/react-dom` for
+`input-otp`/`react-resizable-panels`) as an **optional peer** on those five
+packages. pnpm then resolves the peer from the consuming package — lib/ui
+provides 19.2.x — and pins a deterministic `react-day-picker@…(@types/react@19.2.14)…`
+variant into the lockfile, exactly how `@radix-ui/*` already stay stable. The
+hoist slot becomes irrelevant for these deps, so the failure can no longer flip
+in. Verified: stable across repeated `pnpm install`, and `tsc --build --force`
+emits clean WITHOUT any `lib/ui` `paths` redirect (that earlier per-lib workaround
+was removed — `packageExtensions` is the single source of truth now).
+**`auto-install-peers=true` does NOT fix this** — it only auto-installs
+*non-optional, undeclared* peers; an optional peer (or, here, a peer the package
+never declares) is skipped, so it just re-rolls the non-deterministic hoist.
+**Maintenance:** if a NEW React-typed dep that does not declare an `@types/react`
+peer is added to lib/ui (or any composite lib), add it to that
+`packageExtensions` block — otherwise it reintroduces the hoist fallback.
 
 ## chart.tsx / input-otp.tsx type-only fixes (still needed independently)
 

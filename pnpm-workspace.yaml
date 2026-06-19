@@ -42,6 +42,53 @@ onlyBuiltDependencies:
   - msw
   - unrs-resolver
 
+# Several React UI deps don't declare `@types/react` as a peer at all, so their
+# bundled `.d.ts` `import "react"` falls back to whichever `@types/react` pnpm
+# happens to HOIST into `.pnpm/node_modules` — non-deterministic across installs
+# (the workspace carries both web 19.2.x and mobile 19.1.x). When the mobile
+# 19.1.x gets hoisted, composite libs that build against 19.2.x (e.g. lib/ui)
+# fail declaration emit with TS2742/TS2322. Declaring `@types/react` as an
+# OPTIONAL peer here makes pnpm resolve it from the consuming package (lib/ui
+# provides 19.2.x), pinning a deterministic variant into the lockfile — exactly
+# how the @radix-ui/* packages (which already declare this peer) stay stable.
+packageExtensions:
+  react-day-picker:
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+  react-hook-form:
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+  lucide-react:
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+  input-otp:
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+  react-resizable-panels:
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+
 overrides:
   '@workspace/thanksgiving-mobile>@types/react': ~19.1.10
   '@workspace/thanksgiving-mobile>@types/react-dom': ~19.1.7
