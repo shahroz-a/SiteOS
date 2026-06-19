@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@workspace/ui/toaster";
 import { TooltipProvider } from "@workspace/ui/tooltip";
@@ -19,6 +20,17 @@ const queryClient = new QueryClient({
   },
 });
 
+// On a client-side SPA the browser does not reset scroll between route changes,
+// so navigating from the bottom of one page (e.g. a "More reads" card) lands you
+// mid-page on the next. Reset to the top whenever the path changes.
+function ScrollToTop() {
+  const [location] = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -38,6 +50,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <ScrollToTop />
           <Router />
         </WouterRouter>
         <Toaster />

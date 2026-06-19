@@ -2,8 +2,14 @@ import { Link } from "wouter";
 import { useListCategories } from "@workspace/api-client-react";
 import { categoryPath } from "@/lib/blog";
 
+// Show only the top destinations in the footer — the API returns categories
+// ordered by post count, so the first few are the most useful. Matches the
+// header's primary nav so the two surfaces stay consistent.
+const MAX_FOOTER_CATEGORIES = 8;
+
 export function Footer() {
   const { data: categories } = useListCategories();
+  const exploreCategories = (categories ?? []).slice(0, MAX_FOOTER_CATEGORIES);
 
   return (
     <footer className="bg-foreground text-background py-16 md:py-20 mt-auto">
@@ -26,7 +32,7 @@ export function Footer() {
               Explore
             </h3>
             <ul className="space-y-2">
-              {(categories ?? []).map((cat) => (
+              {exploreCategories.map((cat) => (
                 <li key={cat.id}>
                   <Link
                     href={categoryPath(cat.slug)}

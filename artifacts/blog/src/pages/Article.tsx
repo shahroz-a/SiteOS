@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Link, useRoute } from "wouter";
 import { ChevronRight } from "lucide-react";
+import { cn } from "@workspace/ui";
 import {
   useGetPostBySlug,
   useListPosts,
@@ -245,7 +246,14 @@ export function ArticleView({
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-16 relative items-start">
+        <div
+          className={cn(
+            "flex flex-col lg:flex-row gap-16 relative items-start",
+            // No headings → no TOC column; center the body instead of leaving a
+            // large empty gap on the right.
+            tocItems.length === 0 && "lg:justify-center",
+          )}
+        >
           <TableOfContents items={tocItems} />
 
           <div className="flex-1 min-w-0 max-w-3xl">
