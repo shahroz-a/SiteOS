@@ -21,6 +21,16 @@ describe("GET /api/healthz", () => {
   });
 });
 
+describe("GET /api/healthz/publishing", () => {
+  it("returns 200 with the readiness payload when prerequisites are present", async () => {
+    const res = await request(app).get("/api/healthz/publishing");
+    expect(res.status).toBe(200);
+    expect(res.body.ready).toBe(true);
+    expect(res.body.missingStatusValues).toEqual([]);
+    expect(res.body.scheduledForColumnPresent).toBe(true);
+  });
+});
+
 describe("GET /api/posts", () => {
   it("lists published posts with pagination", async () => {
     const res = await request(app).get("/api/posts");

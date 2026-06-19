@@ -458,6 +458,14 @@ export function makeDbMock(tables: Tables) {
   const db = new FakeDb(tables);
   return {
     db,
+    // Readiness probes used by the /healthz/* routes. The in-memory FakeDb has
+    // no `.execute`, so stub them to report a fully-provisioned DB.
+    checkPublishingReadiness: async () => ({
+      presentStatusValues: ["review", "scheduled"],
+      missingStatusValues: [] as string[],
+      scheduledForColumnPresent: true,
+      ready: true,
+    }),
     pagesTable: tableProxy("pages"),
     authorsTable: tableProxy("authors"),
     categoriesTable: tableProxy("categories"),

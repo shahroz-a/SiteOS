@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { probeSearchReadiness } from "./lib/search-readiness";
+import { probePublishingReadiness } from "./lib/publishing-readiness";
 import { publishDueScheduledPosts } from "./lib/cms-publishing";
 
 const rawPort = process.env["PORT"];
@@ -25,10 +26,11 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
-  // Fire-and-forget readiness probe: surfaces a clear warning in the
-  // deployment logs when the CMS-search prerequisites are missing, without
-  // blocking startup or ever crashing the server.
+  // Fire-and-forget readiness probes: surface a clear warning in the
+  // deployment logs when the CMS-search or publishing/scheduling prerequisites
+  // are missing, without blocking startup or ever crashing the server.
   void probeSearchReadiness();
+  void probePublishingReadiness();
 });
 
 // Background scheduler: every 60s, publish any scheduled posts whose time has
