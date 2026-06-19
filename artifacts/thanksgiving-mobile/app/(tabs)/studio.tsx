@@ -23,10 +23,13 @@ import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
 import { roleLabel, useCmsSession } from "@/lib/cms-session";
 import {
+  getGetCmsPostSourceQueryKey,
   getListCmsPostQueryKey,
+  useGetCmsPostSource,
   useListCmsPost,
   type CmsPostSummary,
 } from "@workspace/api-client-react";
+import { computeSourceDiff } from "@workspace/content-diff";
 
 function SignInGate() {
   const colors = useColors();
@@ -67,12 +70,78 @@ function SignInGate() {
   );
 }
 
+function FidelityIndicator({
+  postId,
+  onPress,
+}: {
+  postId: string;
+  onPress: (id: string) => void;
+}) {
+  const colors = useColors();
+  const { data } = useGetCmsPostSource(postId, {
+    query: { queryKey: getGetCmsPostSourceQueryKey(postId) },
+  });
+
+  const diff = useMemo(() => {
+    if (!data) return null;
+    return computeSourceDiff({
+      sourceHtml: data.sourceHtml,
+      sourceKind: data.sourceKind,
+      componentTree: data.componentTree,
+      richText: data.richText,
+    });
+  }, [data]);
+
+  if (!diff || !diff.hasSource) return null;
+
+  const clean = diff.total === 0;
+  return (
+    <Pressable
+      onPress={() => onPress(postId)}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={
+        clean
+          ? "Clean import, open source diff"
+          : `${diff.total} import ${
+              diff.total === 1 ? "difference" : "differences"
+            }, open source diff`
+      }
+      style={({ pressed }) => [
+        styles.fidelity,
+        {
+          borderRadius: colors.radius,
+          borderColor: clean ? colors.border : colors.destructive,
+          backgroundColor: clean ? colors.secondary : colors.card,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <Feather
+        name={clean ? "check-circle" : "alert-triangle"}
+        size={12}
+        color={clean ? colors.primary : colors.destructive}
+      />
+      <Text
+        style={[
+          styles.fidelityText,
+          { color: clean ? colors.mutedForeground : colors.destructive },
+        ]}
+      >
+        {clean ? "Clean" : String(diff.total)}
+      </Text>
+    </Pressable>
+  );
+}
+
 function ArticleRow({
   post,
   onPress,
+  onPressDiff,
 }: {
   post: CmsPostSummary;
   onPress: (id: string) => void;
+  onPressDiff: (id: string) => void;
 }) {
   const colors = useColors();
   return (
@@ -100,6 +169,7 @@ function ArticleRow({
           <Text style={[styles.rowMetaText, { color: colors.mutedForeground }]}>
             Updated {formatDate(post.updatedAt ?? post.publishedAt)}
           </Text>
+          <FidelityIndicator postId={post.id} onPress={onPressDiff} />
         </View>
       </View>
       <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
@@ -187,6 +257,7 @@ export default function StudioScreen() {
           <ArticleRow
             post={item}
             onPress={(id) => router.push(`/cms/history/${id}` as Href)}
+            onPressDiff={(id) => router.push(`/cms/source/${id}` as Href)}
           />
         )}
         ListHeaderComponent={
@@ -348,8 +419,17 @@ const styles = StyleSheet.create({
   },
   rowBody: { flex: 1, gap: 8 },
   rowTitle: { fontFamily: fonts.serifSemiBold, fontSize: 16, lineHeight: 22 },
-  rowMeta: { flexDirection: "row", alignItems: "center", gap: 10 },
+  rowMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
   rowMetaText: { fontFamily: fonts.sansMedium, fontSize: 12 },
+  fidelity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  fidelityText: { fontFamily: fonts.sansBold, fontSize: 11 },
   gate: {
     flex: 1,
     alignItems: "center",
