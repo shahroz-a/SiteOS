@@ -3,9 +3,11 @@
  *
  * The crawler/extraction code lives in the `@workspace/scripts` leaf package,
  * which the API server must not import directly (leaf packages don't depend on
- * each other). Instead we spawn `scripts/src/reextract.ts` (dev, via `tsx`) or
- * its esbuild bundle `scripts/dist/reextract.mjs` (production) as a child
- * process and relay its output:
+ * each other). Instead we spawn its esbuild bundle `scripts/dist/reextract.mjs`
+ * (production-safe — plain `node`, no tsx/pnpm) whenever it exists, falling back
+ * to running `scripts/src/reextract.ts` via the scripts package's local `tsx`
+ * bin in dev. The spawn command/entry are overridable via env for unusual
+ * deploy layouts. We relay its output:
  *   - one NDJSON `{type:"progress",stage}` per pipeline stage on stderr
  *   - a single terminal `{type:"result",...}` or `{type:"error",...}` on stdout
  *
@@ -82,6 +84,48 @@ function bufferLines(
 }
 
 /**
+ * Decide how to launch the re-extract child.
+ *
+ * Preference order (production-safe first):
+ *   1. Explicit env overrides (`REEXTRACT_ENTRY`, optional `REEXTRACT_COMMAND`)
+ *      for unusual deploy layouts.
+ *   2. The prebuilt esbuild bundle `scripts/dist/reextract.mjs` run with plain
+ *      `node` — no `tsx`/pnpm or full repo layout needed at runtime. This is the
+ *      default whenever the bundle exists (build it with `build:jobs`).
+ *   3. Dev-only fallback: the TS source `scripts/src/reextract.ts` via the
+ *      scripts package's local `tsx` bin (pnpm installs it there, not at the
+ *      repo root).
+ *
+ * In production, the `tsx` fallback is intentionally NOT used — a missing bundle
+ * (and no env override) is a deploy misconfiguration, so we throw a clear error
+ * instead of silently depending on `tsx`/pnpm/the full repo layout at runtime.
+ */
+export function resolveReextractSpawn(): { command: string; entry: string } {
+  const overrideCommand = process.env.REEXTRACT_COMMAND?.trim() || undefined;
+  const overrideEntry = process.env.REEXTRACT_ENTRY?.trim() || undefined;
+  if (overrideEntry) {
+    return { command: overrideCommand ?? "node", entry: overrideEntry };
+  }
+
+  const bundle = path.join(REPO_ROOT, "scripts", "dist", "reextract.mjs");
+  if (existsSync(bundle)) {
+    return { command: overrideCommand ?? "node", entry: bundle };
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "re-extract worker is not available: the prebuilt bundle " +
+        `${bundle} is missing. Build it with \`pnpm --filter @workspace/scripts run build:jobs\` ` +
+        "or set REEXTRACT_ENTRY (and optional REEXTRACT_COMMAND) to point at the worker.",
+    );
+  }
+
+  const tsx = path.join(REPO_ROOT, "scripts", "node_modules", ".bin", "tsx");
+  const src = path.join(REPO_ROOT, "scripts", "src", "reextract.ts");
+  return { command: overrideCommand ?? tsx, entry: src };
+}
+
+/**
  * Spawn the re-extract child for `pageId` and relay its progress/result events.
  * Returns a cancel function (kills the child and clears the timeout) that the
  * caller should invoke if the client disconnects.
@@ -90,16 +134,21 @@ export function runReextract(
   pageId: string,
   handlers: RunReextractHandlers,
 ): () => void {
-  const isProd = process.env.NODE_ENV === "production";
-  // Dev runs the TS source via the scripts package's local `tsx` bin (pnpm
-  // installs it there, not at the repo root); prod runs the esbuild bundle with
-  // plain `node` (no tsx/pnpm needed) — mirrors the redirect-health convention.
-  const command = isProd
-    ? "node"
-    : path.join(REPO_ROOT, "scripts", "node_modules", ".bin", "tsx");
-  const entry = isProd
-    ? path.join(REPO_ROOT, "scripts", "dist", "reextract.mjs")
-    : path.join(REPO_ROOT, "scripts", "src", "reextract.ts");
+  let command: string;
+  let entry: string;
+  try {
+    ({ command, entry } = resolveReextractSpawn());
+  } catch (err) {
+    // No runnable worker (e.g. missing prod bundle): report a terminal error
+    // instead of throwing into the route so the drawer shows a clear failure.
+    handlers.onEvent({
+      type: "error",
+      code: "failed",
+      message: err instanceof Error ? err.message : String(err),
+    });
+    handlers.onClose({ timedOut: false, code: null });
+    return () => {};
+  }
 
   const child = spawn(command, [entry, pageId], {
     cwd: REPO_ROOT,
