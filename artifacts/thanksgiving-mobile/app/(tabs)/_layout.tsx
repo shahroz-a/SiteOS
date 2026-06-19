@@ -28,6 +28,12 @@ function NativeTabLayout() {
         <Icon sf={{ default: "heart", selected: "heart.fill" }} />
         <Label>Saved</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="studio">
+        <Icon
+          sf={{ default: "clock.arrow.circlepath", selected: "clock.arrow.circlepath" }}
+        />
+        <Label>Studio</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -104,6 +110,22 @@ function ClassicTabLayout() {
               <SymbolView name="heart" tintColor={color} size={24} />
             ) : (
               <Feather name="heart" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="studio"
+        options={{
+          title: "Studio",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView
+                name="clock.arrow.circlepath"
+                tintColor={color}
+                size={24}
+              />
+            ) : (
+              <Feather name="clock" size={22} color={color} />
             ),
         }}
       />
