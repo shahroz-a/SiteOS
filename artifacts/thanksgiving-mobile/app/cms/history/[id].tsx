@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -188,6 +188,23 @@ export default function VersionHistoryScreen() {
         subtitle="Version history"
         onBack={() => router.back()}
         paddingTop={paddingTop}
+        right={
+          <Pressable
+            onPress={() => router.push(`/cms/source/${id}` as Href)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="View import fidelity"
+            style={[
+              styles.sourceButton,
+              { borderColor: colors.border, borderRadius: colors.radius },
+            ]}
+          >
+            <Feather name="columns" size={14} color={colors.foreground} />
+            <Text style={[styles.sourceButtonText, { color: colors.foreground }]}>
+              Source diff
+            </Text>
+          </Pressable>
+        }
       />
 
       <ScrollView
@@ -412,4 +429,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   restoreText: { fontFamily: fonts.sansSemiBold, fontSize: 13 },
+  sourceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  sourceButtonText: { fontFamily: fonts.sansSemiBold, fontSize: 12 },
 });

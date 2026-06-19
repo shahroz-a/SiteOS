@@ -585,6 +585,9 @@ importers:
       '@workspace/cms-auth':
         specifier: workspace:*
         version: link:../../lib/cms-auth
+      '@workspace/content-diff':
+        specifier: workspace:*
+        version: link:../../lib/content-diff
       '@workspace/content-io':
         specifier: workspace:*
         version: link:../../lib/content-io
@@ -913,6 +916,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/content-diff':
+        specifier: workspace:*
+        version: link:../../lib/content-diff
       babel-plugin-react-compiler:
         specifier: ^19.0.0-beta-e993439-20250117
         version: 19.0.0-beta-ebf51a3-20250411
@@ -1066,6 +1072,8 @@ importers:
   lib/cms-auth: {}
 
   lib/content: {}
+
+  lib/content-diff: {}
 
   lib/content-io:
     dependencies:

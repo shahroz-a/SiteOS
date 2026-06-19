@@ -3,7 +3,7 @@ import { ContentRenderer } from "@workspace/blog-renderer";
 import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
 import { Skeleton } from "@workspace/ui/skeleton";
-import { diffBlocks, normalizeUrl } from "@/lib/content-diff";
+import { diffBlocks, normalizeUrl } from "@workspace/content-diff";
 
 /* ------------------------------------------------------------------ */
 /* Source-vs-parsed visual diff                                        */

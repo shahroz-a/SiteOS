@@ -47,6 +47,7 @@ function RootLayoutNav() {
       <Stack.Screen name="post/[slug]" options={{ headerShown: false }} />
       <Stack.Screen name="cms/activity" options={{ headerShown: false }} />
       <Stack.Screen name="cms/history/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="cms/source/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }

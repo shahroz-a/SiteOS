@@ -51,6 +51,7 @@
     "@workspace/api-client-react": "workspace:*",
     "@workspace/blog-renderer": "workspace:*",
     "@workspace/cms-auth": "workspace:*",
+    "@workspace/content-diff": "workspace:*",
     "@workspace/content-io": "workspace:*",
     "@workspace/replit-auth-web": "workspace:*",
     "@workspace/ui": "workspace:*",

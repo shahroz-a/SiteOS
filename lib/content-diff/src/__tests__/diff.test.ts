@@ -5,7 +5,7 @@ import {
   diffUrlSets,
   normalizeText,
   normalizeUrl,
-} from "../content-diff";
+} from "../diff";
 
 describe("normalizeText", () => {
   it("collapses whitespace and lowercases", () => {

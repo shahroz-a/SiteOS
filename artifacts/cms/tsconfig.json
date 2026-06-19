@@ -28,6 +28,9 @@
     },
     {
       "path": "../../lib/ui"
+    },
+    {
+      "path": "../../lib/content-diff"
     }
   ]
 }

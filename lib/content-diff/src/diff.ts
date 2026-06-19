@@ -1,12 +1,12 @@
 /**
- * Pure, DOM-free diff helpers powering the held-back review drawer's
- * "Differences" view. They compare the *source* article body against the
- * *parsed* (imported) body at the block, word, and URL level so an editor can
- * see exactly what the importer dropped or garbled.
+ * Pure, DOM-free diff helpers powering the importer fidelity view. They compare
+ * the *source* article body against the *parsed* (imported) body at the block,
+ * word, and URL level so an editor can see exactly what the importer dropped or
+ * garbled.
  *
  * Everything here is deliberately framework-agnostic and side-effect free so it
- * can be unit-tested in the node vitest environment; the DOM extraction +
- * annotation lives in the component (`held-back.tsx`).
+ * can be unit-tested in the node vitest environment and reused by both the web
+ * CMS (DOM extraction) and the mobile companion (pure tree/HTML extraction).
  */
 
 export interface WordSeg {
