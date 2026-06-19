@@ -648,6 +648,85 @@ describe("useAltReview — cross-tab approval sync", () => {
     r.unmount();
   });
 
+  it("promotes an image skipped here then approved in another tab from skipped to approved", () => {
+    const onSkippedChange = vi.fn();
+    const r = renderReview({
+      initialItems: [mk("a")],
+      total: 5,
+      onSkippedChange,
+      fetchNext: vi.fn(async () => []),
+    });
+    // Skip 'a' in this tab.
+    r.run((a) => a.skip("a"));
+    expect(r.api.states["a"]).toEqual({ kind: "skipped" });
+    expect(r.api.session.skipped).toBe(1);
+    expect(r.api.session.approved).toBe(0);
+    expect(onSkippedChange).toHaveBeenLastCalledWith(["a"]);
+
+    // Another tab approves 'a' (with edits).
+    act(() => {
+      sub.approvedCb.current?.({ a: "approved alt" });
+    });
+    // It flips skipped → approved, and moves from the skipped tally to the
+    // approved tally — no net double-count.
+    expect(r.api.states["a"]).toEqual({ kind: "approved", alt: "approved alt" });
+    expect(r.api.session.skipped).toBe(0);
+    expect(r.api.session.approved).toBe(1);
+    expect(r.api.handled).toBe(1);
+    // The persisted skip set shrinks so a reopened pass won't re-show it.
+    expect(onSkippedChange).toHaveBeenLastCalledWith([]);
+    r.unmount();
+  });
+
+  it("promotes a skipped URL outside the current window and excludes it from the next fetch", async () => {
+    const fetchNext = vi.fn(async () => []);
+    const r = renderReview({
+      initialItems: [mk("a")],
+      total: 5,
+      // 'z' was skipped in a prior interrupted run; not in this window.
+      initialSkipped: ["z"],
+      fetchNext,
+    });
+    expect(r.api.session.skipped).toBe(1);
+
+    // Another tab approves 'z'.
+    act(() => {
+      sub.approvedCb.current?.({ z: "alt z" });
+    });
+    expect(r.api.session.skipped).toBe(0);
+    expect(r.api.session.approved).toBe(1);
+
+    // 'z' is now excluded as an approval (still excluded from the next fetch).
+    r.run((a) => a.skip("a"));
+    await r.flush();
+    expect(fetchNext).toHaveBeenCalledWith(expect.arrayContaining(["z", "a"]));
+    r.unmount();
+  });
+
+  it("does not re-count or re-promote a skip-then-approve already folded in", () => {
+    const r = renderReview({
+      initialItems: [mk("a")],
+      total: 5,
+      fetchNext: vi.fn(async () => []),
+    });
+    r.run((a) => a.skip("a"));
+    act(() => {
+      sub.approvedCb.current?.({ a: "approved alt" });
+    });
+    expect(r.api.session.approved).toBe(1);
+    expect(r.api.session.skipped).toBe(0);
+
+    // The other tab echoes the same approval back — it's now an already-approved
+    // URL, so it must not re-count or re-touch the skipped tally.
+    act(() => {
+      sub.approvedCb.current?.({ a: "approved alt" });
+    });
+    expect(r.api.session.approved).toBe(1);
+    expect(r.api.session.skipped).toBe(0);
+    expect(r.api.states["a"]).toEqual({ kind: "approved", alt: "approved alt" });
+    r.unmount();
+  });
+
   it("counts a cross-tab approval for a URL outside the current window", async () => {
     const fetchNext = vi.fn(async () => []);
     const r = renderReview({

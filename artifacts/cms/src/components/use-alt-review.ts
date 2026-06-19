@@ -331,34 +331,49 @@ export function useAltReview({
   // this window are flipped to "approved" with the exact alt the other tab saved.
   useEffect(() => {
     return subscribeApproved(filter, (entries) => {
-      // Newly-seen approvals (count once); plus already-approved URLs whose alt
-      // an editor *corrected* in another tab (refresh the displayed/stored alt
-      // but DON'T re-count — the image was already handled here).
+      // Newly-seen approvals (count once); already-approved URLs whose alt an
+      // editor *corrected* in another tab (refresh the displayed/stored alt but
+      // DON'T re-count — already handled here); and URLs this tab *skipped* that
+      // another tab has since approved (promote skip→approval: move one from the
+      // skipped tally to the approved tally, no net double-count).
       const added: string[] = [];
       const refreshed: string[] = [];
+      const promoted: string[] = [];
       for (const [url, alt] of Object.entries(entries)) {
         if (seenRef.current.has(url)) {
-          // Only approvals get refreshed: a URL seen because it was skipped (or
-          // errored) here is not an approval to update. A no-op when the alt is
-          // unchanged (e.g. another tab echoing the same approval back).
-          if (url in approvedRef.current && approvedRef.current[url] !== alt) {
+          if (url in approvedRef.current) {
+            // Already approved here: refresh the displayed/stored alt if the
+            // other tab corrected it. A no-op when the alt is unchanged (e.g.
+            // another tab echoing the same approval back).
+            if (approvedRef.current[url] !== alt) {
+              approvedRef.current[url] = alt;
+              refreshed.push(url);
+            }
+          } else if (skippedRef.current.has(url)) {
+            // Seen here only because it was skipped, but another tab approved it
+            // (with edits). Promote it: it's no longer skipped, it's approved.
+            skippedRef.current.delete(url);
             approvedRef.current[url] = alt;
-            refreshed.push(url);
+            promoted.push(url);
           }
+          // A URL seen because it errored here is neither approved nor skipped;
+          // nothing to update.
           continue;
         }
         seenRef.current.add(url);
         approvedRef.current[url] = alt;
         added.push(url);
       }
-      if (added.length === 0 && refreshed.length === 0) return;
+      if (added.length === 0 && refreshed.length === 0 && promoted.length === 0)
+        return;
       setStates((prev) => {
         let next: Record<string, ItemState> | null = null;
-        for (const url of [...added, ...refreshed]) {
+        for (const url of [...added, ...refreshed, ...promoted]) {
           const existing = prev[url];
           const alt = entries[url] ?? "";
-          // Flip pending/ready items to approved, and update an already-approved
-          // item whose alt changed; skip when it already shows the exact alt.
+          // Flip pending/ready/skipped items to approved, and update an
+          // already-approved item whose alt changed; skip when it already shows
+          // the exact alt.
           if (
             existing !== undefined &&
             !(existing.kind === "approved" && existing.alt === alt)
@@ -369,9 +384,19 @@ export function useAltReview({
         }
         return next ?? prev;
       });
-      // Only the newly-seen approvals move the running count.
-      if (added.length > 0) {
-        setSession((s) => ({ ...s, approved: s.approved + added.length }));
+      // Newly-seen approvals add to the count; promotions move one image from
+      // the skipped tally to the approved tally (handled total unchanged).
+      if (added.length > 0 || promoted.length > 0) {
+        setSession((s) => ({
+          ...s,
+          approved: s.approved + added.length + promoted.length,
+          skipped: s.skipped - promoted.length,
+        }));
+      }
+      // A promotion shrinks the persisted skip set, so the reopened pass won't
+      // re-show the now-approved image as skipped.
+      if (promoted.length > 0) {
+        onSkippedChange?.([...skippedRef.current]);
       }
     });
   }, [filter]);
