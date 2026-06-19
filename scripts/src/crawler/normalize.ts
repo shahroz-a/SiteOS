@@ -1,7 +1,10 @@
 import type { CheerioAPI, Cheerio } from "cheerio";
 import type { AnyNode, Element } from "domhandler";
 import type { ComponentNode, RichTextNode } from "./types";
-import { normalizeWhitespace } from "./util";
+import { normalizeWhitespace, slugify } from "./util";
+import { createAnchorAllocator } from "../anchors";
+
+type AnchorAllocator = ReturnType<typeof createAnchorAllocator>;
 
 /** Inline tags mapped to rich-text format marks. */
 const INLINE_FORMAT: Record<string, string> = {
@@ -179,15 +182,23 @@ function walkBlocks($: CheerioAPI, parent: AnyNode | undefined, out: RichTextNod
 function classifyComponent(
   $: CheerioAPI,
   el: Element,
+  alloc: AnchorAllocator,
 ): ComponentNode | null {
   const tag = el.tagName.toLowerCase();
   const $el = $(el);
-  const anchorId = $el.attr("id") || undefined;
   const text = normalizeWhitespace($el.text());
+  const sourceId = $el.attr("id") || undefined;
 
   if (HEADING_TAGS.has(tag)) {
+    // Derive a meaningful, unique id from the heading text (the source `id`
+    // is often junk like `3a` and repeated across sections). Falls back to the
+    // source id, then to a generic base, all deduped by the allocator.
+    const anchorId = alloc(slugify(text) || sourceId);
     return { type: "heading", anchorId, text, data: { level: Number(tag[1]) } };
   }
+  // Non-heading nodes keep an anchor only when the source provided one, but it
+  // is still deduped so the component tree never repeats an id.
+  const anchorId = sourceId ? alloc(sourceId) : undefined;
   if (tag === "p") {
     if (!text) return null;
     return {
@@ -272,7 +283,7 @@ function classifyComponent(
       if (imgs.length > 1) return { type: "gallery", anchorId, data: { images: imgs } };
     }
     if (/faq/.test(cls)) {
-      return { type: "faqSection", anchorId, children: buildComponentChildren($, el) };
+      return { type: "faqSection", anchorId, children: buildComponentChildren($, el, alloc) };
     }
     if (/related|read-more|more-stories/.test(cls)) {
       const links = $el
@@ -283,7 +294,7 @@ function classifyComponent(
       if (links.length) return { type: "relatedArticles", anchorId, data: { links } };
     }
     // Generic container: descend so its children are captured in order.
-    const children = buildComponentChildren($, el);
+    const children = buildComponentChildren($, el, alloc);
     if (children.length === 1) return children[0]!;
     if (children.length > 1) return { type: "section", anchorId, children };
     return null;
@@ -291,11 +302,15 @@ function classifyComponent(
   return null;
 }
 
-function buildComponentChildren($: CheerioAPI, parent: Element): ComponentNode[] {
+function buildComponentChildren(
+  $: CheerioAPI,
+  parent: Element,
+  alloc: AnchorAllocator,
+): ComponentNode[] {
   const out: ComponentNode[] = [];
   for (const node of parent.children) {
     if (node.type !== "tag") continue;
-    const comp = classifyComponent($, node as Element);
+    const comp = classifyComponent($, node as Element, alloc);
     if (comp) out.push(comp);
   }
   return out;
@@ -309,7 +324,7 @@ function buildComponentChildren($: CheerioAPI, parent: Element): ComponentNode[]
 export function buildComponentTree($: CheerioAPI, root: Cheerio<Element>): ComponentNode[] {
   const el = root.toArray()[0];
   if (!el || el.type !== "tag") return [];
-  return buildComponentChildren($, el as Element);
+  return buildComponentChildren($, el as Element, createAnchorAllocator());
 }
 
 /** Count component nodes recursively (used for validation). */

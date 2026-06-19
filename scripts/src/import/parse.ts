@@ -24,6 +24,7 @@ import {
   titleFromSlug,
 } from "./util";
 import { buildComponentTree, buildRichText } from "./transform";
+import { createAnchorAllocator } from "../anchors";
 
 type MetaMap = Map<string, string>;
 
@@ -341,6 +342,7 @@ function buildBlocks(
 ): BlockNode[] {
   const roots: BlockNode[] = [];
   let current: BlockNode | null = null;
+  const allocAnchor = createAnchorAllocator();
 
   const push = (node: BlockNode) => {
     if (current) (current.children ??= []).push(node);
@@ -358,7 +360,7 @@ function buildBlocks(
       if (level <= 3) {
         current = {
           blockType: "section",
-          anchorId: $el.attr("id") || slugify(text),
+          anchorId: allocAnchor(slugify(text)),
           data: { heading: text, level },
           children: [],
         };
@@ -367,7 +369,7 @@ function buildBlocks(
         push({
           blockType: "heading",
           text,
-          anchorId: $el.attr("id") || slugify(text),
+          anchorId: allocAnchor(slugify(text)),
           data: { level },
         });
       }
