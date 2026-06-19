@@ -4,7 +4,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@workspace/ui/accordion";
 
 export function FaqAccordion({ items }: { items: FaqItem[] }) {
   if (items.length === 0) return null;

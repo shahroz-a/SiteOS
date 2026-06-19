@@ -1,0 +1,629 @@
+/*
+ * @workspace/ui design system — design tokens (CSS theme), base, component
+ * and utility layers shared by the public blog and the CMS.
+ *
+ * Consumers must, in their own entry CSS (before importing this file):
+ *   @import "tailwindcss";
+ *   @import "tw-animate-css";
+ *   @plugin "@tailwindcss/typography";
+ * and register this package for class scanning, e.g.:
+ *   @source "../../../lib/ui/src";
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-primary-border: var(--sidebar-primary-border);
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-accent-border: var(--sidebar-accent-border);
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: calc(1 / 0.75);
+  --text-sm: 0.875rem;
+  --text-sm--line-height: calc(1.25 / 0.875);
+  --text-base: 1rem;
+  --text-base--line-height: calc(1.5 / 1);
+  --text-lg: 1.125rem;
+  --text-lg--line-height: calc(1.75 / 1.125);
+  --text-xl: 1.25rem;
+  --text-xl--line-height: calc(1.75 / 1.25);
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: calc(2 / 1.5);
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: calc(2.25 / 1.875);
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: calc(2.5 / 2.25);
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 1;
+  --text-6xl: 3.75rem;
+  --text-6xl--line-height: 1;
+  --text-7xl: 4.5rem;
+  --text-7xl--line-height: 1;
+  --text-8xl: 6rem;
+  --text-8xl--line-height: 1;
+  --text-9xl: 8rem;
+  --text-9xl--line-height: 1;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ------------------------------------------------------------------ */
+/* Eevee design system — light (default)                               */
+/* purps (primary), candy (accent), grey neutrals, halyard type        */
+/* ------------------------------------------------------------------ */
+:root {
+  --button-outline: rgba(20,0,41, .12);
+  --badge-outline: rgba(20,0,41, .08);
+  --opaque-button-border-intensity: -8;
+  --elevate-1: rgba(20,0,41, .04);
+  --elevate-2: rgba(20,0,41, .08);
+
+  --background: 0 0% 100%;
+  --foreground: 0 0% 13%;        /* grey.900 #222 */
+  --border: 0 0% 89%;            /* grey.300 #e2e2e2 */
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 13%;
+  --card-border: 0 0% 89%;
+
+  --sidebar: 253 100% 98%;       /* purps.10 */
+  --sidebar-foreground: 0 0% 13%;
+  --sidebar-border: 267 100% 96%;
+  --sidebar-primary: 270 100% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 267 100% 96%;
+  --sidebar-accent-foreground: 270 100% 40%;
+  --sidebar-ring: 270 100% 50%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 13%;
+  --popover-border: 0 0% 89%;
+
+  --primary: 270 100% 50%;       /* purps #8000ff */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 267 100% 96%;     /* purps.20 surface */
+  --secondary-foreground: 270 100% 40%;  /* purps.700 */
+
+  --muted: 0 0% 97%;             /* grey.100 #f8f8f8 */
+  --muted-foreground: 0 0% 40%;  /* grey.700 #666 */
+
+  --accent: 332 100% 97%;        /* candy.100 surface */
+  --accent-foreground: 331 100% 45%;     /* candy.600 */
+
+  --destructive: 0 96% 43%;      /* warningred.600 */
+  --destructive-foreground: 0 0% 100%;
+
+  --input: 0 0% 89%;
+  --ring: 270 100% 50%;
+
+  --chart-1: 270 100% 50%;       /* purps */
+  --chart-2: 331 100% 50%;       /* candy */
+  --chart-3: 44 100% 50%;        /* joymustard */
+  --chart-4: 147 90% 28%;        /* okgreen */
+  --chart-5: 270 100% 70%;       /* purps.300 */
+
+  /* Link color (slightly darker purple for AA contrast on white) */
+  --link: 270 100% 40%;          /* purps.700 #6600cc */
+
+  --app-font-sans: "halyard-text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --app-font-serif: "halyard-display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --app-font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  --radius: 0.75rem;             /* 12px — Eevee base radius */
+
+  --shadow-sm: 0px 1px 2px rgba(20, 0, 41, 0.06);
+  --shadow: 0px 2px 8px rgba(20, 0, 41, 0.08);
+  --shadow-md: 0px 8px 24px rgba(20, 0, 41, 0.10);
+  --shadow-lg: 0px 20px 50px rgba(20, 0, 41, 0.16);
+
+  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+}
+
+/* ------------------------------------------------------------------ */
+/* Eevee design system — dark                                          */
+/* ------------------------------------------------------------------ */
+.dark {
+  --button-outline: rgba(255,255,255, .12);
+  --badge-outline: rgba(255,255,255, .08);
+  --opaque-button-border-intensity: 9;
+  --elevate-1: rgba(255,255,255, .05);
+  --elevate-2: rgba(255,255,255, .10);
+
+  --background: 270 35% 7%;
+  --foreground: 0 0% 96%;
+  --border: 270 20% 20%;
+
+  --card: 270 33% 10%;
+  --card-foreground: 0 0% 96%;
+  --card-border: 270 20% 20%;
+
+  --sidebar: 270 33% 10%;
+  --sidebar-foreground: 0 0% 96%;
+  --sidebar-border: 270 20% 20%;
+  --sidebar-primary: 270 100% 70%;
+  --sidebar-primary-foreground: 270 100% 12%;
+  --sidebar-accent: 270 25% 18%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-ring: 270 100% 70%;
+
+  --popover: 270 33% 10%;
+  --popover-foreground: 0 0% 96%;
+  --popover-border: 270 20% 20%;
+
+  --primary: 270 100% 70%;       /* purps.300 lifts on dark */
+  --primary-foreground: 270 100% 12%;
+
+  --secondary: 270 25% 18%;
+  --secondary-foreground: 0 0% 96%;
+
+  --muted: 270 20% 16%;
+  --muted-foreground: 0 0% 65%;
+
+  --accent: 331 50% 22%;
+  --accent-foreground: 330 100% 90%;
+
+  --destructive: 0 80% 58%;
+  --destructive-foreground: 0 0% 100%;
+
+  --input: 270 20% 24%;
+  --ring: 270 100% 70%;
+
+  --chart-1: 270 100% 70%;
+  --chart-2: 331 100% 65%;
+  --chart-3: 44 100% 55%;
+  --chart-4: 147 70% 45%;
+  --chart-5: 270 100% 80%;
+
+  --link: 270 100% 78%;
+
+  --shadow-sm: 0px 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow: 0px 2px 8px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0px 8px 24px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0px 20px 50px rgba(0, 0, 0, 0.60);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground selection:bg-primary/20 selection:text-primary;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif font-medium tracking-tight;
+  }
+}
+
+@layer components {
+  /* ---------------------------------------------------------------- */
+  /* Eevee text-style utilities (mirror the typographic scale)         */
+  /* ---------------------------------------------------------------- */
+  .text-display-lg {
+    @apply font-serif font-medium tracking-tight;
+    font-size: clamp(2.5rem, 5vw, 3.75rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  .text-display-md {
+    @apply font-serif font-medium tracking-tight;
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+  }
+  .text-display-sm {
+    @apply font-serif font-medium tracking-tight;
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+  .text-heading-lg {
+    @apply font-serif font-medium;
+    font-size: 1.5rem;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .text-heading-md {
+    @apply font-serif font-medium;
+    font-size: 1.25rem;
+    line-height: 1.3;
+  }
+  .text-heading-sm {
+    @apply font-serif font-medium;
+    font-size: 1.125rem;
+    line-height: 1.4;
+  }
+  .text-body-lg {
+    font-size: 1.125rem;
+    line-height: 1.7;
+  }
+  .text-body {
+    font-size: 1rem;
+    line-height: 1.65;
+  }
+  .text-body-sm {
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  .text-eyebrow {
+    @apply text-xs font-semibold uppercase;
+    letter-spacing: 0.12em;
+  }
+  .text-caption {
+    @apply text-sm text-muted-foreground;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Article body — faithful prose styling for migrated WordPress HTML */
+  /* Applied to both the raw-HTML path and structured fallbacks.       */
+  /* ---------------------------------------------------------------- */
+  .blog-prose {
+    @apply text-foreground/85;
+    font-size: 1.0625rem;
+    line-height: 1.75;
+  }
+
+  .blog-prose > * + * {
+    margin-top: 1.25rem;
+  }
+
+  .blog-prose p {
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .blog-prose h1,
+  .blog-prose h2,
+  .blog-prose h3,
+  .blog-prose h4,
+  .blog-prose h5,
+  .blog-prose h6 {
+    @apply font-serif font-medium text-foreground tracking-tight;
+    scroll-margin-top: 7rem;
+  }
+
+  .blog-prose h2 {
+    font-size: clamp(1.625rem, 3vw, 2rem);
+    line-height: 1.2;
+    margin-top: 2.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .blog-prose h3 {
+    font-size: clamp(1.3rem, 2.2vw, 1.5rem);
+    line-height: 1.3;
+    margin-top: 2.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .blog-prose h4 {
+    font-size: 1.2rem;
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .blog-prose h5,
+  .blog-prose h6 {
+    font-size: 1.05rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .blog-prose a {
+    color: hsl(var(--link));
+    text-decoration: underline;
+    text-decoration-color: hsl(var(--link) / 0.3);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 150ms ease, color 150ms ease;
+  }
+
+  .blog-prose a:hover {
+    text-decoration-color: hsl(var(--link));
+  }
+
+  .blog-prose strong,
+  .blog-prose b {
+    @apply font-semibold text-foreground;
+  }
+
+  .blog-prose em,
+  .blog-prose i {
+    font-style: italic;
+  }
+
+  .blog-prose ul,
+  .blog-prose ol {
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+    padding-left: 1.5rem;
+  }
+
+  .blog-prose ul {
+    list-style-type: disc;
+  }
+
+  .blog-prose ol {
+    list-style-type: decimal;
+  }
+
+  .blog-prose li {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-left: 0.25rem;
+  }
+
+  .blog-prose li::marker {
+    color: hsl(var(--primary));
+  }
+
+  /* Nested lists */
+  .blog-prose li > ul,
+  .blog-prose li > ol {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .blog-prose li > ul {
+    list-style-type: circle;
+  }
+
+  .blog-prose img {
+    border-radius: var(--radius);
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Standalone (block) images get vertical rhythm + centering */
+  .blog-prose p > img,
+  .blog-prose > img,
+  .blog-prose figure img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+  }
+
+  /* Small inline icons (e.g. season glyphs) shouldn't be blown up */
+  .blog-prose img[width] {
+    box-shadow: none;
+  }
+
+  .blog-prose figure {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .blog-prose figure img {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .blog-prose figcaption {
+    @apply text-sm text-muted-foreground;
+    text-align: center;
+    margin-top: 0.75rem;
+    font-style: italic;
+  }
+
+  .blog-prose blockquote {
+    border-left: 3px solid hsl(var(--primary));
+    background: hsl(var(--secondary) / 0.5);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 1rem 1.5rem;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    font-size: 1.15rem;
+    font-style: italic;
+    color: hsl(var(--foreground) / 0.85);
+  }
+
+  .blog-prose blockquote p {
+    margin: 0;
+  }
+
+  .blog-prose code {
+    @apply font-mono;
+    background: hsl(var(--muted));
+    color: hsl(var(--secondary-foreground));
+    padding: 0.15em 0.4em;
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+  }
+
+  .blog-prose pre {
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    overflow-x: auto;
+    margin-top: 1.75rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .blog-prose pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+
+  .blog-prose hr {
+    border: 0;
+    border-top: 1px solid hsl(var(--border));
+    margin-top: 2.5rem;
+    margin-bottom: 2.5rem;
+  }
+
+  /* Tables — horizontally scrollable on small screens */
+  .blog-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+    display: block;
+    overflow-x: auto;
+  }
+
+  .blog-prose thead {
+    background: hsl(var(--secondary));
+  }
+
+  .blog-prose th {
+    @apply font-semibold;
+    text-align: left;
+    color: hsl(var(--secondary-foreground));
+    padding: 0.75rem 1rem;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .blog-prose td {
+    padding: 0.75rem 1rem;
+    border: 1px solid hsl(var(--border));
+    vertical-align: top;
+  }
+
+  .blog-prose tbody tr:nth-child(even) {
+    background: hsl(var(--muted) / 0.5);
+  }
+
+  /* Defensive: neutralize any stray iframe/script left in source HTML */
+  .blog-prose iframe {
+    max-width: 100%;
+    border-radius: var(--radius);
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+}
+
+@layer utilities {
+  input[type="search"]::-webkit-search-cancel-button {
+    @apply hidden;
+  }
+
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+
+  .toggle-elevate::before,
+  .toggle-elevate-2::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  .toggle-elevate.toggle-elevated::before {
+    background-color: var(--elevate-2);
+  }
+
+  .border.toggle-elevate::before {
+    inset: -1px;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: 999;
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-2);
+  }
+
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
+    inset: -1px;
+  }
+}

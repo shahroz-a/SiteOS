@@ -22,6 +22,9 @@
     },
     {
       "path": "../../lib/blog-seo"
+    },
+    {
+      "path": "../../lib/blog-renderer"
     }
   ]
 }

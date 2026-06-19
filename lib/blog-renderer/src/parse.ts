@@ -1,0 +1,306 @@
+/**
+ * Content parsing, normalization and HTML-prep helpers shared by the blog and
+ * the CMS. This module is intentionally free of React, DOM-only and DB
+ * dependencies (the one optional `DOMParser` use is feature-detected) so it can
+ * run in the browser, a Node prerender/test, and the CMS preview alike.
+ */
+
+/**
+ * Slugify heading text the same way the crawler derives anchor ids
+ * (`scripts/src/crawler/util.ts`): lowercase, non-alphanumerics → hyphen,
+ * trim, cap length. Keeping this in sync lets table-of-contents anchors line
+ * up with the ids we inject into the rendered article body.
+ */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 96);
+}
+
+/* ------------------------------------------------------------------ */
+/* Content tree (componentTree) types — covers BOTH shapes:            */
+/*  • crawler array  (`type`-discriminated, top-level JSON array)       */
+/*  • importer root  (`blockType`-discriminated, single root object)    */
+/* ------------------------------------------------------------------ */
+
+export interface CTNode {
+  /** crawler-shape discriminator */
+  type?: string;
+  /** importer-shape discriminator */
+  blockType?: string;
+  text?: string;
+  anchorId?: string;
+  tag?: string;
+  data?: {
+    level?: number;
+    heading?: string;
+    ordered?: boolean;
+    title?: string;
+    items?: string[];
+    src?: string;
+    alt?: string;
+    caption?: string | null;
+    title_?: string;
+    images?: Array<{ src: string; alt?: string }>;
+    richText?: LexNode | { tag?: string; children?: LexNode[] };
+  };
+  children?: CTNode[];
+}
+
+/**
+ * Normalize a `componentTree` value to a flat top-level block list, accepting
+ * either the crawler's array shape or the importer's `{ children: [...] }`
+ * root object. Returns `null` when the value isn't a usable tree.
+ */
+export function asComponentTree(value: unknown): CTNode[] | null {
+  if (Array.isArray(value)) return value as CTNode[];
+  if (
+    value &&
+    typeof value === "object" &&
+    Array.isArray((value as { children?: unknown }).children)
+  ) {
+    return (value as { children: CTNode[] }).children;
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Lexical / rich-text types                                           */
+/* ------------------------------------------------------------------ */
+
+export interface LexNode {
+  type: string;
+  tag?: string;
+  text?: string;
+  /** numeric bitmask (Lexical) OR array of mark names (crawler) */
+  format?: number | string[];
+  listType?: string;
+  url?: string;
+  fields?: { url?: string; newTab?: boolean };
+  children?: LexNode[];
+}
+
+export interface LexRoot {
+  root: LexNode;
+}
+
+export function asRichText(value: unknown): LexRoot | null {
+  if (
+    value &&
+    typeof value === "object" &&
+    "root" in value &&
+    (value as LexRoot).root &&
+    Array.isArray((value as LexRoot).root.children)
+  ) {
+    return value as LexRoot;
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Raw HTML sanitization (for dangerouslySetInnerHTML)                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Strip inline event-handler attributes (`onload`, `onerror`, `onclick`, …)
+ * from migrated HTML before it is injected via `dangerouslySetInnerHTML`.
+ *
+ * The source WordPress markup was served through Google's mod_pagespeed, which
+ * rewrites `<img>` tags with handlers like
+ * `onload="pagespeed.CriticalImages.checkImageForCriticality(this)"`. Once that
+ * markup is parsed into the live DOM the handler fires against a `pagespeed`
+ * global that doesn't exist here and throws `ReferenceError: pagespeed is not
+ * defined` on every image. Inline handlers are also an XSS vector, so dropping
+ * every `on*` attribute hardens rendering as a side benefit.
+ *
+ * NOTE: this strips inline event-handler attributes only — it is intentionally
+ * not a full HTML sanitizer (it does not touch `javascript:` URLs, iframes,
+ * `srcdoc`, etc.). If the source HTML ever becomes genuinely untrusted, swap in
+ * a vetted allowlist sanitizer (e.g. DOMPurify) at the ingest/API boundary.
+ */
+export function sanitizeContentHtml(html: string): string {
+  if (!html) return html;
+  if (typeof DOMParser === "undefined") {
+    // Non-browser fallback (SSR/tests): textual strip of `on*="..."` handlers.
+    return html.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  }
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  for (const el of Array.from(doc.body.querySelectorAll("*"))) {
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.name.toLowerCase().startsWith("on")) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  }
+  return doc.body.innerHTML;
+}
+
+const ON_ATTR_RE = /\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
+
+/** Pull an attribute's value out of a single tag string. */
+function attrValue(tag: string, name: string): string | null {
+  const m = tag.match(new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i"));
+  return m ? (m[2] ?? m[3] ?? "") : null;
+}
+
+/**
+ * Repair a mod_pagespeed lazy-loaded `<img>`: promote the real source out of
+ * `data-pagespeed-lazy-src` / `data-lazy-src` / `data-src` (the live `src` is a
+ * 1x1 placeholder beacon), then drop the pagespeed bookkeeping attributes.
+ */
+function repairImg(imgTag: string): string {
+  let out = imgTag;
+  const realSrc =
+    attrValue(out, "data-pagespeed-lazy-src") ??
+    attrValue(out, "data-lazy-src") ??
+    attrValue(out, "data-src");
+  if (realSrc) {
+    out = /\ssrc\s*=\s*("[^"]*"|'[^']*')/i.test(out)
+      ? out.replace(/\ssrc\s*=\s*("[^"]*"|'[^']*')/i, ` src="${realSrc}"`)
+      : out.replace(/<img/i, `<img src="${realSrc}"`);
+  }
+  const realSrcset =
+    attrValue(out, "data-pagespeed-lazy-srcset") ??
+    attrValue(out, "data-lazy-srcset") ??
+    attrValue(out, "data-srcset");
+  if (realSrcset) {
+    out = /\ssrcset\s*=\s*("[^"]*"|'[^']*')/i.test(out)
+      ? out.replace(/\ssrcset\s*=\s*("[^"]*"|'[^']*')/i, ` srcset="${realSrcset}"`)
+      : out.replace(/<img/i, `<img srcset="${realSrcset}"`);
+  }
+  out = out.replace(
+    /\sdata-pagespeed-[a-z-]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+    "",
+  );
+  out = out.replace(
+    /\sdata-(lazy-)?src(set)?\s*=\s*("[^"]*"|'[^']*')/gi,
+    "",
+  );
+  out = out.replace(
+    /\spagespeed_[a-z_]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+    "",
+  );
+  return out;
+}
+
+function stripTags(html: string): string {
+  return html.replace(/<[^>]+>/g, "");
+}
+
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&hellip;|&#8230;/g, "…")
+    .replace(/&#8217;|&rsquo;/g, "\u2019")
+    .replace(/&#8216;|&lsquo;/g, "\u2018")
+    .replace(/&#8220;|&ldquo;/g, "\u201C")
+    .replace(/&#8221;|&rdquo;/g, "\u201D")
+    .replace(/&#8211;|&ndash;/g, "\u2013")
+    .replace(/&#8212;|&mdash;/g, "\u2014");
+}
+
+export interface TocItem {
+  id: string;
+  label: string;
+}
+
+export interface PreparedArticle {
+  html: string;
+  toc: TocItem[];
+}
+
+/**
+ * Prepare migrated WordPress article HTML for rendering.
+ *
+ * This is a pure, isomorphic (no-DOM) string pipeline so the prerendered
+ * (server) markup and the hydrated (client) markup are byte-identical — that
+ * avoids hydration mismatches and guarantees the `pagespeed` handler strip
+ * happens in the static HTML crawlers see, not only after hydration.
+ *
+ * Steps: remove script/style/noscript blocks, repair lazy `<img>` sources,
+ * strip every inline `on*` handler, then inject stable, unique ids onto
+ * headings (slugified from their text) while collecting the `h2` entries into a
+ * table of contents whose anchors line up with the injected ids by construction.
+ */
+export function prepareArticleHtml(raw: string): PreparedArticle {
+  const toc: TocItem[] = [];
+  if (!raw) return { html: raw, toc };
+
+  let html = raw
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, "")
+    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, "");
+
+  html = html.replace(/<img\b[^>]*>/gi, (m) => repairImg(m));
+  html = html.replace(ON_ATTR_RE, "");
+
+  const seen = new Map<string, number>();
+  const alloc = (base: string): string => {
+    const b = base || "section";
+    const n = seen.get(b) ?? 0;
+    seen.set(b, n + 1);
+    return n === 0 ? b : `${b}-${n + 1}`;
+  };
+
+  html = html.replace(
+    /<h([2-6])\b([^>]*)>([\s\S]*?)<\/h\1>/gi,
+    (_m, level: string, attrs: string, inner: string) => {
+      const text = decodeEntities(stripTags(inner)).replace(/\s+/g, " ").trim();
+      const id = alloc(slugify(text));
+      const cleanedAttrs = attrs.replace(
+        /\sid\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+        "",
+      );
+      if (level === "2" && text) toc.push({ id, label: text });
+      return `<h${level}${cleanedAttrs} id="${id}">${inner}</h${level}>`;
+    },
+  );
+
+  return { html, toc };
+}
+
+/**
+ * Extract a table of contents from a componentTree (the fallback path used when
+ * an article has no raw `contentHtml`). Handles both the crawler array shape
+ * (`type: "heading"` / `type: "section"`) and the importer root shape
+ * (`blockType: "heading"` / `blockType: "section"`).
+ *
+ * Crawled articles can repeat the same `anchorId`; a duplicate id can only ever
+ * resolve to the first matching element, so we keep the first occurrence of
+ * each id and drop the rest — this also guarantees unique React keys.
+ */
+export function tocFromComponentTree(nodes: CTNode[] | null): TocItem[] {
+  if (!nodes) return [];
+  const items: TocItem[] = [];
+  const seen = new Set<string>();
+
+  const visit = (list: CTNode[]): void => {
+    for (const node of list) {
+      const id = node.anchorId;
+      if (id && !seen.has(id)) {
+        if (node.type === "heading" && node.data?.level === 2 && node.text) {
+          seen.add(id);
+          items.push({ id, label: node.text });
+        } else if (node.blockType === "section") {
+          seen.add(id);
+          items.push({ id, label: node.data?.heading ?? node.text ?? "" });
+        } else if (node.blockType === "heading" && node.text) {
+          seen.add(id);
+          items.push({ id, label: node.text });
+        }
+      }
+      if (node.children) visit(node.children);
+    }
+  };
+
+  visit(nodes);
+  return items.filter((i) => i.label);
+}

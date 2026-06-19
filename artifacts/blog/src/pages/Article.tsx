@@ -8,18 +8,20 @@ import {
 } from "@workspace/api-client-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { ContentRenderer } from "@/components/ContentRenderer";
+import {
+  ContentRenderer,
+  asComponentTree,
+  tocFromComponentTree,
+  prepareArticleHtml,
+} from "@workspace/blog-renderer";
 import { TableOfContents } from "@/components/TableOfContents";
 import { FaqAccordion } from "@/components/FaqAccordion";
 import { NewsletterCTA } from "@/components/NewsletterCTA";
 import { PostCard } from "@/components/PostCard";
 import { LoadingState, ErrorState } from "@/components/StateViews";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@workspace/ui/avatar";
 import { useSeo } from "@/hooks/use-seo";
 import {
-  asComponentTree,
-  tocFromComponentTree,
-  prepareArticleHtml,
   authorPath,
   categoryPath,
   formatDate,

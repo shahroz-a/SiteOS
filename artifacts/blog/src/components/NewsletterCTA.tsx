@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@workspace/ui/button";
+import { Input } from "@workspace/ui/input";
 import { Mail } from "lucide-react";
 
 export function NewsletterCTA() {

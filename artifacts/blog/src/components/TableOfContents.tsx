@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { TocItem } from "@/lib/blog";
+import { cn } from "@workspace/ui";
+import type { TocItem } from "@workspace/blog-renderer";
 
 export function TableOfContents({ items }: { items: TocItem[] }) {
   const [activeId, setActiveId] = useState<string>("");

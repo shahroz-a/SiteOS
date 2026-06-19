@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@workspace/ui";
 
 interface PaginationProps {
   page: number;

@@ -5,7 +5,7 @@ import { Footer } from "@/components/Footer";
 import { PostCard } from "@/components/PostCard";
 import { Pagination } from "@/components/Pagination";
 import { LoadingState, ErrorState, EmptyState } from "@/components/StateViews";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@workspace/ui/avatar";
 import { useSeo } from "@/hooks/use-seo";
 import { authorPath } from "@/lib/blog";
 import { authorSeo } from "@workspace/blog-seo";
