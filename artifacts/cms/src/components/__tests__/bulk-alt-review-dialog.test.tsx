@@ -116,10 +116,15 @@ function instText(inst: TestRenderer.ReactTestInstance): string {
     .join(" ");
 }
 
-function render(props: Parameters<typeof ReviewBody>[0]) {
+function render(
+  props: Omit<Parameters<typeof ReviewBody>[0], "initialSkipped"> & {
+    initialSkipped?: string[];
+  },
+) {
+  const resolved = { initialSkipped: [], ...props };
   let renderer!: TestRenderer.ReactTestRenderer;
   act(() => {
-    renderer = TestRenderer.create(createElement(ReviewBody, props));
+    renderer = TestRenderer.create(createElement(ReviewBody, resolved));
   });
   return renderer;
 }
