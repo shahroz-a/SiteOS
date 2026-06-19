@@ -1615,6 +1615,15 @@ export interface AnalyticsLeader {
 }
 
 /**
+ * A referrer-host row ranked by page views.
+ */
+export interface AnalyticsReferrer {
+  /** Coarse referrer host (e.g. "www.google.com"). Empty string means the view had no referrer (direct, same-origin or app traffic). */
+  host: string;
+  views: number;
+}
+
+/**
  * SEO completeness across published-eligible posts.
  */
 export interface AnalyticsSeo {
@@ -1644,6 +1653,8 @@ export interface CmsAnalytics {
   topAuthors: AnalyticsLeader[];
   topCategories: AnalyticsLeader[];
   topTags: AnalyticsLeader[];
+  /** Top referrer hosts driving views. */
+  topReferrers: AnalyticsReferrer[];
   seo: AnalyticsSeo;
   /** Posts published per month for the last 12 months. */
   publishingVelocity: AnalyticsTimePoint[];

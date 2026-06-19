@@ -96,3 +96,45 @@ export const pageViewDailyTable = pgTable(
 );
 
 export type PageViewDaily = typeof pageViewDailyTable.$inferSelect;
+
+/**
+ * Daily pre-aggregated referrer-host rollup. The raw `page_views` event log
+ * keeps a coarse `referrer_host` on every view, but the per-(day, slug) rollup
+ * above intentionally drops it — so once a day's raw rows are folded away, the
+ * "where did this traffic come from" signal would be lost. This sibling rollup
+ * preserves it by folding the same completed days into one row per
+ * (day, referrer_host) before the raw rows are deleted.
+ *
+ * Keyed on (day, referrer_host) only — NOT slug — so it stays bounded by
+ * time × the (small) set of distinct referring hosts rather than by traffic or
+ * content. `referrer_host` is NOT NULL with an empty-string default: a missing
+ * referrer (direct / same-origin / app traffic) folds into the `''` bucket so
+ * it can still participate in the primary key.
+ *
+ * Same one-tier-per-day invariant as `page_view_daily`: the rollup job folds and
+ * deletes a completed day's raw rows in one transaction, so the analytics layer
+ * can UNION this rollup with the current day's raw `page_views` without double
+ * counting.
+ */
+export const pageViewReferrerDailyTable = pgTable(
+  "page_view_referrer_daily",
+  {
+    // Calendar day (UTC) the views occurred on.
+    day: date("day").notNull(),
+    // Coarse referrer host (e.g. "www.google.com"); empty string for views with
+    // no referrer (direct / same-origin), so the value is always PK-safe.
+    referrerHost: text("referrer_host").notNull().default(""),
+    // Number of raw views folded into this (day, referrer_host) bucket.
+    views: integer("views").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.day, t.referrerHost] }),
+    index("page_view_referrer_daily_day_idx").on(t.day),
+  ],
+);
+
+export type PageViewReferrerDaily =
+  typeof pageViewReferrerDailyTable.$inferSelect;

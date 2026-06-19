@@ -406,6 +406,10 @@ export const GetCmsAnalyticsResponse = zod.object({
   "name": zod.string(),
   "views": zod.number()
 }).describe('A leaderboard row ranked by page views.')),
+  "topReferrers": zod.array(zod.object({
+  "host": zod.string().describe('Coarse referrer host (e.g. \"www.google.com\"). Empty string means the view had no referrer (direct, same-origin or app traffic).'),
+  "views": zod.number()
+}).describe('A referrer-host row ranked by page views.')).describe('Top referrer hosts driving views.'),
   "seo": zod.object({
   "averageScore": zod.number().describe('Mean SEO completeness score (0-100) across all posts.'),
   "fullyOptimized": zod.number().describe('Posts scoring 80 or above.'),

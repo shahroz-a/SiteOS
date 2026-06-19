@@ -7,6 +7,7 @@
  */
 import type { AnalyticsHealth } from './analyticsHealth';
 import type { AnalyticsLeader } from './analyticsLeader';
+import type { AnalyticsReferrer } from './analyticsReferrer';
 import type { AnalyticsSeo } from './analyticsSeo';
 import type { AnalyticsTimePoint } from './analyticsTimePoint';
 import type { AnalyticsViews } from './analyticsViews';
@@ -18,6 +19,8 @@ export interface CmsAnalytics {
   topAuthors: AnalyticsLeader[];
   topCategories: AnalyticsLeader[];
   topTags: AnalyticsLeader[];
+  /** Top referrer hosts driving views. */
+  topReferrers: AnalyticsReferrer[];
   seo: AnalyticsSeo;
   /** Posts published per month for the last 12 months. */
   publishingVelocity: AnalyticsTimePoint[];

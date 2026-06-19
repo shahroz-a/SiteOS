@@ -4,8 +4,10 @@
  * Every public article view inserts one row into `page_views`. Left alone that
  * table expands without bound — slowing the analytics aggregates and bloating
  * the database. This job folds every COMPLETED past day's raw rows into the
- * `page_view_daily` rollup (one row per day+slug) and then deletes those raw
- * rows, so storage stays bounded by content × time instead of by traffic.
+ * `page_view_daily` rollup (one row per day+slug) AND the
+ * `page_view_referrer_daily` rollup (one row per day+referrer_host), then
+ * deletes those raw rows, so storage stays bounded by content × time instead of
+ * by traffic while still preserving the referrer-source breakdown.
  *
  * Correctness invariant: only days strictly before the current UTC date are
  * rolled up, so live inserts for "today" are never raced, and a day's rollup +
@@ -60,6 +62,8 @@ export function parseArgs(argv: string[]): Options {
 export interface RollupResult {
   /** Distinct (day, slug) buckets written/updated in the rollup. */
   buckets: number;
+  /** Distinct (day, referrer_host) buckets written/updated in the referrer rollup. */
+  referrerBuckets: number;
   /** Raw `page_views` rows folded into the rollup and deleted. */
   rolledRows: number;
   /** Calendar days (UTC) that were rolled up. */
@@ -91,12 +95,14 @@ export async function run(
   if (opts.dryRun) {
     const previewRes = await executor.execute<{
       buckets: number;
+      referrer_buckets: number;
       rolled_rows: number;
       days: number;
       cutoff: string;
     }>(sql`
       select
         count(distinct (date(viewed_at), slug))::int as buckets,
+        count(distinct (date(viewed_at), coalesce(referrer_host, '')))::int as referrer_buckets,
         count(*)::int as rolled_rows,
         count(distinct date(viewed_at))::int as days,
         to_char(${cutoffSql}, 'YYYY-MM-DD"T"HH24:MI:SSOF') as cutoff
@@ -106,6 +112,7 @@ export async function run(
     const p = previewRes.rows[0];
     return {
       buckets: Number(p?.buckets ?? 0),
+      referrerBuckets: Number(p?.referrer_buckets ?? 0),
       rolledRows: Number(p?.rolled_rows ?? 0),
       days: Number(p?.days ?? 0),
       cutoff: String(p?.cutoff ?? ""),
@@ -137,6 +144,30 @@ export async function run(
     `);
     const buckets = Number(upsertRes.rows[0]?.count ?? 0);
 
+    // 1b) Fold the same eligible rows into the referrer rollup, one bucket per
+    //     (day, referrer_host). A missing referrer folds into the '' bucket so
+    //     it never violates the NOT NULL primary key. Must happen BEFORE the
+    //     delete below — same predicate, same transaction — or the referrer
+    //     signal would be lost with the raw rows.
+    const referrerRes = await tx.execute<{ count: number }>(sql`
+      with agg as (
+        select date(viewed_at) as day, coalesce(referrer_host, '') as referrer_host, count(*)::int as views
+        from page_views
+        where viewed_at < ${cutoffSql}
+        group by date(viewed_at), coalesce(referrer_host, '')
+      ),
+      upsert as (
+        insert into page_view_referrer_daily (day, referrer_host, views, updated_at)
+        select day, referrer_host, views, now() from agg
+        on conflict (day, referrer_host) do update
+          set views = page_view_referrer_daily.views + excluded.views,
+              updated_at = now()
+        returning 1
+      )
+      select count(*)::int as count from upsert
+    `);
+    const referrerBuckets = Number(referrerRes.rows[0]?.count ?? 0);
+
     // 2) Delete exactly the raw rows we just folded (same predicate, same tx).
     const delRes = await tx.execute<{
       rolled_rows: number;
@@ -158,6 +189,7 @@ export async function run(
 
     return {
       buckets,
+      referrerBuckets,
       rolledRows: Number(d?.rolled_rows ?? 0),
       days: Number(d?.days ?? 0),
       cutoff: String(d?.cutoff ?? ""),
@@ -177,7 +209,8 @@ export async function main(): Promise<void> {
     const tag = result.dryRun ? " (dry-run, no changes written)" : "";
     console.log(
       `[rollup-page-views] Rolled up ${result.rolledRows} raw page_views ` +
-        `across ${result.days} day(s) into ${result.buckets} daily bucket(s); ` +
+        `across ${result.days} day(s) into ${result.buckets} daily bucket(s) ` +
+        `and ${result.referrerBuckets} referrer bucket(s); ` +
         `cutoff < ${result.cutoff}${tag}.`,
     );
   } finally {

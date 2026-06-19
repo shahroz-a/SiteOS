@@ -8,6 +8,7 @@
 
 export * from './analyticsHealth';
 export * from './analyticsLeader';
+export * from './analyticsReferrer';
 export * from './analyticsSeo';
 export * from './analyticsTimePoint';
 export * from './analyticsViews';

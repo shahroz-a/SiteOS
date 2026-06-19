@@ -50,6 +50,7 @@ export function refererHost(referer: string | undefined | null): string | null {
 
 type Leader = { slug: string; name: string; views: number };
 type TimePoint = { period: string; value: number };
+type Referrer = { host: string; views: number };
 
 /**
  * Per-(day, slug) page-view counts unified across BOTH storage tiers: the
@@ -103,6 +104,22 @@ export async function buildPostAnalytics(slug: string) {
 }
 
 /**
+ * Per-(day, host) referrer counts unified across BOTH storage tiers, mirroring
+ * `COMBINED_VIEWS`: the durable `page_view_referrer_daily` rollup (completed past
+ * days) and the still-raw `page_views` event log (the current day, plus any
+ * not-yet-rolled days). A missing referrer normalizes to '' in both tiers so
+ * direct/same-origin traffic is countable. The rollup job's one-tier-per-day
+ * invariant guarantees the `union all` can never double count.
+ */
+const COMBINED_REFERRERS = sql`
+  select day::date as day, referrer_host, views from page_view_referrer_daily
+  union all
+  select date(viewed_at) as day, coalesce(referrer_host, '') as referrer_host, count(*)::int as views
+  from page_views
+  group by date(viewed_at), coalesce(referrer_host, '')
+`;
+
+/**
  * Build every content-analytics aggregate in one concurrent pass. Each query is
  * a single targeted aggregate (no N+1, no `select *`); independent queries run
  * via Promise.all so the whole snapshot resolves in roughly one round-trip's
@@ -115,6 +132,7 @@ export async function buildAnalytics() {
     topAuthors,
     topCategories,
     topTags,
+    topReferrers,
     seo,
     publishingVelocity,
     contentGrowth,
@@ -125,6 +143,7 @@ export async function buildAnalytics() {
     topAuthorsQuery(),
     topCategoriesQuery(),
     topTagsQuery(),
+    topReferrersQuery(),
     seoQuery(),
     publishingVelocityQuery(),
     contentGrowthQuery(),
@@ -138,6 +157,7 @@ export async function buildAnalytics() {
     topAuthors,
     topCategories,
     topTags,
+    topReferrers,
     seo,
     publishingVelocity,
     contentGrowth,
@@ -256,6 +276,28 @@ async function topTagsQuery(): Promise<Leader[]> {
   return res.rows.map((r) => ({
     slug: r.slug,
     name: r.name,
+    views: Number(r.views),
+  }));
+}
+
+/**
+ * Top referrer hosts by view count, unioning the durable referrer rollup with
+ * the current day's raw events. The empty-string bucket (views with no referrer
+ * — direct, same-origin, or app traffic) is returned as `host: ""`; the client
+ * decides how to label it. Bounded to the top hosts so the breakdown stays a
+ * focused "where readers come from" leaderboard.
+ */
+async function topReferrersQuery(): Promise<Referrer[]> {
+  const res = await db.execute<{ host: string; views: number }>(sql`
+    with combined as (${COMBINED_REFERRERS})
+    select referrer_host as host, sum(views)::int as views
+    from combined
+    group by referrer_host
+    order by views desc, referrer_host
+    limit ${LEADER_LIMIT}
+  `);
+  return res.rows.map((r) => ({
+    host: r.host ?? "",
     views: Number(r.views),
   }));
 }

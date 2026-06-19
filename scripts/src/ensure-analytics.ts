@@ -51,6 +51,10 @@ const INDEXES: Array<{ name: string; ddl: string }> = [
     name: "page_view_daily_slug_idx",
     ddl: "CREATE INDEX IF NOT EXISTS page_view_daily_slug_idx ON page_view_daily (slug)",
   },
+  {
+    name: "page_view_referrer_daily_day_idx",
+    ddl: "CREATE INDEX IF NOT EXISTS page_view_referrer_daily_day_idx ON page_view_referrer_daily (day)",
+  },
 ];
 
 export async function ensureAnalytics(
@@ -99,6 +103,28 @@ export async function ensureAnalytics(
     rollupExisted
       ? "  page_view_daily already present."
       : "  + created page_view_daily",
+  );
+
+  log("Ensuring page_view_referrer_daily rollup table exists…");
+  const referrerRollupExisted = await tableExists("page_view_referrer_daily");
+  // Static DDL — column types and PK constraint name match
+  // lib/db/src/schema/analytics.ts so the publish-time dev→prod diff is a no-op.
+  await db.execute(
+    sql.raw(`
+      CREATE TABLE IF NOT EXISTS page_view_referrer_daily (
+        day date NOT NULL,
+        referrer_host text NOT NULL DEFAULT '',
+        views integer NOT NULL DEFAULT 0,
+        updated_at timestamp with time zone NOT NULL DEFAULT now(),
+        CONSTRAINT page_view_referrer_daily_day_referrer_host_pk
+          PRIMARY KEY (day, referrer_host)
+      )
+    `),
+  );
+  log(
+    referrerRollupExisted
+      ? "  page_view_referrer_daily already present."
+      : "  + created page_view_referrer_daily",
   );
 
   log(`Ensuring ${INDEXES.length} analytics indexes exist…`);

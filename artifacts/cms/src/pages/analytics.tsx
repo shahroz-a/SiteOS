@@ -4,6 +4,7 @@ import {
   useGetCmsAnalytics,
   type CmsAnalytics,
   type AnalyticsLeader,
+  type AnalyticsReferrer,
   type AnalyticsTimePoint,
 } from "@workspace/api-client-react";
 import {
@@ -19,6 +20,7 @@ import {
   CalendarClock,
   ArrowUpRight,
   BarChart3,
+  Globe,
 } from "lucide-react";
 import {
   Card,
@@ -315,6 +317,51 @@ function Leaderboard({
   );
 }
 
+function ReferrerBoard({ rows }: { rows: AnalyticsReferrer[] }) {
+  const max = rows.reduce((m, r) => Math.max(m, r.views), 0) || 1;
+  return (
+    <Card className="border-border/60">
+      <CardHeader>
+        <CardTitle className="text-lg">Top referrers</CardTitle>
+        <CardDescription>Where readers arrive from.</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {rows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No referrer data recorded yet.
+          </p>
+        ) : (
+          <ol className="space-y-2.5">
+            {rows.map((row, i) => (
+              <li key={`${row.host}-${i}`} className="space-y-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {i + 1}
+                    </span>
+                    <span className="truncate text-sm font-medium">
+                      {row.host || "Direct / none"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                    {nf(row.views)}
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted/60">
+                  <div
+                    className="h-full rounded-full bg-primary/70"
+                    style={{ width: `${Math.max(2, (row.views / max) * 100)}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function StatGrid({ data }: { data: CmsAnalytics }) {
   const { views, seo, health } = data;
   return (
@@ -471,6 +518,8 @@ export default function AnalyticsPage() {
               emptyLabel="No views recorded yet."
             />
           </div>
+
+          <ReferrerBoard rows={data.topReferrers} />
 
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <BarChart3 className="size-3.5" />
