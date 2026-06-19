@@ -33,6 +33,7 @@ const tables: Tables = {
   jsonld: [],
   categories: [],
   authors: [],
+  redirects: [],
 };
 const control: FakeDbControl = { failTables: new Set() };
 
@@ -312,6 +313,105 @@ describe("run — listing pages", () => {
   it("throws when the built index.html is missing", async () => {
     rmSync(path.join(DIST, "index.html"), { force: true });
     await expect(run()).rejects.toThrow(/index\.html not found/);
+  });
+});
+
+describe("run — redirect stubs", () => {
+  it("writes forwarding stubs (both file forms) for renamed on-blog and retired off-blog URLs", async () => {
+    setTables({
+      redirects: [
+        {
+          fromPath: "/blog/vatican-city-secrets/",
+          toPath: "/blog/secrets-of-the-vatican-city/",
+          isActive: true,
+        },
+        {
+          fromPath: "/blog/empire-state-building-tours/",
+          toPath: "/empire-state-building-tickets-c-234/",
+          isActive: true,
+        },
+      ],
+    });
+
+    await run();
+
+    // Renamed on-blog article → root-relative target on the same deployment.
+    const renamed = await readDist("vatican-city-secrets.html");
+    expect(renamed).toContain(
+      '<meta http-equiv="refresh" content="0; url=/blog/secrets-of-the-vatican-city/" />',
+    );
+    expect(renamed).toContain(
+      '<link rel="canonical" href="/blog/secrets-of-the-vatican-city/" />',
+    );
+    expect(renamed).toContain('<meta name="robots" content="noindex, follow" />');
+    expect(renamed).toContain(
+      'location.replace("/blog/secrets-of-the-vatican-city/");',
+    );
+    // Both clean-URL forms, byte-identical.
+    expect(await readDist("vatican-city-secrets/index.html")).toBe(renamed);
+
+    // Retired page → absolute Headout product URL.
+    const retired = await readDist("empire-state-building-tours.html");
+    expect(retired).toContain(
+      '<meta http-equiv="refresh" content="0; url=https://www.headout.com/empire-state-building-tickets-c-234/" />',
+    );
+  });
+
+  it("never clobbers a real article file with a redirect stub", async () => {
+    setTables({
+      pages: [post({ slug: "best-beaches" })],
+      redirects: [
+        {
+          fromPath: "/blog/best-beaches/",
+          toPath: "/blog/somewhere-else/",
+          isActive: true,
+        },
+      ],
+    });
+
+    await run();
+
+    // The published article wins; no redirect refresh was written over it.
+    const html = await readDist("best-beaches.html");
+    expect(html).toContain("<title>Best Beaches | Headout Blog</title>");
+    expect(html).not.toContain('http-equiv="refresh"');
+  });
+
+  it("skips inactive, non-blog, and malformed redirect entries", async () => {
+    setTables({
+      redirects: [
+        {
+          fromPath: "/blog/inactive-old/",
+          toPath: "/blog/new/",
+          isActive: false,
+        },
+        {
+          fromPath: "/london-theatre-tickets/the-great-gatsby-e-6581/",
+          toPath: "/london-theatre-tickets/the-great-gatsby-musical-e-6581/",
+          isActive: true,
+        },
+        {
+          fromPath:
+            "/blog/off-broadway-week-2-for-1/google.com/maps/place/@40.7,!4m5",
+          toPath: "/blog/off-broadway-week-2-for-1/",
+          isActive: true,
+        },
+      ],
+    });
+
+    await run();
+
+    expect(existsSync(path.join(DIST, "inactive-old.html"))).toBe(false);
+    expect(
+      existsSync(
+        path.join(DIST, "london-theatre-tickets", "the-great-gatsby-e-6581.html"),
+      ),
+    ).toBe(false);
+    expect(
+      existsSync(
+        path.join(DIST, "off-broadway-week-2-for-1", "google.com"),
+      ),
+    ).toBe(false);
   });
 });
 

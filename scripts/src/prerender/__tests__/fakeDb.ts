@@ -138,6 +138,7 @@ export function makeDbMock(tables: Tables, control: FakeDbControl) {
     jsonldTable: tableProxy("jsonld"),
     categoriesTable: tableProxy("categories"),
     authorsTable: tableProxy("authors"),
+    redirectsTable: tableProxy("redirects"),
   };
 }
 

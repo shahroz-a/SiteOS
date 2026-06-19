@@ -29,6 +29,7 @@ import {
   jsonldTable,
   categoriesTable,
   authorsTable,
+  redirectsTable,
 } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 import {
@@ -42,6 +43,7 @@ import {
   articleSeo,
   type SeoTags,
 } from "./prerender/seo";
+import { buildRedirectStub } from "./prerender/redirects";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
@@ -229,8 +231,45 @@ export async function run(): Promise<void> {
     pages += 1;
   }
 
+  // Redirect stubs: preserve old / renamed / retired article URLs by writing a
+  // forwarding HTML file at each old path. Written LAST and only where no real
+  // content file already exists, so a live article/category/author page always
+  // wins over a stale redirect entry pointing at the same path.
+  const redirects = await db
+    .select({
+      fromPath: redirectsTable.fromPath,
+      toPath: redirectsTable.toPath,
+      isActive: redirectsTable.isActive,
+    })
+    .from(redirectsTable)
+    .where(eq(redirectsTable.isActive, true));
+
+  let redirectFiles = 0;
+  let redirectRoutes = 0;
+  let redirectSkipped = 0;
+  for (const r of redirects) {
+    const stub = buildRedirectStub(r.fromPath, r.toPath);
+    if (!stub) {
+      redirectSkipped += 1;
+      continue;
+    }
+    let wroteAny = false;
+    for (const rel of stub.files) {
+      const dest = path.join(DIST_DIR, rel);
+      if (existsSync(dest)) continue; // never clobber real content
+      await mkdir(path.dirname(dest), { recursive: true });
+      await writeFile(dest, stub.html, "utf8");
+      redirectFiles += 1;
+      wroteAny = true;
+    }
+    if (wroteAny) redirectRoutes += 1;
+  }
+
   console.log(
     `[prerender-blog] Prerendered ${pages} routes (${written} files) into ${DIST_DIR}`,
+  );
+  console.log(
+    `[prerender-blog] Wrote ${redirectRoutes} redirect stubs (${redirectFiles} files); skipped ${redirectSkipped} unsafe/non-blog entries.`,
   );
 }
 
