@@ -6461,6 +6461,41 @@ components:
         scheduled:
           type: integer
 
+    AnalyticsMaintenance:
+      type: object
+      description: >-
+        Summary of the most recent automated storage-cleanup (page-views rollup)
+        run, sourced from the null-actor `analytics.rollup.auto` audit log row.
+        Lets operators confirm the scheduled job is firing without leaving the
+        analytics screen.
+      required:
+        - lastRunAt
+        - rolledRows
+        - days
+        - buckets
+        - referrerBuckets
+        - cutoff
+      properties:
+        lastRunAt:
+          type: string
+          format: date-time
+          description: When the most recent rollup run was recorded.
+        rolledRows:
+          type: integer
+          description: Raw page_views rows folded into the rollup and deleted.
+        days:
+          type: integer
+          description: Distinct calendar days folded in that run.
+        buckets:
+          type: integer
+          description: Distinct (day, slug) daily buckets written/updated.
+        referrerBuckets:
+          type: integer
+          description: Distinct (day, referrer host) buckets written/updated.
+        cutoff:
+          type: string
+          description: Raw rows older than this timestamp were rolled up and removed.
+
     CmsAnalytics:
       type: object
       required:
@@ -6475,6 +6510,7 @@ components:
         - publishingVelocity
         - contentGrowth
         - health
+        - maintenance
       properties:
         generatedAt:
           type: string
@@ -6516,6 +6552,13 @@ components:
             $ref: '#/components/schemas/AnalyticsTimePoint'
         health:
           $ref: '#/components/schemas/AnalyticsHealth'
+        maintenance:
+          description: >-
+            Most recent automated storage-cleanup (page-views rollup) run, or
+            null if the scheduled job has never recorded a run.
+          anyOf:
+            - $ref: '#/components/schemas/AnalyticsMaintenance'
+            - type: 'null'
 
     DeactivatedRedirect:
       type: object

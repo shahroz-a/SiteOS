@@ -2169,6 +2169,24 @@ export interface AnalyticsHealth {
   scheduled: number;
 }
 
+/**
+ * Summary of the most recent automated storage-cleanup (page-views rollup) run, sourced from the null-actor `analytics.rollup.auto` audit log row. Lets operators confirm the scheduled job is firing without leaving the analytics screen.
+ */
+export interface AnalyticsMaintenance {
+  /** When the most recent rollup run was recorded. */
+  lastRunAt: string;
+  /** Raw page_views rows folded into the rollup and deleted. */
+  rolledRows: number;
+  /** Distinct calendar days folded in that run. */
+  days: number;
+  /** Distinct (day, slug) daily buckets written/updated. */
+  buckets: number;
+  /** Distinct (day, referrer host) buckets written/updated. */
+  referrerBuckets: number;
+  /** Raw rows older than this timestamp were rolled up and removed. */
+  cutoff: string;
+}
+
 export interface CmsAnalytics {
   generatedAt: string;
   views: AnalyticsViews;
@@ -2184,6 +2202,8 @@ export interface CmsAnalytics {
   /** Cumulative post count at each month end for the last 12 months. */
   contentGrowth: AnalyticsTimePoint[];
   health: AnalyticsHealth;
+  /** Most recent automated storage-cleanup (page-views rollup) run, or null if the scheduled job has never recorded a run. */
+  maintenance: AnalyticsMaintenance | null;
 }
 
 /**

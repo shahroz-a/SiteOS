@@ -442,7 +442,15 @@ export const GetCmsAnalyticsResponse = zod.object({
   "validationFailures": zod.number(),
   "drafts": zod.number(),
   "scheduled": zod.number()
-}).describe('Content-health counters.')
+}).describe('Content-health counters.'),
+  "maintenance": zod.union([zod.object({
+  "lastRunAt": zod.coerce.date().describe('When the most recent rollup run was recorded.'),
+  "rolledRows": zod.number().describe('Raw page_views rows folded into the rollup and deleted.'),
+  "days": zod.number().describe('Distinct calendar days folded in that run.'),
+  "buckets": zod.number().describe('Distinct (day, slug) daily buckets written\/updated.'),
+  "referrerBuckets": zod.number().describe('Distinct (day, referrer host) buckets written\/updated.'),
+  "cutoff": zod.string().describe('Raw rows older than this timestamp were rolled up and removed.')
+}).describe('Summary of the most recent automated storage-cleanup (page-views rollup) run, sourced from the null-actor `analytics.rollup.auto` audit log row. Lets operators confirm the scheduled job is firing without leaving the analytics screen.'),zod.null()]).describe('Most recent automated storage-cleanup (page-views rollup) run, or null if the scheduled job has never recorded a run.')
 })
 
 

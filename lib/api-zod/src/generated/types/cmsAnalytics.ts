@@ -7,6 +7,7 @@
  */
 import type { AnalyticsHealth } from './analyticsHealth';
 import type { AnalyticsLeader } from './analyticsLeader';
+import type { AnalyticsMaintenance } from './analyticsMaintenance';
 import type { AnalyticsReferrer } from './analyticsReferrer';
 import type { AnalyticsSeo } from './analyticsSeo';
 import type { AnalyticsTimePoint } from './analyticsTimePoint';
@@ -27,4 +28,6 @@ export interface CmsAnalytics {
   /** Cumulative post count at each month end for the last 12 months. */
   contentGrowth: AnalyticsTimePoint[];
   health: AnalyticsHealth;
+  /** Most recent automated storage-cleanup (page-views rollup) run, or null if the scheduled job has never recorded a run. */
+  maintenance: AnalyticsMaintenance | null;
 }

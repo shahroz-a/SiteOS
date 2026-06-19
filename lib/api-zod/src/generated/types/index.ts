@@ -19,6 +19,7 @@ export * from './aiSuggestRequestKind';
 export * from './aiSuggestResponse';
 export * from './analyticsHealth';
 export * from './analyticsLeader';
+export * from './analyticsMaintenance';
 export * from './analyticsReferrer';
 export * from './analyticsSeo';
 export * from './analyticsTimePoint';

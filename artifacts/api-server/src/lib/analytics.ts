@@ -137,6 +137,7 @@ export async function buildAnalytics() {
     publishingVelocity,
     contentGrowth,
     health,
+    maintenance,
   ] = await Promise.all([
     viewsQuery(),
     topPagesQuery(),
@@ -148,6 +149,7 @@ export async function buildAnalytics() {
     publishingVelocityQuery(),
     contentGrowthQuery(),
     healthQuery(),
+    maintenanceQuery(),
   ]);
 
   return {
@@ -162,6 +164,7 @@ export async function buildAnalytics() {
     publishingVelocity,
     contentGrowth,
     health,
+    maintenance,
   };
 }
 
@@ -411,5 +414,45 @@ async function healthQuery() {
     validationFailures: Number(row?.validation_failures ?? 0),
     drafts: Number(row?.drafts ?? 0),
     scheduled: Number(row?.scheduled ?? 0),
+  };
+}
+
+/**
+ * Most-recent automated storage-cleanup (page-views rollup) run. Reuses the
+ * null-actor `analytics.rollup.auto` audit_logs row the scheduled rollup job
+ * already writes (no new producer work) so operators get at-a-glance
+ * confirmation the storage-bounding job is firing, right where they look at view
+ * data. Returns null when the job has never recorded a run.
+ */
+async function maintenanceQuery() {
+  const res = await db.execute<{
+    last_run_at: string;
+    rolled_rows: number;
+    days: number;
+    buckets: number;
+    referrer_buckets: number;
+    cutoff: string;
+  }>(sql`
+    select
+      created_at as last_run_at,
+      coalesce((after->>'rolledRows')::int, 0) as rolled_rows,
+      coalesce((after->>'days')::int, 0) as days,
+      coalesce((after->>'buckets')::int, 0) as buckets,
+      coalesce((after->>'referrerBuckets')::int, 0) as referrer_buckets,
+      coalesce(after->>'cutoff', '') as cutoff
+    from audit_logs
+    where action = 'analytics.rollup.auto'
+    order by created_at desc
+    limit 1
+  `);
+  const row = res.rows[0];
+  if (!row) return null;
+  return {
+    lastRunAt: new Date(row.last_run_at).toISOString(),
+    rolledRows: Number(row.rolled_rows ?? 0),
+    days: Number(row.days ?? 0),
+    buckets: Number(row.buckets ?? 0),
+    referrerBuckets: Number(row.referrer_buckets ?? 0),
+    cutoff: String(row.cutoff ?? ""),
   };
 }

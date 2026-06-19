@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { format, parseISO } from "date-fns";
+import { format, formatDistanceToNow, parseISO } from "date-fns";
 import {
   useGetCmsAnalytics,
   type CmsAnalytics,
   type AnalyticsLeader,
+  type AnalyticsMaintenance,
   type AnalyticsReferrer,
   type AnalyticsTimePoint,
 } from "@workspace/api-client-react";
@@ -21,6 +22,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Globe,
+  DatabaseZap,
 } from "lucide-react";
 import {
   Card,
@@ -362,6 +364,79 @@ function ReferrerBoard({ rows }: { rows: AnalyticsReferrer[] }) {
   );
 }
 
+function relativeTime(iso: string): string {
+  try {
+    return formatDistanceToNow(parseISO(iso), { addSuffix: true });
+  } catch {
+    return iso;
+  }
+}
+
+function absoluteTime(iso: string): string {
+  try {
+    return format(parseISO(iso), "PPpp");
+  } catch {
+    return iso;
+  }
+}
+
+/**
+ * At-a-glance confirmation that the scheduled storage-cleanup (page-views
+ * rollup) job is firing — clearly labelled as an automated maintenance job,
+ * distinct from the content metrics above. Sourced from the same null-actor
+ * audit_logs row the rollup writes, so there's no separate producer.
+ */
+function MaintenanceCard({ run }: { run: AnalyticsMaintenance | null }) {
+  return (
+    <Card className="border-border/60 bg-muted/20">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <span className="rounded-lg bg-muted/60 p-2 text-muted-foreground">
+            <DatabaseZap className="size-5" aria-hidden />
+          </span>
+          <div className="space-y-0.5">
+            <CardTitle className="text-lg">Storage cleanup</CardTitle>
+            <CardDescription>
+              Automated maintenance — keeps raw view storage bounded.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {run === null ? (
+          <p className="text-sm text-muted-foreground">
+            No scheduled cleanup has run yet. Raw page views are folded into
+            daily rollups once the storage-cleanup job runs.
+          </p>
+        ) : (
+          <div className="space-y-1 text-sm">
+            <div>
+              Last ran{" "}
+              <span className="font-medium">{relativeTime(run.lastRunAt)}</span>,
+              folding{" "}
+              <span className="font-medium">
+                {nf(run.rolledRows)}
+              </span>{" "}
+              raw view{run.rolledRows === 1 ? "" : "s"} across{" "}
+              <span className="font-medium">{nf(run.days)}</span>{" "}
+              day{run.days === 1 ? "" : "s"} into{" "}
+              <span className="font-medium">{nf(run.buckets)}</span> daily +{" "}
+              <span className="font-medium">{nf(run.referrerBuckets)}</span>{" "}
+              referrer bucket{run.referrerBuckets === 1 ? "" : "s"}.
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {absoluteTime(run.lastRunAt)}
+              {run.cutoff
+                ? ` · raw rows older than ${run.cutoff} removed`
+                : ""}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function StatGrid({ data }: { data: CmsAnalytics }) {
   const { views, seo, health } = data;
   return (
@@ -520,6 +595,8 @@ export default function AnalyticsPage() {
           </div>
 
           <ReferrerBoard rows={data.topReferrers} />
+
+          <MaintenanceCard run={data.maintenance} />
 
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <BarChart3 className="size-3.5" />
