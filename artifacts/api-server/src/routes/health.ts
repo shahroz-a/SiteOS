@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
-import { db, checkSearchReadiness, checkPublishingReadiness } from "@workspace/db";
+import {
+  db,
+  checkSearchReadiness,
+  checkPublishingReadiness,
+  checkAnalyticsReadiness,
+} from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -30,6 +35,20 @@ router.get("/healthz/search", async (_req, res, next) => {
 router.get("/healthz/publishing", async (_req, res, next) => {
   try {
     const readiness = await checkPublishingReadiness(db);
+    res.status(readiness.ready ? 200 : 503).json(readiness);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// On-demand readiness check for the page-view analytics prerequisites (the
+// `page_views` raw event log + the `page_view_daily` / `page_view_referrer_daily`
+// rollup tables + their indexes). Operators can hit this after a publish to
+// confirm prod is fully set up. Returns 200 when ready, 503 when prerequisites
+// are missing, 500 only when the probe itself can't run.
+router.get("/healthz/analytics", async (_req, res, next) => {
+  try {
+    const readiness = await checkAnalyticsReadiness(db);
     res.status(readiness.ready ? 200 : 503).json(readiness);
   } catch (err) {
     next(err);
