@@ -658,6 +658,29 @@ export const GetCmsDashboardResponse = zod.object({
 
 
 /**
+ * Act on an article in the review queue. "publish" flips pages.status from draft to published, releasing it to the public read API despite failing content-fidelity validation (an explicit editor override). "dismiss" flips it to archived so it leaves the queue without becoming public. Both actions are audited via the append-only audit log.
+ * @summary Publish or dismiss a held-back article (requires review.approve)
+ */
+export const ResolveCmsHeldBackArticleParams = zod.object({
+  "id": zod.string().describe('The page id of the held-back article to act on.')
+})
+
+export const ResolveCmsHeldBackArticleHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ResolveCmsHeldBackArticleBody = zod.object({
+  "action": zod.enum(['publish', 'dismiss']).describe('\"publish\" sets pages.status to published (releases the article to the public read API); \"dismiss\" sets it to archived (removes it from the review queue without making it public).')
+})
+
+export const ResolveCmsHeldBackArticleResponse = zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "status": zod.enum(['published', 'archived']).describe('The article\'s status after the decision was applied.')
+})
+
+
+/**
  * Paginated list of articles across every status (draft, published, archived) for the CMS content list and the internal-linking assistant. Optional full-text `q` matches title/slug; `status` narrows to one state.
  * @summary List/search articles of any status (requires content.view)
  */

@@ -13,6 +13,9 @@ import {
   ListCmsAuditLogsQueryParams,
   ListCmsAuditLogsResponse,
   ListCmsHeldBackArticlesResponse,
+  ResolveCmsHeldBackArticleBody,
+  ResolveCmsHeldBackArticleParams,
+  ResolveCmsHeldBackArticleResponse,
   UpdateCmsUserRoleBody,
   UpdateCmsUserRoleParams,
   UpdateCmsUserRoleResponse,
@@ -270,6 +273,70 @@ router.get(
       ListCmsHeldBackArticlesResponse.parse({
         total: articles.length,
         articles,
+      }),
+    );
+  },
+);
+
+// Act on a held-back article from the review queue. A permitted user can
+// "publish" (flip pages.status draft → published, releasing the article to the
+// public read API as an explicit override of failing validation) or "dismiss"
+// (flip draft → archived so it leaves the queue without becoming public). Only
+// rows still in the queue (status="draft", page_type="post") can be acted on.
+// Gated on review.approve and audited via the append-only audit log.
+router.patch(
+  "/cms/held-back-articles/:id",
+  requireAuth,
+  requirePermission("review.approve"),
+  async (req: Request, res: Response) => {
+    const parsedBody = ResolveCmsHeldBackArticleBody.safeParse(req.body);
+    if (!parsedBody.success) {
+      res.status(400).json({ error: "Invalid action" });
+      return;
+    }
+    const { action } = parsedBody.data;
+    const { id } = ResolveCmsHeldBackArticleParams.parse(req.params);
+
+    // Only a draft post is part of the review queue; refuse to act on anything
+    // already published/archived or that isn't an article.
+    const [existing] = await db
+      .select({ id: pagesTable.id, slug: pagesTable.slug })
+      .from(pagesTable)
+      .where(
+        and(
+          eq(pagesTable.id, id),
+          eq(pagesTable.status, "draft"),
+          eq(pagesTable.pageType, "post"),
+        ),
+      );
+
+    if (!existing) {
+      res.status(404).json({ error: "Article not found in the review queue" });
+      return;
+    }
+
+    const nextStatus = action === "publish" ? "published" : "archived";
+
+    const [updated] = await db
+      .update(pagesTable)
+      .set({ status: nextStatus, updatedAt: new Date() })
+      .where(eq(pagesTable.id, id))
+      .returning({ id: pagesTable.id, slug: pagesTable.slug, status: pagesTable.status });
+
+    await recordAudit(req, {
+      action: action === "publish" ? "article.publish" : "article.dismiss",
+      entityType: "page",
+      entityId: id,
+      actorRole: req.cmsRole ?? null,
+      before: { status: "draft" },
+      after: { status: nextStatus },
+    });
+
+    res.json(
+      ResolveCmsHeldBackArticleResponse.parse({
+        id: updated.id,
+        slug: updated.slug,
+        status: updated.status,
       }),
     );
   },

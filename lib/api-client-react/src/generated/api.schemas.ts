@@ -1244,6 +1244,40 @@ export interface CmsDashboard {
 }
 
 /**
+ * "publish" sets pages.status to published (releases the article to the public read API); "dismiss" sets it to archived (removes it from the review queue without making it public).
+ */
+export type ResolveHeldBackArticleRequestAction = typeof ResolveHeldBackArticleRequestAction[keyof typeof ResolveHeldBackArticleRequestAction];
+
+
+export const ResolveHeldBackArticleRequestAction = {
+  publish: 'publish',
+  dismiss: 'dismiss',
+} as const;
+
+export interface ResolveHeldBackArticleRequest {
+  /** "publish" sets pages.status to published (releases the article to the public read API); "dismiss" sets it to archived (removes it from the review queue without making it public). */
+  action: ResolveHeldBackArticleRequestAction;
+}
+
+/**
+ * The article's status after the decision was applied.
+ */
+export type ResolveHeldBackArticleResponseStatus = typeof ResolveHeldBackArticleResponseStatus[keyof typeof ResolveHeldBackArticleResponseStatus];
+
+
+export const ResolveHeldBackArticleResponseStatus = {
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export interface ResolveHeldBackArticleResponse {
+  id: string;
+  slug: string;
+  /** The article's status after the decision was applied. */
+  status: ResolveHeldBackArticleResponseStatus;
+}
+
+/**
  * Invalid request body.
  */
 export type CmsBadRequestResponse = ErrorEnvelope;

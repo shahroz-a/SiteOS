@@ -568,6 +568,64 @@ paths:
         "403":
           $ref: "#/components/responses/CmsForbidden"
 
+  /cms/held-back-articles/{id}:
+    patch:
+      tags: [cms]
+      operationId: resolveCmsHeldBackArticle
+      summary: Publish or dismiss a held-back article (requires review.approve)
+      description: >-
+        Act on an article in the review queue. "publish" flips
+        pages.status from draft to published, releasing it to the public read
+        API despite failing content-fidelity validation (an explicit editor
+        override). "dismiss" flips it to archived so it leaves the queue without
+        becoming public. Both actions are audited via the append-only audit log.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The page id of the held-back article to act on.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveHeldBackArticleRequest"
+      responses:
+        "200":
+          description: The article after the decision was applied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolveHeldBackArticleResponse"
+        "400":
+          description: Invalid action.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Insufficient permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Article not found or not in the review queue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /cms/posts:
     get:
       tags: [cms]
@@ -3740,3 +3798,28 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CmsDashboardActivity'
+
+    ResolveHeldBackArticleRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [publish, dismiss]
+          description: >-
+            "publish" sets pages.status to published (releases the article to
+            the public read API); "dismiss" sets it to archived (removes it from
+            the review queue without making it public).
+
+    ResolveHeldBackArticleResponse:
+      type: object
+      required: [id, slug, status]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+          enum: [published, archived]
+          description: The article's status after the decision was applied.

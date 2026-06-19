@@ -69,6 +69,8 @@ import type {
   PayloadMappingResponse,
   PostDetail,
   PostListResponse,
+  ResolveHeldBackArticleRequest,
+  ResolveHeldBackArticleResponse,
   SavedView,
   SavedViewInput,
   SavedViewListResponse,
@@ -1817,6 +1819,79 @@ export function useGetCmsDashboard<TData = Awaited<ReturnType<typeof getCmsDashb
 
 
 
+
+export const getResolveCmsHeldBackArticleUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/held-back-articles/${id}`
+}
+
+/**
+ * Act on an article in the review queue. "publish" flips pages.status from draft to published, releasing it to the public read API despite failing content-fidelity validation (an explicit editor override). "dismiss" flips it to archived so it leaves the queue without becoming public. Both actions are audited via the append-only audit log.
+ * @summary Publish or dismiss a held-back article (requires review.approve)
+ */
+export const resolveCmsHeldBackArticle = async (id: string,
+    resolveHeldBackArticleRequest: ResolveHeldBackArticleRequest, options?: RequestInit): Promise<ResolveHeldBackArticleResponse> => {
+
+  return customFetch<ResolveHeldBackArticleResponse>(getResolveCmsHeldBackArticleUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      resolveHeldBackArticleRequest,)
+  }
+);}
+
+
+
+
+export const getResolveCmsHeldBackArticleMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveCmsHeldBackArticle>>, TError,{id: string;data: BodyType<ResolveHeldBackArticleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveCmsHeldBackArticle>>, TError,{id: string;data: BodyType<ResolveHeldBackArticleRequest>}, TContext> => {
+
+const mutationKey = ['resolveCmsHeldBackArticle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveCmsHeldBackArticle>>, {id: string;data: BodyType<ResolveHeldBackArticleRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolveCmsHeldBackArticle(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveCmsHeldBackArticleMutationResult = NonNullable<Awaited<ReturnType<typeof resolveCmsHeldBackArticle>>>
+    export type ResolveCmsHeldBackArticleMutationBody = BodyType<ResolveHeldBackArticleRequest>
+    export type ResolveCmsHeldBackArticleMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Publish or dismiss a held-back article (requires review.approve)
+ */
+export const useResolveCmsHeldBackArticle = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveCmsHeldBackArticle>>, TError,{id: string;data: BodyType<ResolveHeldBackArticleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveCmsHeldBackArticle>>,
+        TError,
+        {id: string;data: BodyType<ResolveHeldBackArticleRequest>},
+        TContext
+      > => {
+      return useMutation(getResolveCmsHeldBackArticleMutationOptions(options));
+    }
 
 export const getListCmsPostUrl = (params?: ListCmsPostParams,) => {
   const normalizedParams = new URLSearchParams();

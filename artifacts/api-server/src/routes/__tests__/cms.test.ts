@@ -419,3 +419,103 @@ describe("GET /api/cms/held-back-articles", () => {
     });
   });
 });
+
+describe("PATCH /api/cms/held-back-articles/:id", () => {
+  const PERMITTED: Role[] = ["admin", "editor", "reviewer"];
+
+  beforeEach(() => {
+    const fresh = seedHeldBack();
+    for (const k of Object.keys(tables)) delete tables[k];
+    for (const [k, v] of Object.entries(fresh)) tables[k] = v;
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app)
+      .patch("/api/cms/held-back-articles/p-fail")
+      .send({ action: "publish" });
+    expect(res.status).toBe(401);
+  });
+
+  for (const role of ROLES.filter((r) => !PERMITTED.includes(r))) {
+    it(`returns 403 for ${role} (lacks review.approve)`, async () => {
+      const res = await request(app)
+        .patch("/api/cms/held-back-articles/p-fail")
+        .set("Authorization", bearer(role))
+        .send({ action: "publish" });
+      expect(res.status).toBe(403);
+    });
+  }
+
+  it("publishes a held-back article (draft → published) and audits it", async () => {
+    const res = await request(app)
+      .patch("/api/cms/held-back-articles/p-fail")
+      .set("Authorization", bearer("reviewer"))
+      .send({ action: "publish" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: "p-fail",
+      slug: "broken-article",
+      status: "published",
+    });
+    expect(tables.pages.find((p) => p.id === "p-fail")?.status).toBe(
+      "published",
+    );
+    expect(tables.audit_logs).toHaveLength(1);
+    expect(tables.audit_logs[0].action).toBe("article.publish");
+    expect(tables.audit_logs[0].entityId).toBe("p-fail");
+  });
+
+  it("dismisses a held-back article (draft → archived) and audits it", async () => {
+    const res = await request(app)
+      .patch("/api/cms/held-back-articles/p-fail")
+      .set("Authorization", bearer("editor"))
+      .send({ action: "dismiss" });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("archived");
+    expect(tables.pages.find((p) => p.id === "p-fail")?.status).toBe(
+      "archived",
+    );
+    expect(tables.audit_logs[0].action).toBe("article.dismiss");
+  });
+
+  it("returns 400 for an invalid action", async () => {
+    const res = await request(app)
+      .patch("/api/cms/held-back-articles/p-fail")
+      .set("Authorization", bearer("admin"))
+      .send({ action: "delete" });
+    expect(res.status).toBe(400);
+    expect(tables.pages.find((p) => p.id === "p-fail")?.status).toBe("draft");
+  });
+
+  it("returns 404 for a published post (not in the queue)", async () => {
+    const res = await request(app)
+      .patch("/api/cms/held-back-articles/p-pub")
+      .set("Authorization", bearer("admin"))
+      .send({ action: "publish" });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for a draft non-post page (not in the queue)", async () => {
+    const res = await request(app)
+      .patch("/api/cms/held-back-articles/p-cat")
+      .set("Authorization", bearer("admin"))
+      .send({ action: "publish" });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for an unknown id", async () => {
+    const res = await request(app)
+      .patch("/api/cms/held-back-articles/does-not-exist")
+      .set("Authorization", bearer("admin"))
+      .send({ action: "publish" });
+    expect(res.status).toBe(404);
+  });
+
+  it("checks authorization before validating the body (403 beats 400)", async () => {
+    const res = await request(app)
+      .patch("/api/cms/held-back-articles/p-fail")
+      .set("Authorization", bearer("viewer"))
+      .send({ action: "delete" });
+    expect(res.status).toBe(403);
+  });
+});
