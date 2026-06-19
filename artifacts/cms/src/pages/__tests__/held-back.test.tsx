@@ -34,7 +34,8 @@ vi.mock("@/hooks/use-debounced-value", () => ({
 }));
 
 // Imported after the mocks are registered.
-import { ReextractPanel } from "../held-back";
+import { ReextractPanel, reparseVerdictToast } from "../held-back";
+import type { ReparseHeldBackArticleResponse } from "@workspace/api-client-react";
 
 /** Recursively join every string node in a react-test-renderer JSON tree. */
 function rawText(node: unknown): string {
@@ -311,5 +312,61 @@ describe("ReextractPanel — idle state", () => {
     expect(text).not.toContain("Elapsed");
     expect(text).not.toContain("still held back");
     expect(text).not.toContain("The extracted content");
+  });
+});
+
+function makeReparseResult(
+  overrides: Partial<ReparseHeldBackArticleResponse> = {},
+): ReparseHeldBackArticleResponse {
+  return {
+    mode: "reparse",
+    validationStatus: "fail",
+    validationScore: 42,
+    ...overrides,
+  } as ReparseHeldBackArticleResponse;
+}
+
+describe("reparseVerdictToast — title by mode", () => {
+  it('mode "edit" titles the toast "Edited body re-checked"', () => {
+    const { title } = reparseVerdictToast(makeReparseResult({ mode: "edit" }));
+    expect(title).toBe("Edited body re-checked");
+  });
+
+  it('mode "reparse" titles the toast "Re-parsed"', () => {
+    const { title } = reparseVerdictToast(
+      makeReparseResult({ mode: "reparse" }),
+    );
+    expect(title).toBe("Re-parsed");
+  });
+});
+
+describe("reparseVerdictToast — description by validation status", () => {
+  it("fail reports it is still failing and includes the score", () => {
+    const { description } = reparseVerdictToast(
+      makeReparseResult({ validationStatus: "fail", validationScore: 42 }),
+    );
+    expect(description).toContain("Still failing");
+    expect(description).toContain("score 42");
+    expect(description).not.toContain("can be published");
+  });
+
+  it("pass reports it is now passing and can be published, with the score", () => {
+    const { description } = reparseVerdictToast(
+      makeReparseResult({ validationStatus: "pass", validationScore: 95 }),
+    );
+    expect(description).toContain("Now passing");
+    expect(description).toContain("score 95");
+    expect(description).toContain("can be published");
+    expect(description).not.toContain("warning-only");
+  });
+
+  it("warn reports it is now warning-only and can be published, with the score", () => {
+    const { description } = reparseVerdictToast(
+      makeReparseResult({ validationStatus: "warn", validationScore: 80 }),
+    );
+    expect(description).toContain("Now warning-only");
+    expect(description).toContain("score 80");
+    expect(description).toContain("can be published");
+    expect(description).not.toContain("passing");
   });
 });

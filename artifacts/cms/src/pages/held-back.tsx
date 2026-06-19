@@ -163,7 +163,7 @@ function IssueRow({ issue }: { issue: HeldBackValidationIssue }) {
 }
 
 
-function reparseVerdictToast(
+export function reparseVerdictToast(
   result: ReparseHeldBackArticleResponse,
 ): { title: string; description: string } {
   const action = result.mode === "edit" ? "Edited body re-checked" : "Re-parsed";
