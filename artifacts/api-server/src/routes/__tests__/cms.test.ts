@@ -86,6 +86,10 @@ function seedHeldBack(): Tables {
     pageType: "post",
     status: "draft",
     crawledAt: new Date("2025-02-02T00:00:00Z"),
+    cleanedHtml: "<p>The real article body the importer dropped.</p>",
+    componentTree: [],
+    richText: null,
+    originalHtml: "<html><body><p>raw</p></body></html>",
   };
   // A draft post that now re-scores to a pass (parsed matches source).
   const passing = {
@@ -96,6 +100,10 @@ function seedHeldBack(): Tables {
     pageType: "post",
     status: "draft",
     crawledAt: new Date("2025-02-01T00:00:00Z"),
+    cleanedHtml: null,
+    componentTree: [{ blockType: "paragraph", text: "Parsed body" }],
+    richText: null,
+    originalHtml: "<html><body><p>raw original fallback</p></body></html>",
   };
   // A published post must never appear in the queue.
   const published = {
@@ -417,6 +425,81 @@ describe("GET /api/cms/held-back-articles", () => {
       // Stored row said fail, but a current re-score is a pass.
       expect(bySlug["fine-article"].validationStatus).toBe("pass");
     });
+  });
+});
+
+describe("GET /api/cms/held-back-articles/:id/source", () => {
+  const PERMITTED: Role[] = ["admin", "editor", "reviewer"];
+
+  beforeEach(() => {
+    const fresh = seedHeldBack();
+    for (const k of Object.keys(tables)) delete tables[k];
+    for (const [k, v] of Object.entries(fresh)) tables[k] = v;
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app).get(
+      "/api/cms/held-back-articles/p-fail/source",
+    );
+    expect(res.status).toBe(401);
+  });
+
+  for (const role of ROLES.filter((r) => !PERMITTED.includes(r))) {
+    it(`returns 403 for ${role} (lacks review.approve)`, async () => {
+      const res = await request(app)
+        .get("/api/cms/held-back-articles/p-fail/source")
+        .set("Authorization", bearer(role));
+      expect(res.status).toBe(403);
+    });
+  }
+
+  it("returns the cleaned source body alongside the parsed trees", async () => {
+    const res = await request(app)
+      .get("/api/cms/held-back-articles/p-fail/source")
+      .set("Authorization", bearer("reviewer"));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: "p-fail",
+      slug: "broken-article",
+      sourceKind: "cleaned",
+    });
+    expect(res.body.sourceHtml).toContain("the importer dropped");
+    // Parsed tree is empty for the broken article — exactly what the editor
+    // should see is missing on the right.
+    expect(res.body.componentTree).toEqual([]);
+  });
+
+  it("falls back to the raw original HTML when there is no cleaned body", async () => {
+    const res = await request(app)
+      .get("/api/cms/held-back-articles/p-pass/source")
+      .set("Authorization", bearer("reviewer"));
+    expect(res.status).toBe(200);
+    expect(res.body.sourceKind).toBe("original");
+    expect(res.body.sourceHtml).toContain("raw original fallback");
+    expect(res.body.componentTree).toEqual([
+      { blockType: "paragraph", text: "Parsed body" },
+    ]);
+  });
+
+  it("returns 404 for a published post (not in the queue)", async () => {
+    const res = await request(app)
+      .get("/api/cms/held-back-articles/p-pub/source")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for a draft non-post page (not in the queue)", async () => {
+    const res = await request(app)
+      .get("/api/cms/held-back-articles/p-cat/source")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for an unknown id", async () => {
+    const res = await request(app)
+      .get("/api/cms/held-back-articles/does-not-exist/source")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(404);
   });
 });
 

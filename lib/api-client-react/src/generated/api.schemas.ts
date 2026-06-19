@@ -1193,6 +1193,55 @@ export interface HeldBackArticleListResponse {
 }
 
 /**
+ * Which column sourceHtml was taken from. Null when no source HTML exists.
+ * @nullable
+ */
+export type HeldBackArticleSourceSourceKind = typeof HeldBackArticleSourceSourceKind[keyof typeof HeldBackArticleSourceSourceKind] | null;
+
+
+export const HeldBackArticleSourceSourceKind = {
+  cleaned: 'cleaned',
+  original: 'original',
+} as const;
+
+/**
+ * The parsed Payload-style block tree the importer extracted.
+ */
+export type HeldBackArticleSourceComponentTree = { [key: string]: unknown } | unknown[] | null;
+
+/**
+ * The parsed Lexical rich-text tree the importer extracted.
+ * @nullable
+ */
+export type HeldBackArticleSourceRichText = { [key: string]: unknown } | null;
+
+export interface HeldBackArticleSource {
+  id: string;
+  slug: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  url: string | null;
+  /**
+     * The faithful source body — cleaned article HTML, or the raw original HTML when no cleaned body exists. Null when the article has no stored HTML at all.
+     * @nullable
+     */
+  sourceHtml: string | null;
+  /**
+     * Which column sourceHtml was taken from. Null when no source HTML exists.
+     * @nullable
+     */
+  sourceKind: HeldBackArticleSourceSourceKind;
+  /** The parsed Payload-style block tree the importer extracted. */
+  componentTree: HeldBackArticleSourceComponentTree;
+  /**
+     * The parsed Lexical rich-text tree the importer extracted.
+     * @nullable
+     */
+  richText: HeldBackArticleSourceRichText;
+}
+
+/**
  * Crawl / ingestion pipeline state, derived from the crawl queue.
  */
 export interface CmsDashboardCrawl {

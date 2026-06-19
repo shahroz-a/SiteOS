@@ -59,6 +59,7 @@ import type {
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   HeldBackArticleListResponse,
+  HeldBackArticleSource,
   ListCmsAuditLogsParams,
   ListCmsMediaParams,
   ListCmsPostParams,
@@ -2346,6 +2347,84 @@ export const useResolveCmsHeldBackArticle = <TError = ErrorType<ErrorEnvelope>,
       > => {
       return useMutation(getResolveCmsHeldBackArticleMutationOptions(options));
     }
+
+export const getGetCmsHeldBackArticleSourceUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/held-back-articles/${id}/source`
+}
+
+/**
+ * The faithful source body (cleaned article HTML, falling back to the raw original HTML when no cleaned body exists) alongside the parsed structured representations (componentTree and richText) the importer extracted. Lets an editor render the source next to the parsed output and visually spot what the importer dropped or garbled before deciding to publish or dismiss. Restricted to articles still in the review queue (pages.status="draft", page_type="post").
+ * @summary Source vs parsed bodies for one held-back article (requires review.approve)
+ */
+export const getCmsHeldBackArticleSource = async (id: string, options?: RequestInit): Promise<HeldBackArticleSource> => {
+
+  return customFetch<HeldBackArticleSource>(getGetCmsHeldBackArticleSourceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsHeldBackArticleSourceQueryKey = (id: string,) => {
+    return [
+    `/api/cms/held-back-articles/${id}/source`
+    ] as const;
+    }
+
+
+export const getGetCmsHeldBackArticleSourceQueryOptions = <TData = Awaited<ReturnType<typeof getCmsHeldBackArticleSource>>, TError = ErrorType<ErrorEnvelope>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsHeldBackArticleSource>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsHeldBackArticleSourceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsHeldBackArticleSource>>> = ({ signal }) => getCmsHeldBackArticleSource(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsHeldBackArticleSource>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsHeldBackArticleSourceQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsHeldBackArticleSource>>>
+export type GetCmsHeldBackArticleSourceQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Source vs parsed bodies for one held-back article (requires review.approve)
+ */
+
+export function useGetCmsHeldBackArticleSource<TData = Awaited<ReturnType<typeof getCmsHeldBackArticleSource>>, TError = ErrorType<ErrorEnvelope>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsHeldBackArticleSource>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsHeldBackArticleSourceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListCmsPostUrl = (params?: ListCmsPostParams,) => {
   const normalizedParams = new URLSearchParams();

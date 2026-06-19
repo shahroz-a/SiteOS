@@ -13,6 +13,8 @@ import {
   ListCmsAuditLogsQueryParams,
   ListCmsAuditLogsResponse,
   ListCmsHeldBackArticlesResponse,
+  GetCmsHeldBackArticleSourceParams,
+  GetCmsHeldBackArticleSourceResponse,
   ResolveCmsHeldBackArticleBody,
   ResolveCmsHeldBackArticleParams,
   ResolveCmsHeldBackArticleResponse,
@@ -349,6 +351,79 @@ router.patch(
         id: updated.id,
         slug: updated.slug,
         status: updated.status,
+      }),
+    );
+  },
+);
+
+// Source-vs-parsed bodies for ONE held-back article, powering the review
+// drawer's side-by-side preview. Returns the faithful source body (cleaned
+// article HTML, falling back to the raw original HTML) next to the parsed
+// structured trees (componentTree + richText) the importer extracted, so an
+// editor can render them side by side and see exactly what content the importer
+// dropped or garbled. Only articles still in the queue (status="draft",
+// page_type="post") are exposed. `original_html` is large, so it is fetched
+// only as a fallback (second query) when the cleaned body is empty — never
+// eagerly. Gated on review.approve.
+router.get(
+  "/cms/held-back-articles/:id/source",
+  requireAuth,
+  requirePermission("review.approve"),
+  async (req: Request, res: Response) => {
+    const { id } = GetCmsHeldBackArticleSourceParams.parse(req.params);
+
+    const [page] = await db
+      .select({
+        id: pagesTable.id,
+        slug: pagesTable.slug,
+        title: pagesTable.title,
+        url: pagesTable.canonicalUrl,
+        cleanedHtml: pagesTable.cleanedHtml,
+        componentTree: pagesTable.componentTree,
+        richText: pagesTable.richText,
+      })
+      .from(pagesTable)
+      .where(
+        and(
+          eq(pagesTable.id, id),
+          eq(pagesTable.status, "draft"),
+          eq(pagesTable.pageType, "post"),
+        ),
+      );
+
+    if (!page) {
+      res.status(404).json({ error: "Article not found in the review queue" });
+      return;
+    }
+
+    const cleaned = page.cleanedHtml?.trim() ? page.cleanedHtml : null;
+    let sourceHtml: string | null = cleaned;
+    let sourceKind: "cleaned" | "original" | null = cleaned ? "cleaned" : null;
+
+    // Fall back to the (large) raw original HTML only when there is no cleaned
+    // body. Fetched in its own query so the common path never materializes the
+    // ~500KB-per-row original_html column.
+    if (!sourceHtml) {
+      const [raw] = await db
+        .select({ originalHtml: pagesTable.originalHtml })
+        .from(pagesTable)
+        .where(eq(pagesTable.id, id));
+      if (raw?.originalHtml?.trim()) {
+        sourceHtml = raw.originalHtml;
+        sourceKind = "original";
+      }
+    }
+
+    res.json(
+      GetCmsHeldBackArticleSourceResponse.parse({
+        id: page.id,
+        slug: page.slug,
+        title: page.title,
+        url: page.url,
+        sourceHtml,
+        sourceKind,
+        componentTree: page.componentTree ?? null,
+        richText: page.richText ?? null,
       }),
     );
   },

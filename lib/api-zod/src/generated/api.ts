@@ -844,6 +844,30 @@ export const ResolveCmsHeldBackArticleResponse = zod.object({
 
 
 /**
+ * The faithful source body (cleaned article HTML, falling back to the raw original HTML when no cleaned body exists) alongside the parsed structured representations (componentTree and richText) the importer extracted. Lets an editor render the source next to the parsed output and visually spot what the importer dropped or garbled before deciding to publish or dismiss. Restricted to articles still in the review queue (pages.status="draft", page_type="post").
+ * @summary Source vs parsed bodies for one held-back article (requires review.approve)
+ */
+export const GetCmsHeldBackArticleSourceParams = zod.object({
+  "id": zod.string().describe('The page id of the held-back article.')
+})
+
+export const GetCmsHeldBackArticleSourceHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsHeldBackArticleSourceResponse = zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "title": zod.string().nullable(),
+  "url": zod.string().nullable(),
+  "sourceHtml": zod.string().nullable().describe('The faithful source body — cleaned article HTML, or the raw original HTML when no cleaned body exists. Null when the article has no stored HTML at all.'),
+  "sourceKind": zod.union([zod.literal('cleaned'),zod.literal('original'),zod.literal(null)]).nullable().describe('Which column sourceHtml was taken from. Null when no source HTML exists.'),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).describe('The parsed Payload-style block tree the importer extracted.'),
+  "richText": zod.record(zod.string(), zod.unknown()).nullable().describe('The parsed Lexical rich-text tree the importer extracted.')
+})
+
+
+/**
  * Paginated list of articles across every status (draft, published, archived) for the CMS content list and the internal-linking assistant. Optional full-text `q` matches title/slug; `status` narrows to one state.
  * @summary List/search articles of any status (requires content.view)
  */

@@ -3,10 +3,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useListCmsHeldBackArticles,
   useResolveCmsHeldBackArticle,
+  useGetCmsHeldBackArticleSource,
   getListCmsHeldBackArticlesQueryKey,
   type HeldBackArticle,
   type HeldBackValidationIssue,
 } from "@workspace/api-client-react";
+import { ContentRenderer } from "@workspace/blog-renderer";
 import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
 import {
@@ -122,6 +124,76 @@ function IssueRow({ issue }: { issue: HeldBackValidationIssue }) {
   );
 }
 
+function SourceComparison({ articleId }: { articleId: string }) {
+  const { data, isLoading, isError } = useGetCmsHeldBackArticleSource(articleId);
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Couldn't load the source preview for this article.
+      </p>
+    );
+  }
+
+  const hasSource = Boolean(data.sourceHtml && data.sourceHtml.trim().length);
+  const hasParsed =
+    (Array.isArray(data.componentTree)
+      ? data.componentTree.length > 0
+      : Boolean(data.componentTree)) || Boolean(data.richText);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-sm font-medium">Original article</h4>
+          {data.sourceKind === "original" ? (
+            <Badge variant="outline" className="text-[10px] uppercase">
+              Raw HTML
+            </Badge>
+          ) : null}
+        </div>
+        <div className="h-[60vh] overflow-y-auto rounded-md border border-border/60 bg-muted/20 p-4">
+          {hasSource ? (
+            <ContentRenderer post={{ contentHtml: data.sourceHtml }} />
+          ) : (
+            <p className="text-sm italic text-muted-foreground">
+              No source HTML was stored for this article.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-2">
+        <h4 className="text-sm font-medium">What the importer extracted</h4>
+        <div className="h-[60vh] overflow-y-auto rounded-md border border-border/60 p-4">
+          {hasParsed ? (
+            <ContentRenderer
+              post={{
+                componentTree: data.componentTree,
+                richText: data.richText,
+              }}
+            />
+          ) : (
+            <p className="text-sm italic text-muted-foreground">
+              The importer extracted no structured content — everything on the
+              left was dropped.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ArticleDrawer({
   article,
   open,
@@ -166,7 +238,7 @@ function ArticleDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 sm:max-w-xl">
+      <SheetContent className="flex w-full flex-col gap-0 sm:max-w-xl lg:max-w-3xl xl:max-w-5xl">
         {article ? (
           <>
             <SheetHeader>
@@ -221,6 +293,20 @@ function ArticleDrawer({
                   ))}
                 </div>
               )}
+
+              <Separator />
+
+              <div className="space-y-1">
+                <h3 className="font-medium">Source vs. parsed content</h3>
+                <p className="text-sm text-muted-foreground">
+                  The original article on the left, and what the importer
+                  extracted on the right. Anything visible on the left but
+                  missing or garbled on the right is what would be lost if this
+                  is published as-is.
+                </p>
+              </div>
+
+              <SourceComparison articleId={article.id} />
             </div>
 
             <SheetFooter className="flex-col gap-2 sm:flex-col">

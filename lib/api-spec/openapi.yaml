@@ -864,6 +864,54 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /cms/held-back-articles/{id}/source:
+    get:
+      tags: [cms]
+      operationId: getCmsHeldBackArticleSource
+      summary: Source vs parsed bodies for one held-back article (requires review.approve)
+      description: >-
+        The faithful source body (cleaned article HTML, falling back to the raw
+        original HTML when no cleaned body exists) alongside the parsed
+        structured representations (componentTree and richText) the importer
+        extracted. Lets an editor render the source next to the parsed output and
+        visually spot what the importer dropped or garbled before deciding to
+        publish or dismiss. Restricted to articles still in the review queue
+        (pages.status="draft", page_type="post").
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The page id of the held-back article.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The article's source and parsed bodies.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeldBackArticleSource"
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Insufficient permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Article not found or not in the review queue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /cms/posts:
     get:
       tags: [cms]
@@ -4043,6 +4091,59 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HeldBackArticle'
+
+    HeldBackArticleSource:
+      type: object
+      required:
+        - id
+        - slug
+        - title
+        - url
+        - sourceHtml
+        - sourceKind
+        - componentTree
+        - richText
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        title:
+          type:
+            - string
+            - 'null'
+        url:
+          type:
+            - string
+            - 'null'
+        sourceHtml:
+          type:
+            - string
+            - 'null'
+          description: The faithful source body — cleaned article HTML, or the raw original HTML when no cleaned body exists. Null when the article has no stored HTML at all.
+        sourceKind:
+          type:
+            - string
+            - 'null'
+          enum:
+            - cleaned
+            - original
+            - null
+          description: Which column sourceHtml was taken from. Null when no source HTML exists.
+        componentTree:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: array
+              items: {}
+            - type: 'null'
+          description: The parsed Payload-style block tree the importer extracted.
+        richText:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+          description: The parsed Lexical rich-text tree the importer extracted.
 
     CmsDashboardCrawl:
       type: object
