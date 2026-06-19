@@ -510,6 +510,21 @@ export function makeDbMock(tables: Tables) {
 
 /** Build the `drizzle-orm` mock so operators yield introspectable AST nodes. */
 export function makeDrizzleMock() {
+  // `sql` is a tagged template that also exposes the `.join` / `.raw` helpers
+  // used at module load by modules like `content-explorer.ts` (building static
+  // score expressions). Those nodes are never evaluated by the FakeDb — they
+  // only need to exist so importing such modules under the mock doesn't throw.
+  const sql = Object.assign(
+    (strings: TemplateStringsArray, ...values: unknown[]) => ({
+      __op: "sql" as const,
+      strings: Array.from(strings),
+      values,
+    }),
+    {
+      join: (parts: unknown[], sep?: unknown) => ({ __op: "sql" as const, parts, sep }),
+      raw: (text: string) => ({ __op: "sql" as const, raw: text }),
+    },
+  );
   return {
     eq: (col: ColRef, val: unknown) => ({ __op: "eq", col, val }),
     and: (...conds: (Cond | undefined)[]) => ({
@@ -526,10 +541,6 @@ export function makeDrizzleMock() {
     gt: (col: ColRef, val: unknown) => ({ __op: "gt", col, val }),
     desc: (col: ColRef) => ({ __op: "desc", col }),
     asc: (col: ColRef) => ({ __op: "asc", col }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      __op: "sql",
-      strings: Array.from(strings),
-      values,
-    }),
+    sql,
   };
 }
