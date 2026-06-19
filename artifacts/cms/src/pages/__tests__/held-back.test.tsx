@@ -10,14 +10,36 @@ import type {
   true;
 
 // `held-back.tsx` pulls in the whole CMS dependency graph at module load. Only
-// `ReextractPanel` (a pure presentational component) is under test here, so the
-// `@/`-aliased modules (the alias isn't wired into the vitest resolver) and the
-// heavy generated API client are stubbed. The real `@workspace/ui/button` and
-// lucide icons render so the assertions exercise the actual outcome copy.
-vi.mock("@workspace/api-client-react", () => ({}));
+// `ReextractPanel` (a pure presentational component) and `ReparsePanel` are
+// under test here, so the `@/`-aliased modules (the alias isn't wired into the
+// vitest resolver) and the heavy generated API client are stubbed. The real
+// `@workspace/ui/button` and lucide icons render so the assertions exercise the
+// actual outcome copy.
+
+// Shared, stable mocks so a test can assert on the toast call and capture the
+// options passed to the re-parse mutation hook (vi.mock factories are hoisted
+// above the imports, so the holders must be hoisted too).
+const { toastMock, invalidateQueriesMock, mutationCapture } = vi.hoisted(() => ({
+  toastMock: vi.fn(),
+  invalidateQueriesMock: vi.fn(),
+  mutationCapture: { options: null as unknown },
+}));
+
+vi.mock("@workspace/api-client-react", () => ({
+  useReparseCmsHeldBackArticle: (options: unknown) => {
+    mutationCapture.options = options;
+    return { isPending: false, mutate: vi.fn() };
+  },
+  useGetCmsHeldBackArticleSource: () => ({ data: { sourceHtml: "" } }),
+  getListCmsHeldBackArticlesQueryKey: () => ["held-back"],
+  getGetCmsHeldBackArticleSourceQueryKey: () => ["held-back-source"],
+}));
+vi.mock("@tanstack/react-query", () => ({
+  useQueryClient: () => ({ invalidateQueries: invalidateQueriesMock }),
+}));
 vi.mock("@workspace/blog-renderer", () => ({ ContentRenderer: () => null }));
 vi.mock("@workspace/ui", () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: toastMock }),
   cn: (...args: unknown[]) =>
     args
       .flat(Infinity)
@@ -34,8 +56,16 @@ vi.mock("@/hooks/use-debounced-value", () => ({
 }));
 
 // Imported after the mocks are registered.
-import { ReextractPanel, reparseVerdictToast } from "../held-back";
-import type { ReparseHeldBackArticleResponse } from "@workspace/api-client-react";
+import {
+  ReextractPanel,
+  ReparsePanel,
+  reparseVerdictToast,
+  reparseErrorToast,
+} from "../held-back";
+import type {
+  HeldBackArticle,
+  ReparseHeldBackArticleResponse,
+} from "@workspace/api-client-react";
 
 /** Recursively join every string node in a react-test-renderer JSON tree. */
 function rawText(node: unknown): string {
@@ -368,5 +398,85 @@ describe("reparseVerdictToast — description by validation status", () => {
     expect(description).toContain("score 80");
     expect(description).toContain("can be published");
     expect(description).not.toContain("passing");
+  });
+});
+
+describe("reparseErrorToast — shown when the re-parse request fails", () => {
+  it('titles the toast "Could not re-parse"', () => {
+    expect(reparseErrorToast().title).toBe("Could not re-parse");
+  });
+
+  it("tells the editor to check the HTML and try again", () => {
+    const { description } = reparseErrorToast();
+    expect(description).toContain(
+      "The body could not be parsed, or something went wrong.",
+    );
+    expect(description).toContain("Check the HTML and try again.");
+  });
+
+  it("uses the destructive variant so the failure reads as an error", () => {
+    expect(reparseErrorToast().variant).toBe("destructive");
+  });
+});
+
+describe("ReparsePanel — mutation feedback wiring", () => {
+  function renderReparsePanel() {
+    toastMock.mockClear();
+    invalidateQueriesMock.mockClear();
+    mutationCapture.options = null;
+    act(() => {
+      TestRenderer.create(
+        createElement(ReparsePanel, {
+          article: { id: "page-1" } as HeldBackArticle,
+        }),
+      );
+    });
+    const captured = mutationCapture.options as {
+      mutation: {
+        onSuccess: (result: ReparseHeldBackArticleResponse) => void;
+        onError: () => void;
+      };
+    };
+    return captured.mutation;
+  }
+
+  it("toasts the destructive error toast when the re-parse mutation rejects", () => {
+    const mutation = renderReparsePanel();
+
+    act(() => {
+      mutation.onError();
+    });
+
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    const payload = toastMock.mock.calls.at(-1)?.[0] as {
+      title: string;
+      description: string;
+      variant: string;
+    };
+    expect(payload.title).toBe("Could not re-parse");
+    expect(payload.description).toContain("Check the HTML and try again.");
+    expect(payload.variant).toBe("destructive");
+  });
+
+  it("toasts the success verdict when the re-parse mutation resolves", () => {
+    const mutation = renderReparsePanel();
+
+    act(() => {
+      mutation.onSuccess(
+        makeReparseResult({ validationStatus: "pass", validationScore: 95 }),
+      );
+    });
+
+    expect(toastMock).toHaveBeenCalledTimes(1);
+    const payload = toastMock.mock.calls.at(-1)?.[0] as {
+      title: string;
+      description: string;
+      variant?: string;
+    };
+    expect(payload.title).toBe("Re-parsed");
+    expect(payload.description).toContain("Now passing");
+    expect(payload.variant).toBeUndefined();
+    // The success path refreshes the held-back list and the source view.
+    expect(invalidateQueriesMock).toHaveBeenCalled();
   });
 });

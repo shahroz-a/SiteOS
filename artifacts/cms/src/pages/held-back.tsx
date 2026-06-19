@@ -181,11 +181,24 @@ export function reparseVerdictToast(
   };
 }
 
+export function reparseErrorToast(): {
+  title: string;
+  description: string;
+  variant: "destructive";
+} {
+  return {
+    title: "Could not re-parse",
+    description:
+      "The body could not be parsed, or something went wrong. Check the HTML and try again.",
+    variant: "destructive",
+  };
+}
+
 // Lets an editor fix a garbled import in place: re-run the parser on the stored
 // source, or hand-edit the body HTML and re-parse that. Both persist to the
 // page's componentTree/richText and write a fresh content-fidelity report, so
 // the parsed preview and the verdict reflect the correction immediately.
-function ReparsePanel({ article }: { article: HeldBackArticle }) {
+export function ReparsePanel({ article }: { article: HeldBackArticle }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: source } = useGetCmsHeldBackArticleSource(article.id);
@@ -205,12 +218,7 @@ function ReparsePanel({ article }: { article: HeldBackArticle }) {
         toast(reparseVerdictToast(result));
       },
       onError: () => {
-        toast({
-          title: "Could not re-parse",
-          description:
-            "The body could not be parsed, or something went wrong. Check the HTML and try again.",
-          variant: "destructive",
-        });
+        toast(reparseErrorToast());
       },
     },
   });
