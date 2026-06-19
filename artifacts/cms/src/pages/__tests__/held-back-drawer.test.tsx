@@ -368,6 +368,111 @@ describe("ArticleDrawer — re-extract completion", () => {
     });
   });
 
+  it("shows the error message inline and does NOT toast or refresh when the stream emits an error event", async () => {
+    // The stream surfaces a failure as an `error` event (the same shape the
+    // client emits for a non-OK HTTP response or a server-sent error line),
+    // then resolves normally. `handleReextract` should store the message for
+    // the panel and, because no result arrived, skip the toast + invalidation.
+    vi.mocked(streamReextract).mockImplementationOnce(
+      async (
+        _articleId: string,
+        onEvent: (event: ReextractEvent) => void,
+        signal: AbortSignal,
+      ) => {
+        h.captured.signal = signal;
+        h.captured.onEvent = onEvent;
+        onEvent({
+          type: "error",
+          code: "unreachable",
+          message: "Could not reach the source URL (HTTP 503).",
+        });
+      },
+    );
+
+    const renderer = render(makeArticle("a1"));
+    await runReextractToCompletion(renderer);
+
+    const text = textOf(renderer.toJSON());
+    expect(text).toContain("Could not reach the source URL (HTTP 503).");
+    expect(text).not.toContain(IDLE_HELPER);
+    expect(text).not.toContain("Re-extracting");
+    expect(h.toast).not.toHaveBeenCalled();
+    expect(h.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("shows the rejection message inline when the stream promise rejects", async () => {
+    // A thrown error (e.g. the fetch itself failing) rejects the stream
+    // promise; the catch block stores the Error's message for the panel.
+    vi.mocked(streamReextract).mockImplementationOnce(
+      async (
+        _articleId: string,
+        onEvent: (event: ReextractEvent) => void,
+        signal: AbortSignal,
+      ) => {
+        h.captured.signal = signal;
+        h.captured.onEvent = onEvent;
+        throw new Error("Network request failed.");
+      },
+    );
+
+    const renderer = render(makeArticle("a1"));
+    await runReextractToCompletion(renderer);
+
+    const text = textOf(renderer.toJSON());
+    expect(text).toContain("Network request failed.");
+    expect(text).not.toContain(IDLE_HELPER);
+    expect(h.toast).not.toHaveBeenCalled();
+    expect(h.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("stays silent when the stream rejects after being aborted", async () => {
+    // A deferred stream so the test controls when it rejects: abort it (by
+    // switching article), THEN reject — the catch block must NOT surface the
+    // message for an intentionally-aborted stream, and the post-stream block
+    // must bail out (no toast / no invalidation).
+    let rejectStream!: (err: Error) => void;
+    vi.mocked(streamReextract).mockImplementationOnce(
+      (
+        _articleId: string,
+        onEvent: (event: ReextractEvent) => void,
+        signal: AbortSignal,
+      ) => {
+        h.captured.signal = signal;
+        h.captured.onEvent = onEvent;
+        return new Promise<void>((_resolve, reject) => {
+          rejectStream = reject;
+        });
+      },
+    );
+
+    const renderer = render(makeArticle("a1"));
+    startReextract(renderer);
+    expect(h.captured.signal?.aborted).toBe(false);
+
+    // Switch to a different article — this aborts the in-flight controller.
+    act(() => {
+      renderer.update(
+        createElement(ArticleDrawer, {
+          article: makeArticle("b1"),
+          open: true,
+          onOpenChange: vi.fn(),
+        }),
+      );
+    });
+    expect(h.captured.signal?.aborted).toBe(true);
+
+    // Now let the aborted stream reject; the catch must swallow it silently.
+    await act(async () => {
+      rejectStream(new Error("Aborted mid-flight."));
+    });
+
+    const text = textOf(renderer.toJSON());
+    expect(text).toContain(IDLE_HELPER);
+    expect(text).not.toContain("Aborted mid-flight.");
+    expect(h.toast).not.toHaveBeenCalled();
+    expect(h.invalidateQueries).not.toHaveBeenCalled();
+  });
+
   it("toasts the cleared-the-queue / unchanged outcome", async () => {
     mockStreamEmits(
       makeResult({
