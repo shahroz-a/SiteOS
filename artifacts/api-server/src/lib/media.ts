@@ -137,6 +137,56 @@ export async function suggestAltText(url: string): Promise<string> {
   return suggestion;
 }
 
+/** Max images processed in one batch suggest request. */
+export const MAX_ALT_SUGGEST_BATCH = 50;
+
+/** How many vision calls to run concurrently within a batch. */
+const ALT_SUGGEST_BATCH_CONCURRENCY = 4;
+
+/** The outcome of suggesting alt text for a single image in a batch. */
+export interface BatchAltSuggestion {
+  url: string;
+  suggestion: string | null;
+  error: string | null;
+}
+
+/**
+ * Suggest alt text for many images in one pass, with bounded concurrency. Each
+ * image is described independently: a failure on one (bad URL, model error) is
+ * captured as that result's `error` and never aborts the rest of the batch.
+ * Results are returned in the same order as the input `urls`.
+ */
+export async function suggestAltTextBatch(
+  urls: string[],
+): Promise<BatchAltSuggestion[]> {
+  const results: BatchAltSuggestion[] = urls.map((url) => ({
+    url,
+    suggestion: null,
+    error: null,
+  }));
+
+  let next = 0;
+  async function worker() {
+    while (next < urls.length) {
+      const index = next++;
+      const url = urls[index];
+      try {
+        results[index].suggestion = await suggestAltText(url);
+      } catch (err) {
+        results[index].error =
+          err instanceof Error ? err.message : "Couldn't generate a suggestion.";
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(ALT_SUGGEST_BATCH_CONCURRENCY, urls.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 /** Strip wrapping quotes/whitespace and clamp the length of a raw suggestion. */
 function cleanSuggestion(raw: string): string {
   let text = raw.trim();

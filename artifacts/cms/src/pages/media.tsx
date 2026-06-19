@@ -2,6 +2,7 @@ import type { ChangeEvent } from "react";
 import { useEffect, useState } from "react";
 import {
   useListCmsMedia,
+  listCmsMedia,
   type MediaItem,
 } from "@workspace/api-client-react";
 import { Input } from "@workspace/ui/input";
@@ -13,11 +14,15 @@ import { Empty, EmptyTitle, EmptyDescription } from "@workspace/ui/empty";
 import { MediaGrid } from "@/components/media-grid";
 import { MediaDetailsSheet } from "@/components/media-details-sheet";
 import { MediaPicker } from "@/components/media-picker";
+import { BulkAltReviewDialog } from "@/components/bulk-alt-review-dialog";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useToast } from "@workspace/ui";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Sparkles } from "lucide-react";
 
 const PAGE_SIZE = 24;
+
+/** Max flagged images gathered into a single bulk-suggestion review pass. */
+const BULK_SUGGEST_CEILING = 200;
 
 export default function MediaPage() {
   const { toast } = useToast();
@@ -26,6 +31,8 @@ export default function MediaPage() {
   const [page, setPage] = useState(1);
   const [active, setActive] = useState<MediaItem | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [bulkItems, setBulkItems] = useState<MediaItem[] | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const q = useDebouncedValue(search, 300);
 
@@ -45,6 +52,55 @@ export default function MediaPage() {
   const pagination = data?.pagination;
   const summary = data?.summary;
   const totalPages = pagination?.totalPages ?? 1;
+
+  // The bulk action targets EVERY image failing alt validation across the
+  // current search filter — not just the loaded page. We gather them by
+  // paginating the list with onlyIssues forced on (capped for cost/review
+  // sanity), then hand the full set to the review queue.
+  const totalIssues = summary?.withAltIssues ?? 0;
+
+  const startBulkSuggest = async () => {
+    setBulkLoading(true);
+    try {
+      const gathered: MediaItem[] = [];
+      const limit = 100;
+      let pageNum = 1;
+      // Safety ceiling so a huge backlog can't trigger an unbounded fetch + AI
+      // run; the editor can repeat the pass for any remainder.
+      while (gathered.length < BULK_SUGGEST_CEILING) {
+        const res = await listCmsMedia({
+          q: q || undefined,
+          onlyIssues: true,
+          page: pageNum,
+          limit,
+        });
+        gathered.push(...res.items);
+        if (pageNum >= res.pagination.totalPages) break;
+        pageNum += 1;
+      }
+      const queue = gathered.slice(0, BULK_SUGGEST_CEILING);
+      if (queue.length === 0) {
+        toast({ title: "No flagged images to suggest for." });
+        return;
+      }
+      if (gathered.length > BULK_SUGGEST_CEILING) {
+        toast({
+          title: `Reviewing the first ${BULK_SUGGEST_CEILING} flagged images`,
+          description:
+            "Approve these, then run the action again for the rest.",
+        });
+      }
+      setBulkItems(queue);
+    } catch {
+      toast({
+        title: "Couldn't load flagged images",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -97,6 +153,21 @@ export default function MediaPage() {
             Only needs alt text
           </Label>
         </div>
+        {totalIssues > 0 ? (
+          <Button
+            variant="outline"
+            className="ml-auto"
+            onClick={startBulkSuggest}
+            disabled={bulkLoading}
+          >
+            {bulkLoading ? (
+              <Spinner className="mr-2 size-4" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            Suggest alt for {totalIssues.toLocaleString()} flagged
+          </Button>
+        ) : null}
       </div>
 
       {isLoading ? (
@@ -154,6 +225,14 @@ export default function MediaPage() {
         open={active !== null}
         onOpenChange={(open) => {
           if (!open) setActive(null);
+        }}
+      />
+
+      <BulkAltReviewDialog
+        items={bulkItems ?? []}
+        open={bulkItems !== null}
+        onOpenChange={(open) => {
+          if (!open) setBulkItems(null);
         }}
       />
 

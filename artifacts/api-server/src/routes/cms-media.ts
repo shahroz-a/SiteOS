@@ -3,10 +3,16 @@ import {
   ListCmsMediaQueryParams,
   ListCmsMediaResponse,
   SuggestCmsMediaAltBody,
+  SuggestCmsMediaAltBatchBody,
   UpdateCmsMediaAltBody,
 } from "@workspace/api-zod";
 import { requireAuth, requirePermission } from "../middlewares/rbac";
-import { listMedia, suggestAltText, updateAltByUrl } from "../lib/media";
+import {
+  listMedia,
+  suggestAltText,
+  suggestAltTextBatch,
+  updateAltByUrl,
+} from "../lib/media";
 
 const router: IRouter = Router();
 
@@ -71,6 +77,30 @@ router.post(
         .status(502)
         .json({ error: "Couldn't generate an alt-text suggestion." });
     }
+  },
+);
+
+// Suggest alt text for many images in one pass (bulk action from the media
+// library). Each image is described independently and per-image failures are
+// reported inline, so a single bad image never fails the whole batch. Nothing
+// is saved — every suggestion is returned for individual editor review. Gated
+// on media.manage.
+router.post(
+  "/cms/media/suggest-alt-batch",
+  requireAuth,
+  requirePermission("media.manage"),
+  async (req: Request, res: Response) => {
+    const parsed = SuggestCmsMediaAltBatchBody.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Invalid body", details: parsed.error.issues });
+      return;
+    }
+
+    // One result per requested URL, in request order (the response contract).
+    const results = await suggestAltTextBatch(parsed.data.urls);
+    res.json({ results });
   },
 );
 

@@ -1055,6 +1055,38 @@ export interface SuggestMediaAltResponse {
   suggestion: string;
 }
 
+export interface SuggestMediaAltBatchInput {
+  /**
+     * The CDN URLs of the images to describe in one pass.
+     * @minItems 1
+     * @maxItems 50
+     */
+  urls: string[];
+}
+
+/**
+ * The suggestion outcome for a single image in a batch request.
+ */
+export interface SuggestMediaAltBatchResult {
+  /** The CDN URL this result is for. */
+  url: string;
+  /**
+     * The AI-generated alt-text description, or null if it failed.
+     * @nullable
+     */
+  suggestion: string | null;
+  /**
+     * A human-readable failure reason, or null on success.
+     * @nullable
+     */
+  error: string | null;
+}
+
+export interface SuggestMediaAltBatchResponse {
+  /** One result per requested URL, in the same order. */
+  results: SuggestMediaAltBatchResult[];
+}
+
 export interface UpdateMediaAltInput {
   /** The CDN URL identifying the media item to update. */
   url: string;

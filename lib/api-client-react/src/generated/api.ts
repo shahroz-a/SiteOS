@@ -83,6 +83,8 @@ import type {
   SavedViewUpdate,
   SearchCmsContentParams,
   SearchPostsParams,
+  SuggestMediaAltBatchInput,
+  SuggestMediaAltBatchResponse,
   SuggestMediaAltInput,
   SuggestMediaAltResponse,
   Tag,
@@ -2133,6 +2135,77 @@ export const useSuggestCmsMediaAlt = <TError = ErrorType<CmsBadRequestResponse |
         TContext
       > => {
       return useMutation(getSuggestCmsMediaAltMutationOptions(options));
+    }
+
+export const getSuggestCmsMediaAltBatchUrl = () => {
+
+
+
+
+  return `/api/cms/media/suggest-alt-batch`
+}
+
+/**
+ * @summary Suggest accessible alt-text descriptions for many images in one pass using an AI vision model (requires media.manage). Each suggestion is returned for an editor to review and approve individually — nothing is saved automatically. Per-image failures are reported inline so a single bad image never fails the whole batch.
+ */
+export const suggestCmsMediaAltBatch = async (suggestMediaAltBatchInput: SuggestMediaAltBatchInput, options?: RequestInit): Promise<SuggestMediaAltBatchResponse> => {
+
+  return customFetch<SuggestMediaAltBatchResponse>(getSuggestCmsMediaAltBatchUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      suggestMediaAltBatchInput,)
+  }
+);}
+
+
+
+
+export const getSuggestCmsMediaAltBatchMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestCmsMediaAltBatch>>, TError,{data: BodyType<SuggestMediaAltBatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestCmsMediaAltBatch>>, TError,{data: BodyType<SuggestMediaAltBatchInput>}, TContext> => {
+
+const mutationKey = ['suggestCmsMediaAltBatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestCmsMediaAltBatch>>, {data: BodyType<SuggestMediaAltBatchInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  suggestCmsMediaAltBatch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestCmsMediaAltBatchMutationResult = NonNullable<Awaited<ReturnType<typeof suggestCmsMediaAltBatch>>>
+    export type SuggestCmsMediaAltBatchMutationBody = BodyType<SuggestMediaAltBatchInput>
+    export type SuggestCmsMediaAltBatchMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Suggest accessible alt-text descriptions for many images in one pass using an AI vision model (requires media.manage). Each suggestion is returned for an editor to review and approve individually — nothing is saved automatically. Per-image failures are reported inline so a single bad image never fails the whole batch.
+ */
+export const useSuggestCmsMediaAltBatch = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestCmsMediaAltBatch>>, TError,{data: BodyType<SuggestMediaAltBatchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestCmsMediaAltBatch>>,
+        TError,
+        {data: BodyType<SuggestMediaAltBatchInput>},
+        TContext
+      > => {
+      return useMutation(getSuggestCmsMediaAltBatchMutationOptions(options));
     }
 
 export const getUpdateCmsMediaAltUrl = () => {

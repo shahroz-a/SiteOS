@@ -737,6 +737,30 @@ export const SuggestCmsMediaAltResponse = zod.object({
 
 
 /**
+ * @summary Suggest accessible alt-text descriptions for many images in one pass using an AI vision model (requires media.manage). Each suggestion is returned for an editor to review and approve individually — nothing is saved automatically. Per-image failures are reported inline so a single bad image never fails the whole batch.
+ */
+export const SuggestCmsMediaAltBatchHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const suggestCmsMediaAltBatchBodyUrlsMax = 50;
+
+
+
+export const SuggestCmsMediaAltBatchBody = zod.object({
+  "urls": zod.array(zod.string().url()).min(1).max(suggestCmsMediaAltBatchBodyUrlsMax).describe('The CDN URLs of the images to describe in one pass.')
+})
+
+export const SuggestCmsMediaAltBatchResponse = zod.object({
+  "results": zod.array(zod.object({
+  "url": zod.string().url().describe('The CDN URL this result is for.'),
+  "suggestion": zod.string().nullable().describe('The AI-generated alt-text description, or null if it failed.'),
+  "error": zod.string().nullable().describe('A human-readable failure reason, or null on success.')
+}).describe('The suggestion outcome for a single image in a batch request.')).describe('One result per requested URL, in the same order.')
+})
+
+
+/**
  * @summary Save reviewed alt text for a media item, updating every usage of the image (keyed by CDN URL) across all pages (requires media.manage).
  */
 export const UpdateCmsMediaAltHeader = zod.object({
