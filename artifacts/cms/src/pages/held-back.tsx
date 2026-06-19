@@ -11,6 +11,7 @@ import {
   type HeldBackArticle,
   type HeldBackValidationIssue,
   type ReparseHeldBackArticleResponse,
+  type ListCmsHeldBackArticlesIssue,
 } from "@workspace/api-client-react";
 import { ContentRenderer } from "@workspace/blog-renderer";
 import {
@@ -19,8 +20,16 @@ import {
   type ReextractResultEvent,
 } from "@/lib/reextract-client";
 import { Badge } from "@workspace/ui/badge";
+import { Input } from "@workspace/ui/input";
 import { Button } from "@workspace/ui/button";
 import { Textarea } from "@workspace/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/select";
 import {
   Table,
   TableBody,
@@ -42,6 +51,18 @@ import { Separator } from "@workspace/ui/separator";
 import { useToast } from "@workspace/ui";
 import { useCmsAuth } from "@/lib/cms-auth-context";
 import { SourceDiff } from "@/components/source-diff";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+
+const PAGE_SIZE = 25;
+
+const ALL_ISSUES = "all";
+
+// Failure types the live validator can hold an article back on (fail-severity
+// issue fields). Mirrors the `issue` enum in the OpenAPI spec.
+const ISSUE_OPTIONS: { value: ListCmsHeldBackArticlesIssue; label: string }[] = [
+  { value: "title", label: "Missing title" },
+  { value: "components", label: "Empty component tree" },
+];
 
 function statusBadge(status: HeldBackArticle["validationStatus"]) {
   if (status === "fail") {
@@ -648,7 +669,26 @@ function ReextractPanel({
 }
 
 export default function HeldBackPage() {
-  const { data, isLoading, isError } = useListCmsHeldBackArticles();
+  const [search, setSearch] = useState("");
+  const [issue, setIssue] = useState<ListCmsHeldBackArticlesIssue | typeof ALL_ISSUES>(
+    ALL_ISSUES,
+  );
+  const [page, setPage] = useState(1);
+
+  const q = useDebouncedValue(search, 300);
+
+  // Reset to the first page whenever the filters change.
+  useEffect(() => {
+    setPage(1);
+  }, [q, issue]);
+
+  const { data, isLoading, isError, isFetching } = useListCmsHeldBackArticles({
+    q: q || undefined,
+    issue: issue === ALL_ISSUES ? undefined : issue,
+    page,
+    limit: PAGE_SIZE,
+  });
+
   const articles = data?.articles ?? [];
   const [selected, setSelected] = useState<HeldBackArticle | null>(null);
   const [open, setOpen] = useState(false);
@@ -657,6 +697,10 @@ export default function HeldBackPage() {
     setSelected(article);
     setOpen(true);
   }
+
+  const pagination = data?.pagination;
+  const totalPages = pagination?.totalPages ?? 1;
+  const hasFilters = q.trim() !== "" || issue !== ALL_ISSUES;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -668,6 +712,33 @@ export default function HeldBackPage() {
           always reflects the current rules. Open an article to review the
           source vs. parsed counts and publish or dismiss it.
         </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <Input
+          placeholder="Search by title or slug…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-md"
+        />
+        <Select
+          value={issue}
+          onValueChange={(v) =>
+            setIssue(v as ListCmsHeldBackArticlesIssue | typeof ALL_ISSUES)
+          }
+        >
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="All issues" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ISSUES}>All issues</SelectItem>
+            {ISSUE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-lg border border-border/60">
@@ -711,7 +782,9 @@ export default function HeldBackPage() {
             ) : articles.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  No articles are held back. Everything passed validation.
+                  {hasFilters
+                    ? "No held-back articles match these filters."
+                    : "No articles are held back. Everything passed validation."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -761,11 +834,33 @@ export default function HeldBackPage() {
         </Table>
       </div>
 
-      {!isLoading && !isError && articles.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {articles.length} {articles.length === 1 ? "article" : "articles"} held
-          back.
-        </p>
+      {!isLoading && !isError && pagination && pagination.total > 0 ? (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Page {pagination.page} of {totalPages} ·{" "}
+            {pagination.total.toLocaleString()}{" "}
+            {pagination.total === 1 ? "article" : "articles"} held back
+            {hasFilters ? " (filtered)" : ""}.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || isFetching}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages || isFetching}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       <ArticleDrawer article={selected} open={open} onOpenChange={setOpen} />

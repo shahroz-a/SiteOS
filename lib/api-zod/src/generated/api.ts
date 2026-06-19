@@ -881,12 +881,26 @@ export const UpdateCmsMediaMetadataResponse = zod.object({
  * The review queue of articles kept out of the public read API because content-fidelity validation failed (pages.status="draft"). Each entry's verdict is re-scored at request time through the current validator, so the displayed status/score/issues always reflect the live rules — never a stale verdict from an older validator.
  * @summary List articles held back from the public API for editor review (requires review.approve)
  */
+export const listCmsHeldBackArticlesQueryPageDefault = 1;
+
+export const listCmsHeldBackArticlesQueryLimitDefault = 12;
+export const listCmsHeldBackArticlesQueryLimitMax = 100;
+
+
+
+export const ListCmsHeldBackArticlesQueryParams = zod.object({
+  "q": zod.string().optional().describe('Case-insensitive search across article title and slug.'),
+  "issue": zod.enum(['title', 'components']).optional().describe('Filter to articles whose current failing checks include this field (re-scored live). E.g. \"title\" (missing title) or \"components\" (empty\/near-empty component tree).'),
+  "page": zod.coerce.number().min(1).default(listCmsHeldBackArticlesQueryPageDefault).describe('1-based page number'),
+  "limit": zod.coerce.number().min(1).max(listCmsHeldBackArticlesQueryLimitMax).default(listCmsHeldBackArticlesQueryLimitDefault).describe('Number of items per page')
+})
+
 export const ListCmsHeldBackArticlesHeader = zod.object({
   "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
 })
 
 export const ListCmsHeldBackArticlesResponse = zod.object({
-  "total": zod.number(),
+  "total": zod.number().describe('Total number of held-back articles matching the active filters (across all pages), re-scored live.'),
   "articles": zod.array(zod.object({
   "id": zod.string(),
   "slug": zod.string(),
@@ -902,7 +916,13 @@ export const ListCmsHeldBackArticlesResponse = zod.object({
   "severity": zod.enum(['warn', 'fail']),
   "message": zod.string()
 })).nullable()
-}))
+})),
+  "pagination": zod.object({
+  "page": zod.number(),
+  "limit": zod.number(),
+  "total": zod.number(),
+  "totalPages": zod.number()
+})
 })
 
 

@@ -1345,8 +1345,10 @@ export interface HeldBackArticle {
 }
 
 export interface HeldBackArticleListResponse {
+  /** Total number of held-back articles matching the active filters (across all pages), re-scored live. */
   total: number;
   articles: HeldBackArticle[];
+  pagination: Pagination;
 }
 
 /**
@@ -1956,6 +1958,36 @@ page?: PageParamParameter;
  */
 limit?: LimitParamParameter;
 };
+
+export type ListCmsHeldBackArticlesParams = {
+/**
+ * Case-insensitive search across article title and slug.
+ */
+q?: string;
+/**
+ * Filter to articles whose current failing checks include this field (re-scored live). E.g. "title" (missing title) or "components" (empty/near-empty component tree).
+ */
+issue?: ListCmsHeldBackArticlesIssue;
+/**
+ * 1-based page number
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * Number of items per page
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
+};
+
+export type ListCmsHeldBackArticlesIssue = typeof ListCmsHeldBackArticlesIssue[keyof typeof ListCmsHeldBackArticlesIssue];
+
+
+export const ListCmsHeldBackArticlesIssue = {
+  title: 'title',
+  components: 'components',
+} as const;
 
 export type ListCmsPostParams = {
 /**

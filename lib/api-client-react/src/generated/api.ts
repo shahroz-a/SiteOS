@@ -63,6 +63,7 @@ import type {
   HeldBackArticleListResponse,
   HeldBackArticleSource,
   ListCmsAuditLogsParams,
+  ListCmsHeldBackArticlesParams,
   ListCmsMediaParams,
   ListCmsPostParams,
   ListPostsParams,
@@ -2588,21 +2589,28 @@ export const useUpdateCmsMediaMetadata = <TError = ErrorType<CmsBadRequestRespon
       return useMutation(getUpdateCmsMediaMetadataMutationOptions(options));
     }
 
-export const getListCmsHeldBackArticlesUrl = () => {
+export const getListCmsHeldBackArticlesUrl = (params?: ListCmsHeldBackArticlesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/cms/held-back-articles`
+  return stringifiedParams.length > 0 ? `/api/cms/held-back-articles?${stringifiedParams}` : `/api/cms/held-back-articles`
 }
 
 /**
  * The review queue of articles kept out of the public read API because content-fidelity validation failed (pages.status="draft"). Each entry's verdict is re-scored at request time through the current validator, so the displayed status/score/issues always reflect the live rules — never a stale verdict from an older validator.
  * @summary List articles held back from the public API for editor review (requires review.approve)
  */
-export const listCmsHeldBackArticles = async ( options?: RequestInit): Promise<HeldBackArticleListResponse> => {
+export const listCmsHeldBackArticles = async (params?: ListCmsHeldBackArticlesParams, options?: RequestInit): Promise<HeldBackArticleListResponse> => {
 
-  return customFetch<HeldBackArticleListResponse>(getListCmsHeldBackArticlesUrl(),
+  return customFetch<HeldBackArticleListResponse>(getListCmsHeldBackArticlesUrl(params),
   {
     ...options,
     method: 'GET'
@@ -2615,23 +2623,23 @@ export const listCmsHeldBackArticles = async ( options?: RequestInit): Promise<H
 
 
 
-export const getListCmsHeldBackArticlesQueryKey = () => {
+export const getListCmsHeldBackArticlesQueryKey = (params?: ListCmsHeldBackArticlesParams,) => {
     return [
-    `/api/cms/held-back-articles`
+    `/api/cms/held-back-articles`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListCmsHeldBackArticlesQueryOptions = <TData = Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListCmsHeldBackArticlesQueryOptions = <TData = Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError = ErrorType<ErrorEnvelope>>(params?: ListCmsHeldBackArticlesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListCmsHeldBackArticlesQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListCmsHeldBackArticlesQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsHeldBackArticles>>> = ({ signal }) => listCmsHeldBackArticles({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsHeldBackArticles>>> = ({ signal }) => listCmsHeldBackArticles(params, { signal, ...requestOptions });
 
 
 
@@ -2649,11 +2657,11 @@ export type ListCmsHeldBackArticlesQueryError = ErrorType<ErrorEnvelope>
  */
 
 export function useListCmsHeldBackArticles<TData = Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError = ErrorType<ErrorEnvelope>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListCmsHeldBackArticlesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListCmsHeldBackArticlesQueryOptions(options)
+  const queryOptions = getListCmsHeldBackArticlesQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

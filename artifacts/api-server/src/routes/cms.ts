@@ -15,6 +15,7 @@ import {
   ListCmsUsersResponse,
   ListCmsAuditLogsQueryParams,
   ListCmsAuditLogsResponse,
+  ListCmsHeldBackArticlesQueryParams,
   ListCmsHeldBackArticlesResponse,
   GetCmsHeldBackArticleSourceParams,
   GetCmsHeldBackArticleSourceResponse,
@@ -228,7 +229,11 @@ router.get(
   "/cms/held-back-articles",
   requireAuth,
   requirePermission("review.approve"),
-  async (_req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
+    const { q, issue, page, limit } = ListCmsHeldBackArticlesQueryParams.parse(
+      req.query,
+    );
+
     // The held-back SET is driven by pages.status="draft" + page_type="post";
     // other draft page types are not part of the "broken article" queue.
     const drafts = await db
@@ -292,10 +297,35 @@ router.get(
       };
     });
 
+    // Filter/search against the LIVE re-scored data so editors triage on the
+    // current verdict, never a stale stored one. `q` matches title or slug
+    // (case-insensitive); `issue` keeps only articles whose current FAILING
+    // checks include that field (e.g. missing title vs. empty component tree).
+    const needle = q?.trim().toLowerCase();
+    const filtered = articles.filter((a) => {
+      if (needle) {
+        const haystack = `${a.title ?? ""} ${a.slug}`.toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
+      if (issue) {
+        const hasIssue = (a.issues ?? []).some(
+          (i) => i.severity === "fail" && i.field === issue,
+        );
+        if (!hasIssue) return false;
+      }
+      return true;
+    });
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const offset = (page - 1) * limit;
+    const pageItems = filtered.slice(offset, offset + limit);
+
     res.json(
       ListCmsHeldBackArticlesResponse.parse({
-        total: articles.length,
-        articles,
+        total,
+        articles: pageItems,
+        pagination: { page, limit, total, totalPages },
       }),
     );
   },

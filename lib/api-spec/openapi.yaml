@@ -974,6 +974,24 @@ paths:
         the displayed status/score/issues always reflect the live rules — never
         a stale verdict from an older validator.
       parameters:
+        - name: q
+          in: query
+          required: false
+          description: Case-insensitive search across article title and slug.
+          schema:
+            type: string
+        - name: issue
+          in: query
+          required: false
+          description: >-
+            Filter to articles whose current failing checks include this field
+            (re-scored live). E.g. "title" (missing title) or "components"
+            (empty/near-empty component tree).
+          schema:
+            type: string
+            enum: [title, components]
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
         - $ref: "#/components/parameters/AuthorizationSessionHeader"
         - $ref: "#/components/parameters/SessionCookie"
       responses:
@@ -4703,16 +4721,19 @@ components:
 
     HeldBackArticleListResponse:
       type: object
-      required:
-        - total
-        - articles
+      required: [total, articles, pagination]
       properties:
         total:
           type: integer
+          description: >-
+            Total number of held-back articles matching the active filters
+            (across all pages), re-scored live.
         articles:
           type: array
           items:
             $ref: '#/components/schemas/HeldBackArticle'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
 
     HeldBackArticleSource:
       type: object

@@ -6,8 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { HeldBackArticle } from './heldBackArticle';
+import type { Pagination } from './pagination';
 
 export interface HeldBackArticleListResponse {
+  /** Total number of held-back articles matching the active filters (across all pages), re-scored live. */
   total: number;
   articles: HeldBackArticle[];
+  pagination: Pagination;
 }

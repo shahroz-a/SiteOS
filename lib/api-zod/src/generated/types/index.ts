@@ -113,6 +113,8 @@ export * from './jsonLdItem';
 export * from './jsonLdItemData';
 export * from './limitParamParameter';
 export * from './listCmsAuditLogsParams';
+export * from './listCmsHeldBackArticlesIssue';
+export * from './listCmsHeldBackArticlesParams';
 export * from './listCmsMediaParams';
 export * from './listCmsPostParams';
 export * from './listPostsParams';
