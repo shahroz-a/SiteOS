@@ -180,6 +180,9 @@ importers:
       '@workspace/content':
         specifier: workspace:*
         version: link:../../lib/content
+      '@workspace/content-io':
+        specifier: workspace:*
+        version: link:../../lib/content-io
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
@@ -559,6 +562,9 @@ importers:
       '@workspace/cms-auth':
         specifier: workspace:*
         version: link:../../lib/cms-auth
+      '@workspace/content-io':
+        specifier: workspace:*
+        version: link:../../lib/content-io
       '@workspace/replit-auth-web':
         specifier: workspace:*
         version: link:../../lib/replit-auth-web
@@ -1009,6 +1015,12 @@ importers:
   lib/cms-auth: {}
 
   lib/content: {}
+
+  lib/content-io:
+    dependencies:
+      '@workspace/content':
+        specifier: workspace:*
+        version: link:../content
 
   lib/db:
     dependencies:

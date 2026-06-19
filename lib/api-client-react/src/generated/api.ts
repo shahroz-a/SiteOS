@@ -39,8 +39,14 @@ import type {
   CmsTagInput,
   CmsUnauthorizedResponse,
   CmsUser,
+  ContentExportBundle,
+  ContentExportFile,
+  ContentImportInput,
+  ContentImportResult,
+  ContentRestoreInput,
   Error,
   ErrorEnvelope,
+  ExportCmsContentParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   ListCmsAuditLogsParams,
@@ -48,6 +54,7 @@ import type {
   LogoutSuccess,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
+  PayloadMappingResponse,
   PostDetail,
   PostListResponse,
   SearchPostsParams,
@@ -2625,4 +2632,461 @@ export const useDeleteCmsTag = <TError = ErrorType<CmsUnauthorizedResponse | Cms
       > => {
       return useMutation(getDeleteCmsTagMutationOptions(options));
     }
+
+export const getExportCmsContentUrl = (params?: ExportCmsContentParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/cms/export?${stringifiedParams}` : `/api/cms/export`
+}
+
+/**
+ * @summary Export the whole corpus in one format (requires content.view)
+ */
+export const exportCmsContent = async (params?: ExportCmsContentParams, options?: RequestInit): Promise<ContentExportFile> => {
+
+  return customFetch<ContentExportFile>(getExportCmsContentUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportCmsContentQueryKey = (params?: ExportCmsContentParams,) => {
+    return [
+    `/api/cms/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportCmsContentQueryOptions = <TData = Awaited<ReturnType<typeof exportCmsContent>>, TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>>(params?: ExportCmsContentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportCmsContent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportCmsContentQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportCmsContent>>> = ({ signal }) => exportCmsContent(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportCmsContent>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportCmsContentQueryResult = NonNullable<Awaited<ReturnType<typeof exportCmsContent>>>
+export type ExportCmsContentQueryError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary Export the whole corpus in one format (requires content.view)
+ */
+
+export function useExportCmsContent<TData = Awaited<ReturnType<typeof exportCmsContent>>, TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+ params?: ExportCmsContentParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportCmsContent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportCmsContentQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getExportCmsContentFullUrl = () => {
+
+
+
+
+  return `/api/cms/export/full`
+}
+
+/**
+ * @summary One-click export in every supported format (requires content.view)
+ */
+export const exportCmsContentFull = async ( options?: RequestInit): Promise<ContentExportBundle> => {
+
+  return customFetch<ContentExportBundle>(getExportCmsContentFullUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportCmsContentFullQueryKey = () => {
+    return [
+    `/api/cms/export/full`
+    ] as const;
+    }
+
+
+export const getExportCmsContentFullQueryOptions = <TData = Awaited<ReturnType<typeof exportCmsContentFull>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportCmsContentFull>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportCmsContentFullQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportCmsContentFull>>> = ({ signal }) => exportCmsContentFull({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportCmsContentFull>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportCmsContentFullQueryResult = NonNullable<Awaited<ReturnType<typeof exportCmsContentFull>>>
+export type ExportCmsContentFullQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary One-click export in every supported format (requires content.view)
+ */
+
+export function useExportCmsContentFull<TData = Awaited<ReturnType<typeof exportCmsContentFull>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportCmsContentFull>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportCmsContentFullQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getImportCmsContentUrl = () => {
+
+
+
+
+  return `/api/cms/import`
+}
+
+/**
+ * @summary Import content from a supported format (requires content.create)
+ */
+export const importCmsContent = async (contentImportInput: ContentImportInput, options?: RequestInit): Promise<ContentImportResult> => {
+
+  return customFetch<ContentImportResult>(getImportCmsContentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      contentImportInput,)
+  }
+);}
+
+
+
+
+export const getImportCmsContentMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importCmsContent>>, TError,{data: BodyType<ContentImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importCmsContent>>, TError,{data: BodyType<ContentImportInput>}, TContext> => {
+
+const mutationKey = ['importCmsContent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importCmsContent>>, {data: BodyType<ContentImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importCmsContent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportCmsContentMutationResult = NonNullable<Awaited<ReturnType<typeof importCmsContent>>>
+    export type ImportCmsContentMutationBody = BodyType<ContentImportInput>
+    export type ImportCmsContentMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Import content from a supported format (requires content.create)
+ */
+export const useImportCmsContent = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importCmsContent>>, TError,{data: BodyType<ContentImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importCmsContent>>,
+        TError,
+        {data: BodyType<ContentImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportCmsContentMutationOptions(options));
+    }
+
+export const getBackupCmsContentUrl = () => {
+
+
+
+
+  return `/api/cms/backup`
+}
+
+/**
+ * @summary Download a full JSON backup of the corpus (requires settings.manage)
+ */
+export const backupCmsContent = async ( options?: RequestInit): Promise<ContentExportFile> => {
+
+  return customFetch<ContentExportFile>(getBackupCmsContentUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getBackupCmsContentQueryKey = () => {
+    return [
+    `/api/cms/backup`
+    ] as const;
+    }
+
+
+export const getBackupCmsContentQueryOptions = <TData = Awaited<ReturnType<typeof backupCmsContent>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof backupCmsContent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getBackupCmsContentQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof backupCmsContent>>> = ({ signal }) => backupCmsContent({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof backupCmsContent>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type BackupCmsContentQueryResult = NonNullable<Awaited<ReturnType<typeof backupCmsContent>>>
+export type BackupCmsContentQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary Download a full JSON backup of the corpus (requires settings.manage)
+ */
+
+export function useBackupCmsContent<TData = Awaited<ReturnType<typeof backupCmsContent>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof backupCmsContent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getBackupCmsContentQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRestoreCmsContentUrl = () => {
+
+
+
+
+  return `/api/cms/restore`
+}
+
+/**
+ * @summary Restore the corpus from a JSON backup (requires settings.manage)
+ */
+export const restoreCmsContent = async (contentRestoreInput: ContentRestoreInput, options?: RequestInit): Promise<ContentImportResult> => {
+
+  return customFetch<ContentImportResult>(getRestoreCmsContentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      contentRestoreInput,)
+  }
+);}
+
+
+
+
+export const getRestoreCmsContentMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCmsContent>>, TError,{data: BodyType<ContentRestoreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreCmsContent>>, TError,{data: BodyType<ContentRestoreInput>}, TContext> => {
+
+const mutationKey = ['restoreCmsContent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreCmsContent>>, {data: BodyType<ContentRestoreInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  restoreCmsContent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreCmsContentMutationResult = NonNullable<Awaited<ReturnType<typeof restoreCmsContent>>>
+    export type RestoreCmsContentMutationBody = BodyType<ContentRestoreInput>
+    export type RestoreCmsContentMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+    /**
+ * @summary Restore the corpus from a JSON backup (requires settings.manage)
+ */
+export const useRestoreCmsContent = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCmsContent>>, TError,{data: BodyType<ContentRestoreInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreCmsContent>>,
+        TError,
+        {data: BodyType<ContentRestoreInput>},
+        TContext
+      > => {
+      return useMutation(getRestoreCmsContentMutationOptions(options));
+    }
+
+export const getGetCmsPayloadMappingUrl = () => {
+
+
+
+
+  return `/api/cms/payload-mapping`
+}
+
+/**
+ * @summary Payload collection/block mappings + live migration report (requires content.view)
+ */
+export const getCmsPayloadMapping = async ( options?: RequestInit): Promise<PayloadMappingResponse> => {
+
+  return customFetch<PayloadMappingResponse>(getGetCmsPayloadMappingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsPayloadMappingQueryKey = () => {
+    return [
+    `/api/cms/payload-mapping`
+    ] as const;
+    }
+
+
+export const getGetCmsPayloadMappingQueryOptions = <TData = Awaited<ReturnType<typeof getCmsPayloadMapping>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPayloadMapping>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsPayloadMappingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsPayloadMapping>>> = ({ signal }) => getCmsPayloadMapping({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsPayloadMapping>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsPayloadMappingQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsPayloadMapping>>>
+export type GetCmsPayloadMappingQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary Payload collection/block mappings + live migration report (requires content.view)
+ */
+
+export function useGetCmsPayloadMapping<TData = Awaited<ReturnType<typeof getCmsPayloadMapping>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPayloadMapping>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsPayloadMappingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

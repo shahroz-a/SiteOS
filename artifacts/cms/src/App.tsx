@@ -8,6 +8,7 @@ import LoginPage from "@/pages/login";
 import HomePage from "@/pages/home";
 import UsersPage from "@/pages/users";
 import AuditLogPage from "@/pages/audit-log";
+import ImportExportPage from "@/pages/import-export";
 import { AppShell } from "@/components/app-shell";
 import { CmsAuthProvider, useCmsAuth } from "@/lib/cms-auth-context";
 
@@ -39,6 +40,11 @@ function AuthenticatedApp() {
     <AppShell>
       <Switch>
         <Route path="/" component={HomePage} />
+        <Route path="/import-export">
+          <RequirePermission permission="content.view">
+            <ImportExportPage />
+          </RequirePermission>
+        </Route>
         <Route path="/users">
           <RequirePermission permission="users.manage">
             <UsersPage />

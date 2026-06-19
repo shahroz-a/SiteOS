@@ -1262,3 +1262,160 @@ export const DeleteCmsTagResponse = zod.object({
 })
 
 
+/**
+ * @summary Export the whole corpus in one format (requires content.view)
+ */
+export const exportCmsContentQueryFormatDefault = `json`;
+
+export const ExportCmsContentQueryParams = zod.object({
+  "format": zod.enum(['json', 'csv', 'markdown', 'sql', 'payload']).default(exportCmsContentQueryFormatDefault).describe('The serialization format.')
+})
+
+export const ExportCmsContentHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ExportCmsContentResponse = zod.object({
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "content": zod.string(),
+  "counts": zod.object({
+  "authors": zod.number().optional(),
+  "categories": zod.number().optional(),
+  "tags": zod.number().optional(),
+  "posts": zod.number().optional()
+}).optional()
+})
+
+
+/**
+ * @summary One-click export in every supported format (requires content.view)
+ */
+export const ExportCmsContentFullHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ExportCmsContentFullResponse = zod.object({
+  "counts": zod.object({
+  "authors": zod.number().optional(),
+  "categories": zod.number().optional(),
+  "tags": zod.number().optional(),
+  "posts": zod.number().optional()
+}).optional(),
+  "files": zod.array(zod.object({
+  "format": zod.enum(['json', 'csv', 'markdown', 'sql', 'payload']),
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "content": zod.string()
+}))
+})
+
+
+/**
+ * @summary Import content from a supported format (requires content.create)
+ */
+export const ImportCmsContentHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ImportCmsContentBody = zod.object({
+  "format": zod.enum(['json', 'csv', 'markdown', 'payload']),
+  "content": zod.string()
+})
+
+export const ImportCmsContentResponse = zod.object({
+  "authorsUpserted": zod.number(),
+  "categoriesUpserted": zod.number(),
+  "tagsUpserted": zod.number(),
+  "postsCreated": zod.number(),
+  "postsUpdated": zod.number(),
+  "postsUnchanged": zod.number(),
+  "internalLinksResolved": zod.number()
+})
+
+
+/**
+ * @summary Download a full JSON backup of the corpus (requires settings.manage)
+ */
+export const BackupCmsContentHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const BackupCmsContentResponse = zod.object({
+  "filename": zod.string(),
+  "contentType": zod.string(),
+  "content": zod.string(),
+  "counts": zod.object({
+  "authors": zod.number().optional(),
+  "categories": zod.number().optional(),
+  "tags": zod.number().optional(),
+  "posts": zod.number().optional()
+}).optional()
+})
+
+
+/**
+ * @summary Restore the corpus from a JSON backup (requires settings.manage)
+ */
+export const RestoreCmsContentHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const RestoreCmsContentBody = zod.object({
+  "content": zod.string()
+})
+
+export const RestoreCmsContentResponse = zod.object({
+  "authorsUpserted": zod.number(),
+  "categoriesUpserted": zod.number(),
+  "tagsUpserted": zod.number(),
+  "postsCreated": zod.number(),
+  "postsUpdated": zod.number(),
+  "postsUnchanged": zod.number(),
+  "internalLinksResolved": zod.number()
+})
+
+
+/**
+ * @summary Payload collection/block mappings + live migration report (requires content.view)
+ */
+export const GetCmsPayloadMappingHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsPayloadMappingResponse = zod.object({
+  "collections": zod.array(zod.object({
+  "slug": zod.string(),
+  "label": zod.string(),
+  "source": zod.string(),
+  "description": zod.string(),
+  "fields": zod.array(zod.object({
+  "field": zod.string(),
+  "from": zod.string(),
+  "type": zod.string()
+}))
+})),
+  "blockMappings": zod.array(zod.object({
+  "blockType": zod.string(),
+  "payloadBlock": zod.string(),
+  "label": zod.string(),
+  "description": zod.string()
+})),
+  "report": zod.object({
+  "generatedAt": zod.coerce.date(),
+  "totals": zod.object({
+  "posts": zod.number(),
+  "blocks": zod.number(),
+  "mappedBlocks": zod.number(),
+  "unmappedBlocks": zod.number()
+}),
+  "blockTypes": zod.array(zod.object({
+  "blockType": zod.string(),
+  "count": zod.number(),
+  "payloadBlock": zod.string().nullish(),
+  "mapped": zod.boolean()
+}))
+})
+})
+
+

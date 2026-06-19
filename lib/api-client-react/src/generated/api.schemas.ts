@@ -703,6 +703,120 @@ export interface AuditLogListResponse {
   pagination: Pagination;
 }
 
+export interface ContentBundleCounts {
+  authors?: number;
+  categories?: number;
+  tags?: number;
+  posts?: number;
+}
+
+export interface ContentExportFile {
+  filename: string;
+  contentType: string;
+  content: string;
+  counts?: ContentBundleCounts;
+}
+
+export type ContentExportBundleFileFormat = typeof ContentExportBundleFileFormat[keyof typeof ContentExportBundleFileFormat];
+
+
+export const ContentExportBundleFileFormat = {
+  json: 'json',
+  csv: 'csv',
+  markdown: 'markdown',
+  sql: 'sql',
+  payload: 'payload',
+} as const;
+
+export interface ContentExportBundleFile {
+  format: ContentExportBundleFileFormat;
+  filename: string;
+  contentType: string;
+  content: string;
+}
+
+export interface ContentExportBundle {
+  counts?: ContentBundleCounts;
+  files: ContentExportBundleFile[];
+}
+
+export type ContentImportInputFormat = typeof ContentImportInputFormat[keyof typeof ContentImportInputFormat];
+
+
+export const ContentImportInputFormat = {
+  json: 'json',
+  csv: 'csv',
+  markdown: 'markdown',
+  payload: 'payload',
+} as const;
+
+export interface ContentImportInput {
+  format: ContentImportInputFormat;
+  content: string;
+}
+
+export interface ContentRestoreInput {
+  content: string;
+}
+
+export interface ContentImportResult {
+  authorsUpserted: number;
+  categoriesUpserted: number;
+  tagsUpserted: number;
+  postsCreated: number;
+  postsUpdated: number;
+  postsUnchanged: number;
+  internalLinksResolved: number;
+}
+
+export interface PayloadFieldMapping {
+  field: string;
+  from: string;
+  type: string;
+}
+
+export interface PayloadCollectionMapping {
+  slug: string;
+  label: string;
+  source: string;
+  description: string;
+  fields: PayloadFieldMapping[];
+}
+
+export interface PayloadBlockMapping {
+  blockType: string;
+  payloadBlock: string;
+  label: string;
+  description: string;
+}
+
+export interface PayloadBlockTypeStat {
+  blockType: string;
+  count: number;
+  /** @nullable */
+  payloadBlock?: string | null;
+  mapped: boolean;
+}
+
+export type PayloadMigrationReportTotals = {
+  posts: number;
+  blocks: number;
+  mappedBlocks: number;
+  unmappedBlocks: number;
+};
+
+export interface PayloadMigrationReport {
+  generatedAt: string;
+  totals: PayloadMigrationReportTotals;
+  blockTypes: PayloadBlockTypeStat[];
+}
+
+export interface PayloadMappingResponse {
+  collections: PayloadCollectionMapping[];
+  blockMappings: PayloadBlockMapping[];
+  report: PayloadMigrationReport;
+}
+
 /**
  * Invalid request body.
  */
@@ -809,4 +923,22 @@ page?: PageParamParameter;
  */
 limit?: LimitParamParameter;
 };
+
+export type ExportCmsContentParams = {
+/**
+ * The serialization format.
+ */
+format?: ExportCmsContentFormat;
+};
+
+export type ExportCmsContentFormat = typeof ExportCmsContentFormat[keyof typeof ExportCmsContentFormat];
+
+
+export const ExportCmsContentFormat = {
+  json: 'json',
+  csv: 'csv',
+  markdown: 'markdown',
+  sql: 'sql',
+  payload: 'payload',
+} as const;
 

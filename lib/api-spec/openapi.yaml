@@ -862,6 +862,152 @@ paths:
         "404":
           $ref: "#/components/responses/CmsNotFound"
 
+  /cms/export:
+    get:
+      tags: [cms]
+      operationId: exportCmsContent
+      summary: Export the whole corpus in one format (requires content.view)
+      parameters:
+        - name: format
+          in: query
+          required: false
+          description: The serialization format.
+          schema:
+            type: string
+            enum: [json, csv, markdown, sql, payload]
+            default: json
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: A single download envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentExportFile"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/export/full:
+    get:
+      tags: [cms]
+      operationId: exportCmsContentFull
+      summary: One-click export in every supported format (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Download envelopes for every format.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentExportBundle"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/import:
+    post:
+      tags: [cms]
+      operationId: importCmsContent
+      summary: Import content from a supported format (requires content.create)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentImportInput"
+      responses:
+        "200":
+          description: A summary of what was upserted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentImportResult"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/backup:
+    get:
+      tags: [cms]
+      operationId: backupCmsContent
+      summary: Download a full JSON backup of the corpus (requires settings.manage)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: A JSON backup download envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentExportFile"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/restore:
+    post:
+      tags: [cms]
+      operationId: restoreCmsContent
+      summary: Restore the corpus from a JSON backup (requires settings.manage)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentRestoreInput"
+      responses:
+        "200":
+          description: A summary of what was restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentImportResult"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
+  /cms/payload-mapping:
+    get:
+      tags: [cms]
+      operationId: getCmsPayloadMapping
+      summary: Payload collection/block mappings + live migration report (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The Payload compatibility surface.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayloadMappingResponse"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
 
 components:
   parameters:
@@ -2070,3 +2216,225 @@ components:
             $ref: "#/components/schemas/AuditLogEntry"
         pagination:
           $ref: "#/components/schemas/Pagination"
+
+    ContentExportFile:
+      type: object
+      required:
+        - filename
+        - contentType
+        - content
+      properties:
+        filename:
+          type: string
+        contentType:
+          type: string
+        content:
+          type: string
+        counts:
+          $ref: "#/components/schemas/ContentBundleCounts"
+
+    ContentBundleCounts:
+      type: object
+      properties:
+        authors:
+          type: integer
+        categories:
+          type: integer
+        tags:
+          type: integer
+        posts:
+          type: integer
+
+    ContentExportBundleFile:
+      type: object
+      required:
+        - format
+        - filename
+        - contentType
+        - content
+      properties:
+        format:
+          type: string
+          enum: [json, csv, markdown, sql, payload]
+        filename:
+          type: string
+        contentType:
+          type: string
+        content:
+          type: string
+
+    ContentExportBundle:
+      type: object
+      required:
+        - files
+      properties:
+        counts:
+          $ref: "#/components/schemas/ContentBundleCounts"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentExportBundleFile"
+
+    ContentImportInput:
+      type: object
+      required:
+        - format
+        - content
+      properties:
+        format:
+          type: string
+          enum: [json, csv, markdown, payload]
+        content:
+          type: string
+
+    ContentRestoreInput:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+
+    ContentImportResult:
+      type: object
+      required:
+        - authorsUpserted
+        - categoriesUpserted
+        - tagsUpserted
+        - postsCreated
+        - postsUpdated
+        - postsUnchanged
+        - internalLinksResolved
+      properties:
+        authorsUpserted:
+          type: integer
+        categoriesUpserted:
+          type: integer
+        tagsUpserted:
+          type: integer
+        postsCreated:
+          type: integer
+        postsUpdated:
+          type: integer
+        postsUnchanged:
+          type: integer
+        internalLinksResolved:
+          type: integer
+
+    PayloadFieldMapping:
+      type: object
+      required:
+        - field
+        - from
+        - type
+      properties:
+        field:
+          type: string
+        from:
+          type: string
+        type:
+          type: string
+
+    PayloadCollectionMapping:
+      type: object
+      required:
+        - slug
+        - label
+        - source
+        - description
+        - fields
+      properties:
+        slug:
+          type: string
+        label:
+          type: string
+        source:
+          type: string
+        description:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayloadFieldMapping"
+
+    PayloadBlockMapping:
+      type: object
+      required:
+        - blockType
+        - payloadBlock
+        - label
+        - description
+      properties:
+        blockType:
+          type: string
+        payloadBlock:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+
+    PayloadBlockTypeStat:
+      type: object
+      required:
+        - blockType
+        - count
+        - mapped
+      properties:
+        blockType:
+          type: string
+        count:
+          type: integer
+        payloadBlock:
+          type: [string, "null"]
+        mapped:
+          type: boolean
+
+    PayloadMigrationReport:
+      type: object
+      required:
+        - generatedAt
+        - totals
+        - blockTypes
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        totals:
+          type: object
+          required:
+            - posts
+            - blocks
+            - mappedBlocks
+            - unmappedBlocks
+          properties:
+            posts:
+              type: integer
+            blocks:
+              type: integer
+            mappedBlocks:
+              type: integer
+            unmappedBlocks:
+              type: integer
+        blockTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayloadBlockTypeStat"
+
+    PayloadMappingResponse:
+      type: object
+      required:
+        - collections
+        - blockMappings
+        - report
+      properties:
+        collections:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayloadCollectionMapping"
+        blockMappings:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayloadBlockMapping"
+        report:
+          $ref: "#/components/schemas/PayloadMigrationReport"

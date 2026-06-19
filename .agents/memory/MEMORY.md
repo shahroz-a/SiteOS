@@ -15,3 +15,4 @@
 - [Recovering stuck crawl_queue failures](crawl-queue-failed-recovery.md) — permanently-failed frontier rows are dead-404/transient-403/off-blog-301/malformed junk, not lost articles; re-probe before trusting; attempts-ceiling strands them so reset (--retry-failed) before re-crawl; frontier 4xx≠429 → skip.
 - [zod root vs zod/v4 type identity](zod-root-vs-v4-type-identity.md) — `z.infer` over orval/api-zod schemas returns `unknown` unless `z` is imported from `zod` (root), not `zod/v4`; mismatch cascades into TS18046/TS2769.
 - [lib/ui composite buildable](lib-ui-composite-buildable.md) — chart.tsx/input-otp.tsx need type-only prop fixes (drop ComponentProps<typeof Tooltip>/typed context) to emit under @types/react 19.2; CMS keeps unfixed dup copies.
+- [Orval on-demand query options need queryKey](orval-query-options-querykey.md) — passing `{query:{enabled:false}}` to a generated useX hook errors TS2741; also pass `getXQueryKey(params)`.

@@ -9,6 +9,7 @@ import authRouter from "./auth";
 import cmsRouter from "./cms";
 import cmsContentRouter from "./cms-content";
 import cmsTaxonomyRouter from "./cms-taxonomy";
+import cmsIoRouter from "./cms-io";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(authRouter);
 router.use(cmsRouter);
 router.use(cmsContentRouter);
 router.use(cmsTaxonomyRouter);
+router.use(cmsIoRouter);
 
 export default router;
