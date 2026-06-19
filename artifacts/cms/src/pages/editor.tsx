@@ -13,6 +13,7 @@ import {
   Check,
   Loader2,
   Redo2,
+  Trash2,
   Undo2,
 } from "lucide-react";
 import { Button } from "@workspace/ui/button";
@@ -25,6 +26,7 @@ import { useEditor } from "@/editor/use-editor";
 import { EditorCanvas } from "@/editor/canvas";
 import { EditorPreview } from "@/editor/preview";
 import { LinkPickerProvider } from "@/editor/link-assistant";
+import { ImageUploadButton, LibraryButton } from "@/editor/block-editors";
 import {
   blocksFromDetail,
   detailToInput,
@@ -51,6 +53,8 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   const [title, setTitle] = useState(detail.title);
   const [subtitle, setSubtitle] = useState(detail.subtitle ?? "");
   const [excerpt, setExcerpt] = useState(detail.excerpt ?? "");
+  const [bannerUrl, setBannerUrl] = useState(detail.featuredImageUrl ?? "");
+  const [bannerAlt, setBannerAlt] = useState(detail.featuredImageAlt ?? "");
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   const update = useUpdateCmsPost({
@@ -68,16 +72,23 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   });
 
   // Latest values captured for the debounced save without re-arming the timer.
-  const latest = useRef({ blocks: editor.blocks, title, subtitle, excerpt });
-  latest.current = { blocks: editor.blocks, title, subtitle, excerpt };
+  const latest = useRef({ blocks: editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt });
+  latest.current = { blocks: editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt };
 
   const updateMutate = update.mutate;
   const save = useCallback(() => {
-    const { blocks, title: t, subtitle: s, excerpt: e } = latest.current;
+    const { blocks, title: t, subtitle: s, excerpt: e, bannerUrl: bu, bannerAlt: ba } = latest.current;
     setSaveState("saving");
     updateMutate({
       id: detail.id,
-      data: detailToInput(detail, blocks, { title: t, subtitle: s, excerpt: e }),
+      data: detailToInput(detail, blocks, {
+        title: t,
+        subtitle: s,
+        excerpt: e,
+        // Empty banner URL clears the hero (no banner) rather than promoting an inline image.
+        featuredImageUrl: bu || null,
+        featuredImageAlt: bu ? ba || null : null,
+      }),
     });
   }, [detail, updateMutate]);
 
@@ -96,7 +107,7 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [editor.blocks, title, subtitle, excerpt, canEdit, save]);
+  }, [editor.blocks, title, subtitle, excerpt, bannerUrl, bannerAlt, canEdit, save]);
 
   // Keyboard shortcuts: undo / redo / save.
   useEffect(() => {
@@ -161,14 +172,99 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
                 <label className="text-xs font-medium text-muted-foreground">Excerpt</label>
                 <Textarea value={excerpt} disabled={!canEdit} onChange={(e) => setExcerpt(e.target.value)} placeholder="Short summary" rows={2} />
               </div>
+              <BannerImageField
+                url={bannerUrl}
+                alt={bannerAlt}
+                disabled={!canEdit}
+                onChange={({ url, alt }) => {
+                  if (url !== undefined) setBannerUrl(url);
+                  if (alt !== undefined) setBannerAlt(alt);
+                }}
+              />
             </div>
             <EditorCanvas editor={editor} />
           </div>
         </div>
         <div className="hidden overflow-hidden lg:block">
-          <EditorPreview blocks={editor.blocks} title={title} />
+          <EditorPreview
+            blocks={editor.blocks}
+            title={title}
+            bannerUrl={bannerUrl || null}
+            bannerAlt={bannerAlt || null}
+          />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Banner/hero image picker for the article. Lets writers choose the post's
+ * featured image from the media library or upload a new one, preview it, edit
+ * its alt text, and remove it. Clearing the banner sends `null` on save so the
+ * public hero shows no image rather than promoting a random inline picture.
+ */
+function BannerImageField({
+  url,
+  alt,
+  disabled,
+  onChange,
+}: {
+  url: string;
+  alt: string;
+  disabled: boolean;
+  onChange: (patch: { url?: string; alt?: string }) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-muted-foreground">Banner image</label>
+      {url ? (
+        <div className="space-y-2">
+          <img
+            src={url}
+            alt={alt}
+            className="h-36 w-full rounded-md border border-border/60 object-cover"
+          />
+          <Input
+            value={alt}
+            disabled={disabled}
+            onChange={(e) => onChange({ alt: e.target.value })}
+            placeholder="Banner alt text (for accessibility & SEO)"
+          />
+          {!disabled ? (
+            <div className="flex flex-wrap gap-2">
+              <LibraryButton
+                label="Replace from library"
+                onPick={({ url: u, alt: a }) => onChange({ url: u, alt: alt || a })}
+              />
+              <ImageUploadButton label="Upload new" onUploaded={(u) => onChange({ url: u })} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onChange({ url: "", alt: "" })}
+              >
+                <Trash2 className="mr-1 h-4 w-4" /> Remove banner
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex h-36 w-full items-center justify-center rounded-md border border-dashed border-border/60 bg-muted/30 text-sm text-muted-foreground">
+            No banner image
+          </div>
+          {!disabled ? (
+            <div className="flex flex-wrap gap-2">
+              <LibraryButton
+                label="Choose from library"
+                onPick={({ url: u, alt: a }) => onChange({ url: u, alt: a })}
+              />
+              <ImageUploadButton label="Upload image" onUploaded={(u) => onChange({ url: u })} />
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

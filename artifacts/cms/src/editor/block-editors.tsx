@@ -44,7 +44,7 @@ function patchData(block: EditorBlock, onChange: BlockEditorProps["onChange"], d
  * Opens the media library and hands the chosen item back to the caller so a
  * block can reuse an existing Headout CDN image (URL + alt) — no binary upload.
  */
-function LibraryButton({
+export function LibraryButton({
   onPick,
   label = "Choose from library",
 }: {
@@ -71,7 +71,7 @@ function LibraryButton({
  * storage and hands the resulting serving URL back via `onUploaded`. Falls back
  * gracefully (inline error) on failure; the adjacent URL field still works.
  */
-function ImageUploadButton({
+export function ImageUploadButton({
   onUploaded,
   label = "Upload image",
   size = "sm",

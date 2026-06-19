@@ -304,6 +304,40 @@ describe("detailToInput", () => {
     expect(input.excerpt).toBeNull();
   });
 
+  it("preserves the loaded detail's banner image when meta omits it", () => {
+    const detail = makeDetail({
+      featuredImageUrl: "https://cdn/hero.jpg",
+      featuredImageAlt: "skyline",
+    });
+    const input = detailToInput(detail, blocks, { title: "My Post" });
+    expect(input.featuredImageUrl).toBe("https://cdn/hero.jpg");
+    expect(input.featuredImageAlt).toBe("skyline");
+  });
+
+  it("applies a banner image chosen in the editor", () => {
+    const input = detailToInput(makeDetail(), blocks, {
+      title: "My Post",
+      featuredImageUrl: "https://cdn/new-banner.jpg",
+      featuredImageAlt: "new alt",
+    });
+    expect(input.featuredImageUrl).toBe("https://cdn/new-banner.jpg");
+    expect(input.featuredImageAlt).toBe("new alt");
+  });
+
+  it("clears the banner when meta sets it to null (no random inline promotion)", () => {
+    const detail = makeDetail({
+      featuredImageUrl: "https://cdn/hero.jpg",
+      featuredImageAlt: "skyline",
+    });
+    const input = detailToInput(detail, blocks, {
+      title: "My Post",
+      featuredImageUrl: null,
+      featuredImageAlt: null,
+    });
+    expect(input.featuredImageUrl).toBeNull();
+    expect(input.featuredImageAlt).toBeNull();
+  });
+
   it("round-trips nested collections from the loaded detail (PUT rewrites them all)", () => {
     const detail = makeDetail({
       slug: "kept-slug",

@@ -407,6 +407,12 @@ export interface PostMetaPatch {
   title: string;
   subtitle?: string | null;
   excerpt?: string | null;
+  /**
+   * The article's banner/hero image. When a key is omitted the loaded detail's
+   * value is preserved; an explicit `null` clears the banner (no hero image).
+   */
+  featuredImageUrl?: string | null;
+  featuredImageAlt?: string | null;
 }
 
 /**
@@ -437,8 +443,10 @@ export function detailToInput(
     primaryCategoryId: detail.primaryCategory?.id ?? null,
     categoryIds: detail.categories.map((c) => c.id),
     tagIds: detail.tags.map((t) => t.id),
-    featuredImageUrl: detail.featuredImageUrl ?? null,
-    featuredImageAlt: detail.featuredImageAlt ?? null,
+    featuredImageUrl:
+      meta.featuredImageUrl !== undefined ? meta.featuredImageUrl : detail.featuredImageUrl ?? null,
+    featuredImageAlt:
+      meta.featuredImageAlt !== undefined ? meta.featuredImageAlt : detail.featuredImageAlt ?? null,
     contentHtml: null,
     richText: null,
     componentTree: blocksToComponentTree(blocks),
