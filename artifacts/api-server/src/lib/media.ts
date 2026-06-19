@@ -199,7 +199,10 @@ async function fetchPagesForUrls(
       ${sql.raw(altStatusCaseSql("(array_agg(i.alt ORDER BY char_length(coalesce(i.alt, '')) DESC))[1]"))} AS alt_status
     FROM images i
     JOIN pages p ON p.id = i.page_id
-    WHERE i.url = ANY(${urls})
+    WHERE i.url IN (${sql.join(
+      urls.map((u) => sql`${u}`),
+      sql`, `,
+    )})
     GROUP BY i.url, p.id, p.slug, p.title, p.status, p.pathname
     ORDER BY p.title ASC
   `);
