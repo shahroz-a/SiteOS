@@ -162,6 +162,7 @@ export * from './searchCmsContentParams';
 export * from './searchCmsContentSort';
 export * from './searchCmsContentStatus';
 export * from './searchPostsParams';
+export * from './searchReadiness';
 export * from './seoMeta';
 export * from './suggestMediaAltBatchInput';
 export * from './suggestMediaAltBatchResponse';

@@ -194,6 +194,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /healthz/search:
+    get:
+      operationId: searchReadiness
+      tags: [health]
+      summary: CMS search readiness check
+      description: >-
+        Reports whether the CMS-search prerequisites (the `pg_trgm` extension
+        and the trigram GIN indexes) are present. Returns 200 when search is
+        ready and 503 with the missing prerequisites otherwise. The response
+        body has the same shape in both cases.
+      responses:
+        "200":
+          description: Search prerequisites are present and search is ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchReadiness"
+        "503":
+          description: Search prerequisites are missing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchReadiness"
+
   /posts:
     get:
       operationId: listPosts
@@ -3004,6 +3028,35 @@ components:
           type: string
       required:
         - status
+
+    SearchReadiness:
+      type: object
+      properties:
+        extensionPresent:
+          type: boolean
+          description: Whether the `pg_trgm` extension is installed.
+        expectedIndexCount:
+          type: integer
+          description: Total number of trigram indexes expected to exist.
+        presentIndexes:
+          type: array
+          items:
+            type: string
+          description: Names of the trigram indexes that are present.
+        missingIndexes:
+          type: array
+          items:
+            type: string
+          description: Names of the trigram indexes that are missing.
+        ready:
+          type: boolean
+          description: True only when the extension and every trigram index are present.
+      required:
+        - extensionPresent
+        - expectedIndexCount
+        - presentIndexes
+        - missingIndexes
+        - ready
 
     Error:
       type: object

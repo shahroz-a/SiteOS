@@ -121,6 +121,19 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Reports whether the CMS-search prerequisites (the `pg_trgm` extension and the trigram GIN indexes) are present. Returns 200 when search is ready and 503 with the missing prerequisites otherwise. The response body has the same shape in both cases.
+ * @summary CMS search readiness check
+ */
+export const SearchReadinessResponse = zod.object({
+  "extensionPresent": zod.boolean().describe('Whether the `pg_trgm` extension is installed.'),
+  "expectedIndexCount": zod.number().describe('Total number of trigram indexes expected to exist.'),
+  "presentIndexes": zod.array(zod.string()).describe('Names of the trigram indexes that are present.'),
+  "missingIndexes": zod.array(zod.string()).describe('Names of the trigram indexes that are missing.'),
+  "ready": zod.boolean().describe('True only when the extension and every trigram index are present.')
+})
+
+
+/**
  * List and paginate published posts, optionally filtered by category, author or tag slug.
  * @summary List posts
  */
