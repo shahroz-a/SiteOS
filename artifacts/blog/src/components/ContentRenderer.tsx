@@ -3,6 +3,7 @@ import type { PostDetail } from "@workspace/api-client-react";
 import {
   asComponentTree,
   asRichText,
+  sanitizeContentHtml,
   type CTNode,
   type LexNode,
 } from "@/lib/blog";
@@ -203,17 +204,22 @@ export function ContentRenderer({ post }: { post: PostDetail }) {
   }
 
   if (post.contentHtml) {
-    return (
-      <div
-        className="prose prose-lg max-w-none prose-headings:font-serif prose-headings:text-foreground prose-p:text-foreground/80 prose-a:text-primary"
-        dangerouslySetInnerHTML={{ __html: post.contentHtml }}
-      />
-    );
+    return <RawHtmlContent html={post.contentHtml} />;
   }
 
   return (
     <p className="text-muted-foreground italic">
       This article has no content yet.
     </p>
+  );
+}
+
+function RawHtmlContent({ html }: { html: string }) {
+  const safeHtml = React.useMemo(() => sanitizeContentHtml(html), [html]);
+  return (
+    <div
+      className="prose prose-lg max-w-none prose-headings:font-serif prose-headings:text-foreground prose-p:text-foreground/80 prose-a:text-primary"
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
+    />
   );
 }

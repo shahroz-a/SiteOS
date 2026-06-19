@@ -6,6 +6,7 @@ export default defineConfig({
       "lib/**/src/**/*.test.ts",
       "scripts/src/**/*.test.ts",
       "artifacts/api-server/src/**/*.test.ts",
+      "artifacts/blog/src/**/*.test.ts",
       "artifacts/thanksgiving-mobile/hooks/**/*.test.{ts,tsx}",
     ],
     // The mobile package's `__tests__/` UI tests are jest-expo tests (they

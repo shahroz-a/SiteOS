@@ -100,6 +100,47 @@ export function asRichText(value: unknown): LexRoot | null {
   return null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Raw HTML sanitization (for dangerouslySetInnerHTML)                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Strip inline event-handler attributes (`onload`, `onerror`, `onclick`, …)
+ * from migrated HTML before it is injected via `dangerouslySetInnerHTML`.
+ *
+ * The source WordPress markup was served through Google's mod_pagespeed, which
+ * rewrites `<img>` tags with handlers like
+ * `onload="pagespeed.CriticalImages.checkImageForCriticality(this)"`. Once that
+ * markup is parsed into the live DOM the handler fires against a `pagespeed`
+ * global that doesn't exist here and throws `ReferenceError: pagespeed is not
+ * defined` on every image. Inline handlers are also an XSS vector, so dropping
+ * every `on*` attribute hardens rendering as a side benefit.
+ *
+ * NOTE: this strips inline event-handler attributes only — it is intentionally
+ * not a full HTML sanitizer (it does not touch `javascript:` URLs, iframes,
+ * `srcdoc`, etc.). If the source HTML ever becomes genuinely untrusted, swap in
+ * a vetted allowlist sanitizer (e.g. DOMPurify) at the ingest/API boundary.
+ */
+export function sanitizeContentHtml(html: string): string {
+  if (!html) return html;
+  if (typeof DOMParser === "undefined") {
+    // Non-browser fallback (SSR/tests): textual strip of `on*="..."` handlers.
+    return html.replace(
+      /\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,
+      "",
+    );
+  }
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  for (const el of Array.from(doc.body.querySelectorAll("*"))) {
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.name.toLowerCase().startsWith("on")) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  }
+  return doc.body.innerHTML;
+}
+
 export interface TocItem {
   id: string;
   label: string;
