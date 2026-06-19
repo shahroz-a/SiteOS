@@ -26,6 +26,7 @@
   "dependencies": {
     "@workspace/blog-seo": "workspace:*",
     "@workspace/content": "workspace:*",
+    "@workspace/content-validation": "workspace:*",
     "@workspace/db": "workspace:*",
     "cheerio": "^1.2.0",
     "domhandler": "^6.0.1",

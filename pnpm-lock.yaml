@@ -183,6 +183,9 @@ importers:
       '@workspace/content-io':
         specifier: workspace:*
         version: link:../../lib/content-io
+      '@workspace/content-validation':
+        specifier: workspace:*
+        version: link:../../lib/content-validation
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
@@ -1025,6 +1028,12 @@ importers:
         specifier: workspace:*
         version: link:../content
 
+  lib/content-validation:
+    dependencies:
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../db
+
   lib/db:
     dependencies:
       drizzle-orm:
@@ -1207,6 +1216,9 @@ importers:
       '@workspace/content':
         specifier: workspace:*
         version: link:../lib/content
+      '@workspace/content-validation':
+        specifier: workspace:*
+        version: link:../lib/content-validation
       '@workspace/db':
         specifier: workspace:*
         version: link:../lib/db

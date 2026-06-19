@@ -501,6 +501,40 @@ paths:
         "403":
           $ref: "#/components/responses/CmsForbidden"
 
+  /cms/held-back-articles:
+    get:
+      tags: [cms]
+      operationId: listCmsHeldBackArticles
+      summary: List articles held back from the public API for editor review (requires review.approve)
+      description: >-
+        The review queue of articles kept out of the public read API because
+        content-fidelity validation failed (pages.status="draft"). Each entry's
+        verdict is re-scored at request time through the current validator, so
+        the displayed status/score/issues always reflect the live rules — never
+        a stale verdict from an older validator.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The list of held-back articles, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeldBackArticleListResponse"
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Insufficient permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /cms/posts:
     post:
       tags: [cms]
@@ -2613,3 +2647,66 @@ components:
           $ref: "#/components/schemas/Pagination"
         summary:
           $ref: "#/components/schemas/MediaSummary"
+
+    HeldBackValidationIssue:
+      type: object
+      required: [field, source, parsed, severity, message]
+      properties:
+        field:
+          type: string
+        source:
+          type: integer
+        parsed:
+          type: integer
+        severity:
+          type: string
+          enum: [warn, fail]
+        message:
+          type: string
+
+    HeldBackArticle:
+      type: object
+      required:
+        - id
+        - slug
+        - title
+        - url
+        - crawledAt
+        - validationStatus
+        - validationScore
+        - issues
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        title:
+          type: [string, "null"]
+        url:
+          type: [string, "null"]
+        crawledAt:
+          type: [string, "null"]
+          format: date-time
+        validationStatus:
+          type: [string, "null"]
+          enum: [pass, warn, fail, null]
+          description: >-
+            The verdict re-scored through the current validator. Null when the
+            article has no stored validation row yet.
+        validationScore:
+          type: [integer, "null"]
+        issues:
+          type: [array, "null"]
+          items:
+            $ref: "#/components/schemas/HeldBackValidationIssue"
+
+    HeldBackArticleListResponse:
+      type: object
+      required: [total, articles]
+      properties:
+        total:
+          type: integer
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeldBackArticle"

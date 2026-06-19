@@ -25,6 +25,9 @@
       "path": "./lib/content-io"
     },
     {
+      "path": "./lib/content-validation"
+    },
+    {
       "path": "./lib/replit-auth-web"
     },
     {

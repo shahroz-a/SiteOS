@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeftRight, FileText, Home, Image, ScrollText, Users } from "lucide-react";
+import { ArrowLeftRight, FileText, FileWarning, Home, Image, ScrollText, Users } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -41,6 +41,12 @@ const NAV_ITEMS: NavItem[] = [
     href: "/media",
     icon: Image,
     permission: "media.manage",
+  },
+  {
+    label: "Review queue",
+    href: "/review-queue",
+    icon: FileWarning,
+    permission: "review.approve",
   },
   { label: "Users", href: "/users", icon: Users, permission: "users.manage" },
   {

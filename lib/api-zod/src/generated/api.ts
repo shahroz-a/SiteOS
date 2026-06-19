@@ -559,6 +559,35 @@ export const ListCmsMediaResponse = zod.object({
 
 
 /**
+ * The review queue of articles kept out of the public read API because content-fidelity validation failed (pages.status="draft"). Each entry's verdict is re-scored at request time through the current validator, so the displayed status/score/issues always reflect the live rules — never a stale verdict from an older validator.
+ * @summary List articles held back from the public API for editor review (requires review.approve)
+ */
+export const ListCmsHeldBackArticlesHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsHeldBackArticlesResponse = zod.object({
+  "total": zod.number(),
+  "articles": zod.array(zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "title": zod.string().nullable(),
+  "url": zod.string().nullable(),
+  "crawledAt": zod.coerce.date().nullable(),
+  "validationStatus": zod.union([zod.literal('pass'),zod.literal('warn'),zod.literal('fail'),zod.literal(null)]).nullable().describe('The verdict re-scored through the current validator. Null when the article has no stored validation row yet.'),
+  "validationScore": zod.number().nullable(),
+  "issues": zod.array(zod.object({
+  "field": zod.string(),
+  "source": zod.number(),
+  "parsed": zod.number(),
+  "severity": zod.enum(['warn', 'fail']),
+  "message": zod.string()
+})).nullable()
+}))
+})
+
+
+/**
  * @summary Create an article (page) with all nested content (requires content.create)
  */
 export const CreateCmsPostHeader = zod.object({

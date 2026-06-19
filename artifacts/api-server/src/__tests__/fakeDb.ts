@@ -409,6 +409,7 @@ export function makeDbMock(tables: Tables) {
     usersTable: tableProxy("users"),
     sessionsTable: tableProxy("sessions"),
     auditLogsTable: tableProxy("audit_logs"),
+    validationReportsTable: tableProxy("validation_reports"),
   };
 }
 

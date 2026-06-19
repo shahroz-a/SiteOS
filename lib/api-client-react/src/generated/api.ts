@@ -49,6 +49,7 @@ import type {
   ExportCmsContentParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
+  HeldBackArticleListResponse,
   ListCmsAuditLogsParams,
   ListCmsMediaParams,
   ListPostsParams,
@@ -1635,6 +1636,84 @@ export function useListCmsMedia<TData = Awaited<ReturnType<typeof listCmsMedia>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCmsMediaQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListCmsHeldBackArticlesUrl = () => {
+
+
+
+
+  return `/api/cms/held-back-articles`
+}
+
+/**
+ * The review queue of articles kept out of the public read API because content-fidelity validation failed (pages.status="draft"). Each entry's verdict is re-scored at request time through the current validator, so the displayed status/score/issues always reflect the live rules — never a stale verdict from an older validator.
+ * @summary List articles held back from the public API for editor review (requires review.approve)
+ */
+export const listCmsHeldBackArticles = async ( options?: RequestInit): Promise<HeldBackArticleListResponse> => {
+
+  return customFetch<HeldBackArticleListResponse>(getListCmsHeldBackArticlesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsHeldBackArticlesQueryKey = () => {
+    return [
+    `/api/cms/held-back-articles`
+    ] as const;
+    }
+
+
+export const getListCmsHeldBackArticlesQueryOptions = <TData = Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsHeldBackArticlesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsHeldBackArticles>>> = ({ signal }) => listCmsHeldBackArticles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsHeldBackArticlesQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsHeldBackArticles>>>
+export type ListCmsHeldBackArticlesQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary List articles held back from the public API for editor review (requires review.approve)
+ */
+
+export function useListCmsHeldBackArticles<TData = Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsHeldBackArticles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsHeldBackArticlesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

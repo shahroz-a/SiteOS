@@ -897,6 +897,60 @@ export interface MediaListResponse {
   summary: MediaSummary;
 }
 
+export type HeldBackValidationIssueSeverity = typeof HeldBackValidationIssueSeverity[keyof typeof HeldBackValidationIssueSeverity];
+
+
+export const HeldBackValidationIssueSeverity = {
+  warn: 'warn',
+  fail: 'fail',
+} as const;
+
+export interface HeldBackValidationIssue {
+  field: string;
+  source: number;
+  parsed: number;
+  severity: HeldBackValidationIssueSeverity;
+  message: string;
+}
+
+/**
+ * The verdict re-scored through the current validator. Null when the article has no stored validation row yet.
+ * @nullable
+ */
+export type HeldBackArticleValidationStatus = typeof HeldBackArticleValidationStatus[keyof typeof HeldBackArticleValidationStatus] | null;
+
+
+export const HeldBackArticleValidationStatus = {
+  pass: 'pass',
+  warn: 'warn',
+  fail: 'fail',
+} as const;
+
+export interface HeldBackArticle {
+  id: string;
+  slug: string;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  url: string | null;
+  /** @nullable */
+  crawledAt: string | null;
+  /**
+     * The verdict re-scored through the current validator. Null when the article has no stored validation row yet.
+     * @nullable
+     */
+  validationStatus: HeldBackArticleValidationStatus;
+  /** @nullable */
+  validationScore: number | null;
+  /** @nullable */
+  issues: HeldBackValidationIssue[] | null;
+}
+
+export interface HeldBackArticleListResponse {
+  total: number;
+  articles: HeldBackArticle[];
+}
+
 /**
  * Invalid request body.
  */
@@ -1004,24 +1058,6 @@ page?: PageParamParameter;
 limit?: LimitParamParameter;
 };
 
-export type ExportCmsContentParams = {
-/**
- * The serialization format.
- */
-format?: ExportCmsContentFormat;
-};
-
-export type ExportCmsContentFormat = typeof ExportCmsContentFormat[keyof typeof ExportCmsContentFormat];
-
-
-export const ExportCmsContentFormat = {
-  json: 'json',
-  csv: 'csv',
-  markdown: 'markdown',
-  sql: 'sql',
-  payload: 'payload',
-} as const;
-
 export type ListCmsMediaParams = {
 /**
  * Case-insensitive search across image URL, alt, caption and title.
@@ -1043,3 +1079,22 @@ page?: PageParamParameter;
  */
 limit?: LimitParamParameter;
 };
+
+export type ExportCmsContentParams = {
+/**
+ * The serialization format.
+ */
+format?: ExportCmsContentFormat;
+};
+
+export type ExportCmsContentFormat = typeof ExportCmsContentFormat[keyof typeof ExportCmsContentFormat];
+
+
+export const ExportCmsContentFormat = {
+  json: 'json',
+  csv: 'csv',
+  markdown: 'markdown',
+  sql: 'sql',
+  payload: 'payload',
+} as const;
+

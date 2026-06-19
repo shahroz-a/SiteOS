@@ -10,6 +10,7 @@ import UsersPage from "@/pages/users";
 import AuditLogPage from "@/pages/audit-log";
 import ImportExportPage from "@/pages/import-export";
 import MediaPage from "@/pages/media";
+import HeldBackPage from "@/pages/held-back";
 import { AppShell } from "@/components/app-shell";
 import { CmsAuthProvider, useCmsAuth } from "@/lib/cms-auth-context";
 
@@ -49,6 +50,11 @@ function AuthenticatedApp() {
         <Route path="/media">
           <RequirePermission permission="media.manage">
             <MediaPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/review-queue">
+          <RequirePermission permission="review.approve">
+            <HeldBackPage />
           </RequirePermission>
         </Route>
         <Route path="/users">

@@ -69,6 +69,80 @@ function seedAuthTables(): Tables {
   return { users, sessions, audit_logs: [] };
 }
 
+// Fixtures for the held-back review queue. A draft article whose stored
+// validation row, re-scored against the CURRENT rules, still fails (empty
+// component tree despite source prose) and one whose stored row is now a pass
+// (so the live re-score, not the old verdict, is what's returned).
+const HELD_BACK = new Date("2025-02-01T00:00:00Z");
+
+function seedHeldBack(): Tables {
+  const base = seedAuthTables();
+  // A held-back article: real source content, empty parsed tree → fail.
+  const failing = {
+    id: "p-fail",
+    slug: "broken-article",
+    title: "Broken Article",
+    canonicalUrl: "https://www.headout.com/blog/broken-article/",
+    pageType: "post",
+    status: "draft",
+    crawledAt: new Date("2025-02-02T00:00:00Z"),
+  };
+  // A draft post that now re-scores to a pass (parsed matches source).
+  const passing = {
+    id: "p-pass",
+    slug: "fine-article",
+    title: "Fine Article",
+    canonicalUrl: "https://www.headout.com/blog/fine-article/",
+    pageType: "post",
+    status: "draft",
+    crawledAt: new Date("2025-02-01T00:00:00Z"),
+  };
+  // A published post must never appear in the queue.
+  const published = {
+    id: "p-pub",
+    slug: "live-article",
+    title: "Live Article",
+    canonicalUrl: "https://www.headout.com/blog/live-article/",
+    pageType: "post",
+    status: "published",
+    crawledAt: new Date("2025-02-03T00:00:00Z"),
+  };
+  // A draft category page (non-post) must never appear in the queue.
+  const draftCategory = {
+    id: "p-cat",
+    slug: "things-to-do",
+    title: "Things To Do",
+    canonicalUrl: "https://www.headout.com/blog/category/things-to-do/",
+    pageType: "category",
+    status: "draft",
+    crawledAt: new Date("2025-02-04T00:00:00Z"),
+  };
+  base.pages = [failing, passing, published, draftCategory];
+  base.validation_reports = [
+    {
+      pageId: "p-fail",
+      status: "fail",
+      score: 75,
+      issues: {
+        source: { headings: 5, paragraphs: 20, images: 3, links: 4, tables: 0, lists: 1 },
+        parsed: { headings: 0, paragraphs: 0, images: 0, links: 0, tables: 0, lists: 0, components: 0 },
+      },
+      createdAt: HELD_BACK,
+    },
+    {
+      pageId: "p-pass",
+      status: "fail",
+      score: 75,
+      issues: {
+        source: { headings: 5, paragraphs: 20, images: 3, links: 4, tables: 0, lists: 1 },
+        parsed: { headings: 5, paragraphs: 20, images: 3, links: 4, tables: 0, lists: 1, components: 25 },
+      },
+      createdAt: HELD_BACK,
+    },
+  ];
+  return base;
+}
+
 // Mutated in place by `beforeEach` so the FakeDb (which holds a reference to
 // this object) sees fresh data between tests without re-mocking the module.
 const tables: Tables = seedAuthTables();
@@ -193,5 +267,71 @@ describe("PATCH /api/cms/users/:userId/role", () => {
       .set("Authorization", bearer("viewer"))
       .send({ role: "superuser" });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("GET /api/cms/held-back-articles", () => {
+  const PERMITTED: Role[] = ["admin", "editor", "reviewer"];
+
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app).get("/api/cms/held-back-articles");
+    expect(res.status).toBe(401);
+  });
+
+  for (const role of ROLES.filter((r) => !PERMITTED.includes(r))) {
+    it(`returns 403 for ${role} (lacks review.approve)`, async () => {
+      const res = await request(app)
+        .get("/api/cms/held-back-articles")
+        .set("Authorization", bearer(role));
+      expect(res.status).toBe(403);
+    });
+  }
+
+  for (const role of PERMITTED) {
+    it(`returns 200 for ${role} (has review.approve)`, async () => {
+      const res = await request(app)
+        .get("/api/cms/held-back-articles")
+        .set("Authorization", bearer(role));
+      expect(res.status).toBe(200);
+    });
+  }
+
+  describe("with seeded draft articles", () => {
+    beforeEach(() => {
+      const fresh = seedHeldBack();
+      for (const k of Object.keys(tables)) delete tables[k];
+      for (const [k, v] of Object.entries(fresh)) tables[k] = v;
+    });
+
+    it("lists only draft posts, newest crawl first", async () => {
+      const res = await request(app)
+        .get("/api/cms/held-back-articles")
+        .set("Authorization", bearer("reviewer"));
+      expect(res.status).toBe(200);
+      // Published post and draft category are excluded.
+      expect(res.body.total).toBe(2);
+      expect(res.body.articles.map((a: { slug: string }) => a.slug)).toEqual([
+        "broken-article",
+        "fine-article",
+      ]);
+    });
+
+    it("re-scores stored rows against current rules (live verdict, not stored)", async () => {
+      const res = await request(app)
+        .get("/api/cms/held-back-articles")
+        .set("Authorization", bearer("reviewer"));
+      const bySlug = Object.fromEntries(
+        res.body.articles.map((a: { slug: string }) => [a.slug, a]),
+      );
+      // Empty parsed tree despite source prose → still a live fail.
+      expect(bySlug["broken-article"].validationStatus).toBe("fail");
+      const failIssues = bySlug["broken-article"].issues.filter(
+        (i: { severity: string }) => i.severity === "fail",
+      );
+      expect(failIssues.length).toBeGreaterThan(0);
+      expect(failIssues[0].field).toBe("components");
+      // Stored row said fail, but a current re-score is a pass.
+      expect(bySlug["fine-article"].validationStatus).toBe("pass");
+    });
   });
 });

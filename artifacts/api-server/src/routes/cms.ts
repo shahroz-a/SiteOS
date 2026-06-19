@@ -1,11 +1,18 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { asc, desc, eq, sql } from "drizzle-orm";
-import { db, usersTable, auditLogsTable } from "@workspace/db";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
+import {
+  db,
+  usersTable,
+  auditLogsTable,
+  pagesTable,
+  validationReportsTable,
+} from "@workspace/db";
 import {
   GetCmsMeResponse,
   ListCmsUsersResponse,
   ListCmsAuditLogsQueryParams,
   ListCmsAuditLogsResponse,
+  ListCmsHeldBackArticlesResponse,
   UpdateCmsUserRoleBody,
   UpdateCmsUserRoleParams,
   UpdateCmsUserRoleResponse,
@@ -16,6 +23,7 @@ import {
   isRole,
   type Role,
 } from "@workspace/cms-auth";
+import { rescoreStoredValidation } from "@workspace/content-validation";
 import { requireAuth, requirePermission } from "../middlewares/rbac";
 import { recordAudit } from "../lib/audit";
 
@@ -174,6 +182,89 @@ router.get(
           createdAt: r.createdAt.toISOString(),
         })),
         pagination: { page, limit, total, totalPages },
+      }),
+    );
+  },
+);
+
+// The editor review queue: articles held back from the public read API because
+// content-fidelity validation failed (pages.status="draft"). Each entry's
+// verdict is re-scored at request time through the CURRENT validator (via the
+// shared `rescoreStoredValidation` helper), so editors always see the live
+// reason an article is held back — never a stale verdict written by an older
+// validator. Gated on review.approve (reviewer/editor/admin).
+router.get(
+  "/cms/held-back-articles",
+  requireAuth,
+  requirePermission("review.approve"),
+  async (_req: Request, res: Response) => {
+    // The held-back SET is driven by pages.status="draft" + page_type="post";
+    // other draft page types are not part of the "broken article" queue.
+    const drafts = await db
+      .select({
+        id: pagesTable.id,
+        slug: pagesTable.slug,
+        title: pagesTable.title,
+        url: pagesTable.canonicalUrl,
+        pageType: pagesTable.pageType,
+        crawledAt: pagesTable.crawledAt,
+      })
+      .from(pagesTable)
+      .where(and(eq(pagesTable.status, "draft"), eq(pagesTable.pageType, "post")))
+      .orderBy(desc(pagesTable.crawledAt));
+
+    // Latest validation row per draft page (one row per (re)validation), used as
+    // the captured source/parsed tallies the current validator re-scores.
+    const validationRows = await db
+      .select({
+        pageId: validationReportsTable.pageId,
+        issues: validationReportsTable.issues,
+      })
+      .from(validationReportsTable)
+      .innerJoin(pagesTable, eq(validationReportsTable.pageId, pagesTable.id))
+      .where(and(eq(pagesTable.status, "draft"), eq(pagesTable.pageType, "post")))
+      .orderBy(desc(validationReportsTable.createdAt));
+    const latestByPage = new Map<string, unknown>();
+    for (const v of validationRows) {
+      if (v.pageId && !latestByPage.has(v.pageId)) latestByPage.set(v.pageId, v.issues);
+    }
+
+    const articles = drafts.map((p) => {
+      const stored = latestByPage.get(p.id);
+      // No validation row yet → nothing to re-score; carry null verdict fields.
+      if (stored === undefined) {
+        return {
+          id: p.id,
+          slug: p.slug,
+          title: p.title,
+          url: p.url,
+          crawledAt: p.crawledAt ? p.crawledAt.toISOString() : null,
+          validationStatus: null,
+          validationScore: null,
+          issues: null,
+        };
+      }
+      const rescored = rescoreStoredValidation(stored, {
+        pageType: p.pageType,
+        url: p.url,
+        title: p.title,
+      });
+      return {
+        id: p.id,
+        slug: p.slug,
+        title: p.title,
+        url: p.url,
+        crawledAt: p.crawledAt ? p.crawledAt.toISOString() : null,
+        validationStatus: rescored.status,
+        validationScore: rescored.score,
+        issues: rescored.issues,
+      };
+    });
+
+    res.json(
+      ListCmsHeldBackArticlesResponse.parse({
+        total: articles.length,
+        articles,
       }),
     );
   },
