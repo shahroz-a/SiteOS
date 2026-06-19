@@ -56,6 +56,13 @@ export interface PublishResult {
 }
 
 /**
+ * The slice of the DB client this job needs. Defaults to the module-level `db`,
+ * but tests can inject a transaction so the whole run (and its best-effort
+ * audit/crawl writes) nests inside a rollback boundary.
+ */
+type PublishExecutor = Pick<typeof db, "select" | "update" | "insert">;
+
+/**
  * Publish every scheduled post whose time has come. In dry-run mode it only
  * SELECTs the due posts; otherwise it UPDATEs them to `published` in one
  * statement and writes best-effort audit + crawl-log entries for each.
@@ -63,9 +70,10 @@ export interface PublishResult {
 export async function run(
   opts: Options,
   now: Date = new Date(),
+  executor: PublishExecutor = db,
 ): Promise<PublishResult> {
   if (opts.dryRun) {
-    const due = await db
+    const due = await executor
       .select({
         id: pagesTable.id,
         slug: pagesTable.slug,
@@ -96,7 +104,7 @@ export async function run(
   // scheduled time (falling back to now) in one UPDATE, returning the rows so we
   // can audit exactly what changed. Safe to re-run — once published, a row no
   // longer matches the predicate.
-  const rows = await db
+  const rows = await executor
     .update(pagesTable)
     .set({
       status: "published",
@@ -126,7 +134,7 @@ export async function run(
   for (const post of published) {
     // CMS audit trail row — no human actor, so the lifecycle change is still
     // visible to editors as a scheduled auto-publish.
-    await db
+    await executor
       .insert(auditLogsTable)
       .values({
         action: "article.publish.scheduled",
@@ -140,7 +148,7 @@ export async function run(
 
     // Durable crawl-log line — survives in the prod DB after the ephemeral
     // scheduled-deployment container is gone.
-    await db
+    await executor
       .insert(crawlLogsTable)
       .values({
         url: post.pathname,
