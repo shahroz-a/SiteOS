@@ -52,11 +52,14 @@ import { ToastProvider } from "@/hooks/useToast";
 import SavedScreen from "@/app/(tabs)/saved";
 
 // SavedScreen surfaces an undo toast when un-saving, so it needs both providers.
-function Providers({ children }: { children: React.ReactNode }) {
-  return (
-    <FavoritesProvider>
-      <ToastProvider>{children}</ToastProvider>
-    </FavoritesProvider>
+/** Render the Saved screen wrapped in the providers it depends on. */
+function renderSaved() {
+  return render(
+    <ToastProvider>
+      <FavoritesProvider>
+        <SavedScreen />
+      </FavoritesProvider>
+    </ToastProvider>,
   );
 }
 
@@ -131,11 +134,7 @@ describe("collection chip reordering", () => {
   it("dragging a chip updates the chip order while All and New stay pinned", async () => {
     await seedCollections();
 
-    render(
-      <Providers>
-        <SavedScreen />
-      </Providers>,
-    );
+    renderSaved();
 
     // Chips render once hydration completes, in their seeded order.
     await waitFor(() =>
@@ -172,11 +171,7 @@ describe("collection chip reordering", () => {
   it("persists the new chip order across a simulated app restart", async () => {
     await seedCollections();
 
-    const first = render(
-      <Providers>
-        <SavedScreen />
-      </Providers>,
-    );
+    const first = renderSaved();
 
     await waitFor(() =>
       expect(screen.getByTestId("collection-chip-charlie")).toBeTruthy(),
@@ -203,11 +198,7 @@ describe("collection chip reordering", () => {
     act(() => first.unmount());
 
     // A fresh provider must rehydrate the saved order from storage on mount.
-    render(
-      <Providers>
-        <SavedScreen />
-      </Providers>,
-    );
+    renderSaved();
 
     await waitFor(() =>
       expect(chipOrder()).toEqual([
@@ -218,5 +209,67 @@ describe("collection chip reordering", () => {
         "collection-chip-new",
       ]),
     );
+  });
+});
+
+describe("collection chip selection", () => {
+  it("tapping a chip switches the active filter to that collection's posts", async () => {
+    const post = makePost();
+    // The post is saved and filed into "alpha" only; "bravo" is empty.
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([post]));
+    await AsyncStorage.setItem(
+      COLLECTIONS_KEY,
+      JSON.stringify({
+        collections: COLLECTIONS,
+        membership: { [post.id]: ["alpha"] },
+        order: {},
+      }),
+    );
+
+    renderSaved();
+
+    // "All" is selected by default: the saved post is visible.
+    await waitFor(() =>
+      expect(screen.getByTestId(`post-card-${post.slug}`)).toBeTruthy(),
+    );
+
+    // Tap "Alpha". Chips select via a react-native-gesture-handler Tap (not a
+    // Pressable onPress), so drive the real gesture through the test harness.
+    act(() => {
+      fireGestureHandler(getByGestureTestId("chip-tap-alpha"), [
+        { state: State.BEGAN },
+        { state: State.ACTIVE },
+        { state: State.END },
+      ]);
+    });
+
+    // Alpha contains the post, so it stays visible under that filter.
+    await waitFor(() =>
+      expect(screen.getByTestId(`post-card-${post.slug}`)).toBeTruthy(),
+    );
+
+    // Tap "Bravo", which has no posts: the empty-collection state shows and the
+    // post card disappears — proving the tap really switched the active filter.
+    act(() => {
+      fireGestureHandler(getByGestureTestId("chip-tap-bravo"), [
+        { state: State.BEGAN },
+        { state: State.ACTIVE },
+        { state: State.END },
+      ]);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Nothing in this collection")).toBeTruthy(),
+    );
+    expect(screen.queryByTestId(`post-card-${post.slug}`)).toBeNull();
+
+    // Tap "All" again to confirm the post returns to the unfiltered view. The
+    // "All" chip is a plain Pressable (not a gesture), so press it directly.
+    fireEvent.press(screen.getByTestId("collection-chip-all"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId(`post-card-${post.slug}`)).toBeTruthy(),
+    );
+    expect(screen.queryByText("Nothing in this collection")).toBeNull();
   });
 });
