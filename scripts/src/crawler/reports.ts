@@ -47,17 +47,43 @@ export async function generateReports(
     .select({ type: pagesTable.pageType, c: sql<number>`count(*)::int` })
     .from(pagesTable)
     .groupBy(pagesTable.pageType);
+  // Web stories share the "page" page_type (the enum has no dedicated value),
+  // so surface them explicitly here as a subset of "page" — otherwise the
+  // report can't show that web-story pages were actually stored.
+  const [webStoryCount] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(pagesTable)
+    .where(
+      sql`${pagesTable.pathname} LIKE '/blog/web-stories/%' OR ${pagesTable.originalUrl} LIKE '%/blog/web-stories/%'`,
+    );
   const [authorCount] = await db.select({ c: sql<number>`count(*)::int` }).from(authorsTable);
   const [categoryCount] = await db.select({ c: sql<number>`count(*)::int` }).from(categoriesTable);
   const [tagCount] = await db.select({ c: sql<number>`count(*)::int` }).from(tagsTable);
   const [imageCount] = await db.select({ c: sql<number>`count(*)::int` }).from(imagesTable);
+
+  const pagesByType = Object.fromEntries(byType.map((r) => [r.type, r.c])) as Record<
+    string,
+    number
+  >;
+  const webStories = webStoryCount?.c ?? 0;
 
   written.push(
     await writeReport(outDir, "crawl-statistics.json", {
       generatedAt: new Date().toISOString(),
       queue: queueStats,
       pages: pageCount?.c ?? 0,
-      pagesByType: Object.fromEntries(byType.map((r) => [r.type, r.c])),
+      pagesByType,
+      // Navigational/taxonomy page types broken out for at-a-glance verification.
+      // Web stories are counted under pagesByType.page; the dedicated count below
+      // shows how many of those "page" rows are web stories.
+      pagesStoredByType: {
+        post: pagesByType.post ?? 0,
+        category: pagesByType.category ?? 0,
+        author: pagesByType.author ?? 0,
+        page: pagesByType.page ?? 0,
+        webStory: webStories,
+      },
+      webStories,
       authors: authorCount?.c ?? 0,
       categories: categoryCount?.c ?? 0,
       tags: tagCount?.c ?? 0,

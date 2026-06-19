@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-19T07:24:56.618Z",
-  "total": 217,
+  "generatedAt": "2026-06-19T12:24:25.829Z",
+  "total": 221,
   "redirects": [
     {
       "id": "c3d0b936-0037-41ee-a26e-21d0460d7943",
@@ -1737,6 +1737,38 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:59.139Z"
+    },
+    {
+      "id": "1ada04af-ff38-4a47-a115-aac1eeb6b46f",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-to-loire-valley/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:23:01.814Z"
+    },
+    {
+      "id": "80bbde19-919e-47ba-998d-8c9eff2a9f50",
+      "fromPath": "/blog/web-stories/paris-in-1-day-itinerary/",
+      "toPath": "/blog/web-stories/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:23:03.702Z"
+    },
+    {
+      "id": "97269d68-47e6-4990-ba79-e5787ff61300",
+      "fromPath": "/blog/web-stories/paris-3-day-itinerary/-to-disneyland-day-trip/",
+      "toPath": "/blog/web-stories/paris-3-day-itinerary/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:23:05.243Z"
+    },
+    {
+      "id": "6cd618aa-97f4-480a-94dc-4395324e67b0",
+      "fromPath": "/blog/web-stories/landmarks-in-bangkok/",
+      "toPath": "/blog/web-stories/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T12:23:08.173Z"
     }
   ]
 }
