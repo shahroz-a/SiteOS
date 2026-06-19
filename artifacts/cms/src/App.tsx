@@ -1,0 +1,81 @@
+import { Switch, Route, Router as WouterRouter } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
+import NotFound from "@/pages/not-found";
+import LoginPage from "@/pages/login";
+import HomePage from "@/pages/home";
+import UsersPage from "@/pages/users";
+import { AppShell } from "@/components/app-shell";
+import { CmsAuthProvider, useCmsAuth } from "@/lib/cms-auth-context";
+
+const queryClient = new QueryClient();
+
+function RequirePermission({
+  permission,
+  children,
+}: {
+  permission: Parameters<ReturnType<typeof useCmsAuth>["can"]>[0];
+  children: React.ReactNode;
+}) {
+  const { can } = useCmsAuth();
+  if (!can(permission)) {
+    return (
+      <div className="mx-auto max-w-md py-24 text-center">
+        <h1 className="font-serif text-3xl tracking-tight">Access denied</h1>
+        <p className="mt-2 text-muted-foreground">
+          You don't have permission to view this page.
+        </p>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+function AuthenticatedApp() {
+  return (
+    <AppShell>
+      <Switch>
+        <Route path="/" component={HomePage} />
+        <Route path="/users">
+          <RequirePermission permission="users.manage">
+            <UsersPage />
+          </RequirePermission>
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    </AppShell>
+  );
+}
+
+function Gate() {
+  const { isLoading, isAuthenticated } = useCmsAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Spinner className="size-8 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return isAuthenticated ? <AuthenticatedApp /> : <LoginPage />;
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <CmsAuthProvider>
+            <Gate />
+          </CmsAuthProvider>
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

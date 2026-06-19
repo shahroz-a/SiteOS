@@ -7,3 +7,5 @@ export * from "./structured";
 export * from "./seo";
 export * from "./links";
 export * from "./crawl";
+export * from "./auth";
+export * from "./audit";

@@ -232,6 +232,85 @@ export interface PostListResponse {
   pagination: Pagination;
 }
 
+export interface AuthUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+}
+
+export interface AuthUserEnvelope {
+  user: AuthUser | null;
+}
+
+export interface MobileTokenExchangeRequest {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  code_verifier: string;
+  /** @minLength 1 */
+  redirect_uri: string;
+  /** @minLength 1 */
+  state: string;
+  /** @minLength 1 */
+  nonce?: string;
+}
+
+export interface MobileTokenExchangeSuccess {
+  token: string;
+}
+
+export const LogoutSuccessValue = {
+  success: true,
+} as const;
+export type LogoutSuccess = typeof LogoutSuccessValue;
+
+export interface ErrorEnvelope {
+  error: string;
+}
+
+export type Role = typeof Role[keyof typeof Role];
+
+
+export const Role = {
+  admin: 'admin',
+  editor: 'editor',
+  writer: 'writer',
+  seo: 'seo',
+  reviewer: 'reviewer',
+  translator: 'translator',
+  viewer: 'viewer',
+} as const;
+
+export interface CmsUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+  role: Role;
+  createdAt: string;
+}
+
+export interface CmsMe {
+  user: AuthUser;
+  role: Role;
+  permissions: string[];
+}
+
+export interface UpdateUserRoleRequest {
+  role: Role;
+}
+
 /**
  * 1-based page number
  */
@@ -241,6 +320,11 @@ export type PageParamParameter = number;
  * Number of items per page
  */
 export type LimitParamParameter = number;
+
+/**
+ * Opaque session token — `Bearer <sid>`.
+ */
+export type AuthorizationSessionHeaderParameter = string;
 
 export type ListPostsParams = {
 /**
@@ -285,5 +369,18 @@ page?: PageParamParameter;
  * @maximum 100
  */
 limit?: LimitParamParameter;
+};
+
+export type BeginBrowserLoginParams = {
+/**
+ * Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+ */
+returnTo?: string;
+};
+
+export type HandleBrowserLoginCallbackParams = {
+code?: string;
+state?: string;
+iss?: string;
 };
 
