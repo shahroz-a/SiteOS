@@ -22,6 +22,7 @@ import {
   type Page,
 } from "@workspace/db";
 import { componentTreeChildren, flattenBlocks } from "@workspace/content";
+import { resolveImageServingUrl } from "./image-source";
 import {
   CreateCmsPostBody,
   ScaffoldCmsPostBody,
@@ -344,7 +345,9 @@ interface CmsSeoOut {
 function mapImageOut(img: typeof imagesTable.$inferSelect): CmsImageOut {
   return {
     id: img.id,
-    url: img.url,
+    // Migrated images always serve straight from the original Headout CDN —
+    // never a re-hosted self-hosted storage path. See lib/image-source.ts.
+    url: resolveImageServingUrl(img),
     originalUrl: img.originalUrl,
     alt: img.alt,
     title: img.title,

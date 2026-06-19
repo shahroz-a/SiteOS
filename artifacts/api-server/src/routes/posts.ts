@@ -21,6 +21,7 @@ import {
   GetPostBySlugResponse,
 } from "@workspace/api-zod";
 import { listPosts } from "../lib/posts";
+import { resolveImageServingUrl } from "../lib/image-source";
 
 const router: IRouter = Router();
 
@@ -192,7 +193,9 @@ router.get("/posts/:slug", async (req, res) => {
     })),
     images: images.map((img) => ({
       id: img.id,
-      url: img.url,
+      // Migrated images always serve straight from the original Headout CDN —
+      // never a re-hosted self-hosted storage path. See lib/image-source.ts.
+      url: resolveImageServingUrl(img),
       originalUrl: img.originalUrl,
       alt: img.alt,
       caption: img.caption,
