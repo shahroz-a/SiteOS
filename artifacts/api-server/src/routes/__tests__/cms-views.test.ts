@@ -415,6 +415,29 @@ describe("saved-views — sharing/visibility", () => {
       expect(byId[VIEW_SHARED].ownerName).toBe("Owner User");
       expect(byId[VIEW_OTHER_PRIVATE].isOwner).toBe(true);
     });
+
+    it("degrades to null owner info when the owner's account is gone (LEFT JOIN)", async () => {
+      // Simulate the owner's account being removed while their shared view
+      // lingers: drop the owner's users row but keep VIEW_SHARED. The LEFT JOIN
+      // must null-pad the missing owner record rather than dropping the row.
+      tables.users = tables.users.filter((u) => u.id !== OWNER_ID);
+
+      const res = await request(app)
+        .get("/api/cms/saved-views")
+        .set("Authorization", bearer("sid-other"));
+      expect(res.status).toBe(200);
+      const byId = Object.fromEntries(
+        res.body.items.map((v: { id: string }) => [v.id, v]),
+      );
+      // The orphaned shared view is still listed (LEFT JOIN, not inner join)...
+      expect(byId[VIEW_SHARED]).toBeDefined();
+      expect(byId[VIEW_SHARED].shared).toBe(true);
+      // ...but its owner display fields degrade gracefully to null.
+      expect(byId[VIEW_SHARED].ownerName).toBeNull();
+      expect(byId[VIEW_SHARED].ownerImageUrl).toBeNull();
+      // The owner id is still carried (it lives on the view row itself).
+      expect(byId[VIEW_SHARED].ownerId).toBe(OWNER_ID);
+    });
   });
 
   describe("POST /api/cms/saved-views (sharing)", () => {
