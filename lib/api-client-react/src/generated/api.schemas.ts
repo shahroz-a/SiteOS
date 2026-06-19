@@ -1083,6 +1083,110 @@ export interface HeldBackArticleListResponse {
 }
 
 /**
+ * Crawl / ingestion pipeline state, derived from the crawl queue.
+ */
+export interface CmsDashboardCrawl {
+  pending: number;
+  inProgress: number;
+  completed: number;
+  failed: number;
+  skipped: number;
+  total: number;
+  /** @nullable */
+  lastCompletedAt: string | null;
+}
+
+export type CmsDashboardDatabaseStatus = typeof CmsDashboardDatabaseStatus[keyof typeof CmsDashboardDatabaseStatus];
+
+
+export const CmsDashboardDatabaseStatus = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+  down: 'down',
+} as const;
+
+/**
+ * Live database health probe.
+ */
+export interface CmsDashboardDatabase {
+  status: CmsDashboardDatabaseStatus;
+  latencyMs: number;
+}
+
+/**
+ * Postgres database size on disk.
+ */
+export interface CmsDashboardStorage {
+  /** Total database size in bytes (pg_database_size). */
+  bytes: number;
+}
+
+export interface CmsDashboardStats {
+  totalBlogs: number;
+  published: number;
+  drafts: number;
+  /** Published articles with a future publish date. */
+  scheduled: number;
+  archived: number;
+  authors: number;
+  categories: number;
+  tags: number;
+  /** Articles without a meta title and meta description. */
+  missingSeo: number;
+  /** Internal links that do not resolve to a known page. */
+  brokenLinks: number;
+  /** Articles whose latest validation report failed. */
+  validationErrors: number;
+  /** Crawl-queue items still pending or in progress. */
+  publishingQueue: number;
+  crawl: CmsDashboardCrawl;
+  database: CmsDashboardDatabase;
+  storage: CmsDashboardStorage;
+}
+
+export type CmsDashboardPostStatus = typeof CmsDashboardPostStatus[keyof typeof CmsDashboardPostStatus];
+
+
+export const CmsDashboardPostStatus = {
+  draft: 'draft',
+  published: 'published',
+  archived: 'archived',
+} as const;
+
+export interface CmsDashboardPost {
+  id: string;
+  slug: string;
+  title: string;
+  status: CmsDashboardPostStatus;
+  updatedAt: string;
+  /** @nullable */
+  publishedAt: string | null;
+  /** @nullable */
+  authorName: string | null;
+}
+
+export interface CmsDashboardActivity {
+  id: string;
+  action: string;
+  /** @nullable */
+  actorEmail: string | null;
+  /** @nullable */
+  actorRole: string | null;
+  /** @nullable */
+  entityType: string | null;
+  /** @nullable */
+  entityId: string | null;
+  createdAt: string;
+}
+
+export interface CmsDashboard {
+  stats: CmsDashboardStats;
+  recentlyEdited: CmsDashboardPost[];
+  recentlyPublished: CmsDashboardPost[];
+  activity: CmsDashboardActivity[];
+}
+
+/**
  * Invalid request body.
  */
 export type CmsBadRequestResponse = ErrorEnvelope;

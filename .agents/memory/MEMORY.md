@@ -20,3 +20,4 @@
 - [CMS vendored shadcn typecheck baseline](cms-shadcn-typecheck-baseline.md) — chart.tsx/input-otp.tsx already fail `tsc` in artifacts/cms; pre-existing, not your change. Isolate via baseline run before chasing.
 - [drizzle ANY(array) raw-sql binding](drizzle-any-array-binding.md) — interpolating a JS array in raw `sql` breaks `= ANY(${arr})` (42809); use `IN (${sql.join(arr.map(v=>sql`${v}`), sql`, `)})`. Passes in psql, fails via drizzle.
 - [Media audit-log display contract](media-audit-display-contract.md) — audit log renders media.metadata.update via entityId=CDN-url + before/after{alt,title,caption,altStatus}; producer PATCH route must emit that shape.
+- [Interrupted pnpm install corrupts @types/react hoist](pnpm-interrupted-install-hoist.md) — killed install hoists 19.1.17 → button-group/calendar TS2322; frozen install won't fix it, `pnpm install --force` restores 19.2.14.

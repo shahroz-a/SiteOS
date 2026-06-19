@@ -28,6 +28,7 @@ import type {
   CmsAuthorInput,
   CmsBadRequestResponse,
   CmsCategoryInput,
+  CmsDashboard,
   CmsDeleteResult,
   CmsDuplicateInput,
   CmsForbiddenResponse,
@@ -1722,6 +1723,84 @@ export function useListCmsHeldBackArticles<TData = Awaited<ReturnType<typeof lis
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCmsHeldBackArticlesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCmsDashboardUrl = () => {
+
+
+
+
+  return `/api/cms/dashboard`
+}
+
+/**
+ * A single, server-aggregated snapshot powering the CMS home dashboard: content/taxonomy counts, content-quality signals, the crawl/publishing pipeline state, database health and storage usage, plus recently edited and recently published articles and a content activity feed.
+ * @summary Operational dashboard aggregates (requires content.view)
+ */
+export const getCmsDashboard = async ( options?: RequestInit): Promise<CmsDashboard> => {
+
+  return customFetch<CmsDashboard>(getGetCmsDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsDashboardQueryKey = () => {
+    return [
+    `/api/cms/dashboard`
+    ] as const;
+    }
+
+
+export const getGetCmsDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getCmsDashboard>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsDashboard>>> = ({ signal }) => getCmsDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsDashboard>>>
+export type GetCmsDashboardQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary Operational dashboard aggregates (requires content.view)
+ */
+
+export function useGetCmsDashboard<TData = Awaited<ReturnType<typeof getCmsDashboard>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsDashboardQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

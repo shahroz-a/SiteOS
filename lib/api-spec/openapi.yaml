@@ -543,6 +543,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /cms/dashboard:
+    get:
+      tags: [cms]
+      operationId: getCmsDashboard
+      summary: Operational dashboard aggregates (requires content.view)
+      description: >-
+        A single, server-aggregated snapshot powering the CMS home dashboard:
+        content/taxonomy counts, content-quality signals, the crawl/publishing
+        pipeline state, database health and storage usage, plus recently edited
+        and recently published articles and a content activity feed.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The dashboard snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsDashboard"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+
   /cms/posts:
     get:
       tags: [cms]
@@ -2727,7 +2752,7 @@ components:
         content:
           type: string
         counts:
-          $ref: "#/components/schemas/ContentBundleCounts"
+          $ref: '#/components/schemas/ContentBundleCounts'
 
     ContentBundleCounts:
       type: object
@@ -2751,7 +2776,12 @@ components:
       properties:
         format:
           type: string
-          enum: [json, csv, markdown, sql, payload]
+          enum:
+            - json
+            - csv
+            - markdown
+            - sql
+            - payload
         filename:
           type: string
         contentType:
@@ -2765,11 +2795,11 @@ components:
         - files
       properties:
         counts:
-          $ref: "#/components/schemas/ContentBundleCounts"
+          $ref: '#/components/schemas/ContentBundleCounts'
         files:
           type: array
           items:
-            $ref: "#/components/schemas/ContentExportBundleFile"
+            $ref: '#/components/schemas/ContentExportBundleFile'
 
     ContentImportInput:
       type: object
@@ -2779,7 +2809,11 @@ components:
       properties:
         format:
           type: string
-          enum: [json, csv, markdown, payload]
+          enum:
+            - json
+            - csv
+            - markdown
+            - payload
         content:
           type: string
         dryRun:
@@ -2856,7 +2890,7 @@ components:
         fields:
           type: array
           items:
-            $ref: "#/components/schemas/PayloadFieldMapping"
+            $ref: '#/components/schemas/PayloadFieldMapping'
 
     PayloadBlockMapping:
       type: object
@@ -2887,7 +2921,9 @@ components:
         count:
           type: integer
         payloadBlock:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         mapped:
           type: boolean
 
@@ -2920,7 +2956,7 @@ components:
         blockTypes:
           type: array
           items:
-            $ref: "#/components/schemas/PayloadBlockTypeStat"
+            $ref: '#/components/schemas/PayloadBlockTypeStat'
 
     PayloadMappingResponse:
       type: object
@@ -2932,20 +2968,17 @@ components:
         collections:
           type: array
           items:
-            $ref: "#/components/schemas/PayloadCollectionMapping"
+            $ref: '#/components/schemas/PayloadCollectionMapping'
         blockMappings:
           type: array
           items:
-            $ref: "#/components/schemas/PayloadBlockMapping"
+            $ref: '#/components/schemas/PayloadBlockMapping'
         report:
-          $ref: "#/components/schemas/PayloadMigrationReport"
+          $ref: '#/components/schemas/PayloadMigrationReport'
 
     MediaAltStatus:
       type: string
-      description: >-
-        Accessibility classification of an image's alt text. `ok` = descriptive
-        alt present; `missing` = no alt text at all; `poor` = alt text is too
-        short, a generic placeholder, or just a filename.
+      description: Accessibility classification of an image's alt text. `ok` = descriptive alt present; `missing` = no alt text at all; `poor` = alt text is too short, a generic placeholder, or just a filename.
       enum:
         - ok
         - missing
@@ -2971,20 +3004,19 @@ components:
         title:
           type: string
         status:
-          $ref: "#/components/schemas/PageStatus"
+          $ref: '#/components/schemas/PageStatus'
         pathname:
           type: string
         alt:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         altStatus:
-          $ref: "#/components/schemas/MediaAltStatus"
+          $ref: '#/components/schemas/MediaAltStatus'
 
     MediaItem:
       type: object
-      description: >-
-        A unique CDN image (keyed by URL) aggregated across every page that
-        references it. The library never re-uploads binaries; it reuses the
-        existing Headout CDN URL.
+      description: A unique CDN image (keyed by URL) aggregated across every page that references it. The library never re-uploads binaries; it reuses the existing Headout CDN URL.
       required:
         - url
         - originalUrl
@@ -3006,24 +3038,42 @@ components:
           type: string
           description: The canonical CDN URL — the stable identifier for the media item.
         originalUrl:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         alt:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
           description: The most descriptive (longest) alt text found across usages.
         title:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         caption:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         credit:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         width:
-          type: [integer, "null"]
+          type:
+            - integer
+            - 'null'
         height:
-          type: [integer, "null"]
+          type:
+            - integer
+            - 'null'
         mimeType:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         role:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         usageCount:
           type: integer
           description: Total number of times this image is referenced across all pages.
@@ -3031,7 +3081,7 @@ components:
           type: integer
           description: Number of distinct pages that reference this image.
         altStatus:
-          $ref: "#/components/schemas/MediaAltStatus"
+          $ref: '#/components/schemas/MediaAltStatus'
         altIssues:
           type: array
           description: Human-readable accessibility warnings for this image's alt text.
@@ -3041,7 +3091,7 @@ components:
           type: array
           description: Pages referencing this image (capped). Empty in list rows that omit usage detail.
           items:
-            $ref: "#/components/schemas/MediaUsagePage"
+            $ref: '#/components/schemas/MediaUsagePage'
 
     MediaSummary:
       type: object
@@ -3065,15 +3115,20 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/MediaItem"
+            $ref: '#/components/schemas/MediaItem'
         pagination:
-          $ref: "#/components/schemas/Pagination"
+          $ref: '#/components/schemas/Pagination'
         summary:
-          $ref: "#/components/schemas/MediaSummary"
+          $ref: '#/components/schemas/MediaSummary'
 
     HeldBackValidationIssue:
       type: object
-      required: [field, source, parsed, severity, message]
+      required:
+        - field
+        - source
+        - parsed
+        - severity
+        - message
       properties:
         field:
           type: string
@@ -3083,7 +3138,9 @@ components:
           type: integer
         severity:
           type: string
-          enum: [warn, fail]
+          enum:
+            - warn
+            - fail
         message:
           type: string
 
@@ -3104,32 +3161,254 @@ components:
         slug:
           type: string
         title:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         url:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
         crawledAt:
-          type: [string, "null"]
+          type:
+            - string
+            - 'null'
           format: date-time
         validationStatus:
-          type: [string, "null"]
-          enum: [pass, warn, fail, null]
-          description: >-
-            The verdict re-scored through the current validator. Null when the
-            article has no stored validation row yet.
+          type:
+            - string
+            - 'null'
+          enum:
+            - pass
+            - warn
+            - fail
+            - null
+          description: The verdict re-scored through the current validator. Null when the article has no stored validation row yet.
         validationScore:
-          type: [integer, "null"]
+          type:
+            - integer
+            - 'null'
         issues:
-          type: [array, "null"]
+          type:
+            - array
+            - 'null'
           items:
-            $ref: "#/components/schemas/HeldBackValidationIssue"
+            $ref: '#/components/schemas/HeldBackValidationIssue'
 
     HeldBackArticleListResponse:
       type: object
-      required: [total, articles]
+      required:
+        - total
+        - articles
       properties:
         total:
           type: integer
         articles:
           type: array
           items:
-            $ref: "#/components/schemas/HeldBackArticle"
+            $ref: '#/components/schemas/HeldBackArticle'
+
+    CmsDashboardCrawl:
+      type: object
+      description: Crawl / ingestion pipeline state, derived from the crawl queue.
+      required:
+        - pending
+        - inProgress
+        - completed
+        - failed
+        - skipped
+        - total
+        - lastCompletedAt
+      properties:
+        pending:
+          type: integer
+        inProgress:
+          type: integer
+        completed:
+          type: integer
+        failed:
+          type: integer
+        skipped:
+          type: integer
+        total:
+          type: integer
+        lastCompletedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+
+    CmsDashboardDatabase:
+      type: object
+      description: Live database health probe.
+      required:
+        - status
+        - latencyMs
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - down
+        latencyMs:
+          type: integer
+
+    CmsDashboardStorage:
+      type: object
+      description: Postgres database size on disk.
+      required:
+        - bytes
+      properties:
+        bytes:
+          type: integer
+          description: Total database size in bytes (pg_database_size).
+
+    CmsDashboardStats:
+      type: object
+      required:
+        - totalBlogs
+        - published
+        - drafts
+        - scheduled
+        - archived
+        - authors
+        - categories
+        - tags
+        - missingSeo
+        - brokenLinks
+        - validationErrors
+        - publishingQueue
+        - crawl
+        - database
+        - storage
+      properties:
+        totalBlogs:
+          type: integer
+        published:
+          type: integer
+        drafts:
+          type: integer
+        scheduled:
+          type: integer
+          description: Published articles with a future publish date.
+        archived:
+          type: integer
+        authors:
+          type: integer
+        categories:
+          type: integer
+        tags:
+          type: integer
+        missingSeo:
+          type: integer
+          description: Articles without a meta title and meta description.
+        brokenLinks:
+          type: integer
+          description: Internal links that do not resolve to a known page.
+        validationErrors:
+          type: integer
+          description: Articles whose latest validation report failed.
+        publishingQueue:
+          type: integer
+          description: Crawl-queue items still pending or in progress.
+        crawl:
+          $ref: '#/components/schemas/CmsDashboardCrawl'
+        database:
+          $ref: '#/components/schemas/CmsDashboardDatabase'
+        storage:
+          $ref: '#/components/schemas/CmsDashboardStorage'
+
+    CmsDashboardPost:
+      type: object
+      required:
+        - id
+        - slug
+        - title
+        - status
+        - updatedAt
+        - publishedAt
+        - authorName
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum:
+            - draft
+            - published
+            - archived
+        updatedAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        authorName:
+          type:
+            - string
+            - 'null'
+
+    CmsDashboardActivity:
+      type: object
+      required:
+        - id
+        - action
+        - actorEmail
+        - actorRole
+        - entityType
+        - entityId
+        - createdAt
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        actorEmail:
+          type:
+            - string
+            - 'null'
+        actorRole:
+          type:
+            - string
+            - 'null'
+        entityType:
+          type:
+            - string
+            - 'null'
+        entityId:
+          type:
+            - string
+            - 'null'
+        createdAt:
+          type: string
+          format: date-time
+
+    CmsDashboard:
+      type: object
+      required:
+        - stats
+        - recentlyEdited
+        - recentlyPublished
+        - activity
+      properties:
+        stats:
+          $ref: '#/components/schemas/CmsDashboardStats'
+        recentlyEdited:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmsDashboardPost'
+        recentlyPublished:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmsDashboardPost'
+        activity:
+          type: array
+          items:
+            $ref: '#/components/schemas/CmsDashboardActivity'

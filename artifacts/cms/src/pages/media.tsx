@@ -1,3 +1,4 @@
+import type { ChangeEvent } from "react";
 import { useEffect, useState } from "react";
 import {
   useListCmsMedia,
@@ -83,7 +84,7 @@ export default function MediaPage() {
         <Input
           placeholder="Search by description, caption or URL…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
           className="max-w-md"
         />
         <div className="flex items-center gap-2">

@@ -589,6 +589,75 @@ export const ListCmsHeldBackArticlesResponse = zod.object({
 
 
 /**
+ * A single, server-aggregated snapshot powering the CMS home dashboard: content/taxonomy counts, content-quality signals, the crawl/publishing pipeline state, database health and storage usage, plus recently edited and recently published articles and a content activity feed.
+ * @summary Operational dashboard aggregates (requires content.view)
+ */
+export const GetCmsDashboardHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsDashboardResponse = zod.object({
+  "stats": zod.object({
+  "totalBlogs": zod.number(),
+  "published": zod.number(),
+  "drafts": zod.number(),
+  "scheduled": zod.number().describe('Published articles with a future publish date.'),
+  "archived": zod.number(),
+  "authors": zod.number(),
+  "categories": zod.number(),
+  "tags": zod.number(),
+  "missingSeo": zod.number().describe('Articles without a meta title and meta description.'),
+  "brokenLinks": zod.number().describe('Internal links that do not resolve to a known page.'),
+  "validationErrors": zod.number().describe('Articles whose latest validation report failed.'),
+  "publishingQueue": zod.number().describe('Crawl-queue items still pending or in progress.'),
+  "crawl": zod.object({
+  "pending": zod.number(),
+  "inProgress": zod.number(),
+  "completed": zod.number(),
+  "failed": zod.number(),
+  "skipped": zod.number(),
+  "total": zod.number(),
+  "lastCompletedAt": zod.coerce.date().nullable()
+}).describe('Crawl \/ ingestion pipeline state, derived from the crawl queue.'),
+  "database": zod.object({
+  "status": zod.enum(['healthy', 'degraded', 'down']),
+  "latencyMs": zod.number()
+}).describe('Live database health probe.'),
+  "storage": zod.object({
+  "bytes": zod.number().describe('Total database size in bytes (pg_database_size).')
+}).describe('Postgres database size on disk.')
+}),
+  "recentlyEdited": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "updatedAt": zod.coerce.date(),
+  "publishedAt": zod.coerce.date().nullable(),
+  "authorName": zod.string().nullable()
+})),
+  "recentlyPublished": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "updatedAt": zod.coerce.date(),
+  "publishedAt": zod.coerce.date().nullable(),
+  "authorName": zod.string().nullable()
+})),
+  "activity": zod.array(zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actorEmail": zod.string().nullable(),
+  "actorRole": zod.string().nullable(),
+  "entityType": zod.string().nullable(),
+  "entityId": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * Paginated list of articles across every status (draft, published, archived) for the CMS content list and the internal-linking assistant. Optional full-text `q` matches title/slug; `status` narrows to one state.
  * @summary List/search articles of any status (requires content.view)
  */

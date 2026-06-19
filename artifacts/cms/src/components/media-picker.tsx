@@ -1,3 +1,4 @@
+import type { ChangeEvent } from "react";
 import { useEffect, useState } from "react";
 import {
   useListCmsMedia,
@@ -78,7 +79,7 @@ export function MediaPicker({
           autoFocus
           placeholder="Search by description, caption or URL…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
         />
 
         <div className="min-h-0 flex-1 overflow-y-auto">
