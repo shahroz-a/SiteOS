@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { probeSearchReadiness } from "./lib/search-readiness";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Fire-and-forget readiness probe: surfaces a clear warning in the
+  // deployment logs when the CMS-search prerequisites are missing, without
+  // blocking startup or ever crashing the server.
+  void probeSearchReadiness();
 });

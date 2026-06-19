@@ -25,59 +25,14 @@
  * It also runs automatically via the post-merge setup script.
  */
 import { sql } from "drizzle-orm";
-import { db, pool } from "@workspace/db";
+import { db, pool, TRIGRAM_INDEXES, type TrigramIndex } from "@workspace/db";
 
-/**
- * One entry per trigram GIN index declared in the drizzle schema. Each `column`
- * is the index *expression* exactly as Postgres stores it. Keep this list in
- * lockstep with the `*_trgm` index declarations in the schema files — there are
- * 18 of them.
- */
-export type TrigramIndex = {
-  name: string;
-  table: string;
-  column: string;
-};
-
-export const TRIGRAM_INDEXES: TrigramIndex[] = [
-  // lib/db/src/schema/pages.ts
-  { name: "pages_title_trgm", table: "pages", column: "title" },
-  { name: "pages_slug_trgm", table: "pages", column: "slug" },
-  { name: "pages_canonical_url_trgm", table: "pages", column: "canonical_url" },
-  { name: "pages_excerpt_trgm", table: "pages", column: "excerpt" },
-  // lib/db/src/schema/seo.ts
-  { name: "seo_meta_title_trgm", table: "seo", column: "meta_title" },
-  {
-    name: "seo_meta_description_trgm",
-    table: "seo",
-    column: "meta_description",
-  },
-  // lib/db/src/schema/structured.ts
-  { name: "faq_question_trgm", table: "faq", column: "question" },
-  { name: "faq_answer_trgm", table: "faq", column: "answer" },
-  { name: "breadcrumbs_label_trgm", table: "breadcrumbs", column: "label" },
-  // jsonld uses an expression index over the JSONB serialized as text.
-  { name: "jsonld_data_trgm", table: "jsonld", column: "(data::text)" },
-  // lib/db/src/schema/content.ts
-  { name: "blocks_text_trgm", table: "blocks", column: "text" },
-  // lib/db/src/schema/links.ts
-  {
-    name: "internal_links_anchor_trgm",
-    table: "internal_links",
-    column: "anchor_text",
-  },
-  { name: "internal_links_href_trgm", table: "internal_links", column: "href" },
-  {
-    name: "external_links_anchor_trgm",
-    table: "external_links",
-    column: "anchor_text",
-  },
-  { name: "external_links_href_trgm", table: "external_links", column: "href" },
-  // lib/db/src/schema/taxonomy.ts
-  { name: "authors_name_trgm", table: "authors", column: "name" },
-  { name: "categories_name_trgm", table: "categories", column: "name" },
-  { name: "tags_name_trgm", table: "tags", column: "name" },
-];
+// The trigram-index list is the single source of truth in `@workspace/db`
+// (`lib/db/src/search-indexes.ts`), so both this self-healing script and the
+// api-server readiness probe stay in lockstep. Re-exported here for backward
+// compatibility with importers/tests that referenced them from this script.
+export { TRIGRAM_INDEXES };
+export type { TrigramIndex };
 
 export async function ensureSearchIndexes(
   log: (m: string) => void = console.log,
