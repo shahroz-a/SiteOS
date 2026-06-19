@@ -9,12 +9,14 @@ import {
   type CmsPostDetail,
 } from "@workspace/api-client-react";
 import {
+  AlertTriangle,
   ArrowLeft,
   Check,
   Loader2,
   Redo2,
   Trash2,
   Undo2,
+  X,
 } from "lucide-react";
 import { Button } from "@workspace/ui/button";
 import { Input } from "@workspace/ui/input";
@@ -56,6 +58,18 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   const [bannerUrl, setBannerUrl] = useState(detail.featuredImageUrl ?? "");
   const [bannerAlt, setBannerAlt] = useState(detail.featuredImageAlt ?? "");
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [bannerWarningDismissed, setBannerWarningDismissed] = useState(false);
+
+  // Non-blocking nudge: a published article with no banner image looks bare on
+  // the public blog and weak in social/SEO previews. Drafts/archived are exempt.
+  const showBannerWarning =
+    detail.status === "published" && !bannerUrl.trim() && !bannerWarningDismissed;
+
+  // Re-arm the nudge once a banner is added: if the writer dismisses it, then
+  // sets a banner, then later clears it again, the warning should reappear.
+  useEffect(() => {
+    if (bannerUrl.trim()) setBannerWarningDismissed(false);
+  }, [bannerUrl]);
 
   const update = useUpdateCmsPost({
     mutation: {
@@ -181,6 +195,23 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
                   if (alt !== undefined) setBannerAlt(alt);
                 }}
               />
+              {showBannerWarning ? (
+                <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p className="flex-1">
+                    This article has no banner image. Published articles look bare
+                    without one and get weaker social/SEO previews.
+                  </p>
+                  <button
+                    type="button"
+                    aria-label="Dismiss banner warning"
+                    className="shrink-0 rounded-sm p-0.5 text-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-500/20"
+                    onClick={() => setBannerWarningDismissed(true)}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
             </div>
             <EditorCanvas editor={editor} />
           </div>
