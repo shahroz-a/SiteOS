@@ -6,7 +6,11 @@ export default defineConfig({
       "lib/**/src/**/*.test.ts",
       "scripts/src/**/*.test.ts",
       "artifacts/api-server/src/**/*.test.ts",
+      "artifacts/thanksgiving-mobile/**/*.test.{ts,tsx}",
     ],
     environment: "node",
+  },
+  esbuild: {
+    jsx: "automatic",
   },
 });
