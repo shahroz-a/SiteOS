@@ -462,6 +462,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.75.0(@types/react@19.2.14)(react@19.1.0))
+      '@playwright/test':
+        specifier: ^1.61.0
+        version: 1.61.0
       '@radix-ui/react-accordion':
         specifier: ^1.2.4
         version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -591,6 +594,9 @@ importers:
       '@workspace/content-io':
         specifier: workspace:*
         version: link:../../lib/content-io
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../../lib/db
       '@workspace/replit-auth-web':
         specifier: workspace:*
         version: link:../../lib/replit-auth-web
