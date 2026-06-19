@@ -3,7 +3,8 @@
  * `onChange` that merges into `block.data` (or top-level fields like `text`).
  * `BlockEditor` dispatches to the right editor by `block.type`.
  */
-import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ImageIcon, Plus, Trash2 } from "lucide-react";
 import { Input } from "@workspace/ui/input";
 import { Textarea } from "@workspace/ui/textarea";
 import { Label } from "@workspace/ui/label";
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from "@workspace/ui/select";
 import { RichTextEditor } from "./rich-text-editor";
+import { MediaPicker } from "@/components/media-picker";
 import type { BlockData, BlockEntry, EditorBlock, GalleryImage } from "./model";
 
 export interface BlockEditorProps {
@@ -35,6 +37,32 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function patchData(block: EditorBlock, onChange: BlockEditorProps["onChange"], data: Partial<BlockData>) {
   onChange({ data });
+}
+
+/**
+ * Opens the media library and hands the chosen item back to the caller so a
+ * block can reuse an existing Headout CDN image (URL + alt) — no binary upload.
+ */
+function LibraryButton({
+  onPick,
+  label = "Choose from library",
+}: {
+  onPick: (image: { url: string; alt: string }) => void;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <ImageIcon className="mr-1 h-4 w-4" /> {label}
+      </Button>
+      <MediaPicker
+        open={open}
+        onOpenChange={setOpen}
+        onSelect={(item) => onPick({ url: item.url, alt: item.alt ?? "" })}
+      />
+    </>
+  );
 }
 
 /* ---------------- individual editors ---------------- */
@@ -101,6 +129,11 @@ function HeroEditor({ block, onChange }: BlockEditorProps) {
           <Input value={d.imageAlt ?? ""} onChange={(e) => patchData(block, onChange, { imageAlt: e.target.value })} />
         </Field>
       </div>
+      <LibraryButton
+        onPick={({ url, alt }) =>
+          patchData(block, onChange, { imageUrl: url, imageAlt: d.imageAlt || alt })
+        }
+      />
     </div>
   );
 }
@@ -109,9 +142,16 @@ function ImageEditor({ block, onChange }: BlockEditorProps) {
   const d = block.data;
   return (
     <div className="space-y-3">
-      <Field label="Image URL">
-        <Input value={d.src ?? ""} onChange={(e) => patchData(block, onChange, { src: e.target.value })} placeholder="https://…" />
-      </Field>
+      <div className="flex items-end gap-2">
+        <Field label="Image URL">
+          <Input value={d.src ?? ""} onChange={(e) => patchData(block, onChange, { src: e.target.value })} placeholder="https://…" />
+        </Field>
+        <LibraryButton
+          onPick={({ url, alt }) =>
+            patchData(block, onChange, { src: url, alt: d.alt || alt })
+          }
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Alt text">
           <Input value={d.alt ?? ""} onChange={(e) => patchData(block, onChange, { alt: e.target.value })} />
@@ -152,9 +192,15 @@ function GalleryEditor({ block, onChange }: BlockEditorProps) {
           </Button>
         </div>
       ))}
-      <Button variant="outline" size="sm" onClick={() => setImages([...images, { src: "", alt: "" }])}>
-        <Plus className="mr-1 h-4 w-4" /> Add image
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => setImages([...images, { src: "", alt: "" }])}>
+          <Plus className="mr-1 h-4 w-4" /> Add image
+        </Button>
+        <LibraryButton
+          label="Add from library"
+          onPick={({ url, alt }) => setImages([...images, { src: url, alt }])}
+        />
+      </div>
     </div>
   );
 }
