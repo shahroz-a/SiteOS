@@ -2,9 +2,9 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { useListCmsAuditLogs, type AuditLogEntry } from "@workspace/api-client-react";
 import { isRole, ROLE_META } from "@workspace/cms-auth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@workspace/ui/avatar";
+import { Badge } from "@workspace/ui/badge";
+import { Button } from "@workspace/ui/button";
 import {
   Table,
   TableBody,
@@ -12,8 +12,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@workspace/ui/table";
+import { Skeleton } from "@workspace/ui/skeleton";
 
 const PAGE_SIZE = 20;
 

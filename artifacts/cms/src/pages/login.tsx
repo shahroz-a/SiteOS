@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@workspace/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/card";
 import { useCmsAuth } from "@/lib/cms-auth-context";
 
 export default function LoginPage() {

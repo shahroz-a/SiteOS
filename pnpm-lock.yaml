@@ -568,6 +568,9 @@ importers:
       '@workspace/replit-auth-web':
         specifier: workspace:*
         version: link:../../lib/replit-auth-web
+      '@workspace/ui':
+        specifier: workspace:*
+        version: link:../../lib/ui
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1

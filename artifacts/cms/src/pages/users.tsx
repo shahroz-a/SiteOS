@@ -10,14 +10,14 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@/components/ui/avatar";
+} from "@workspace/ui/avatar";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@workspace/ui/select";
 import {
   Table,
   TableBody,
@@ -25,9 +25,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
+} from "@workspace/ui/table";
+import { Skeleton } from "@workspace/ui/skeleton";
+import { useToast } from "@workspace/ui";
 import { useCmsAuth } from "@/lib/cms-auth-context";
 
 function displayName(u: CmsUser): string {

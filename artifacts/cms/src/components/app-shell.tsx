@@ -5,9 +5,9 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from "@workspace/ui/avatar";
+import { Badge } from "@workspace/ui/badge";
+import { Button } from "@workspace/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,8 +15,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+} from "@workspace/ui/dropdown-menu";
+import { cn } from "@workspace/ui";
 import { useCmsAuth } from "@/lib/cms-auth-context";
 import { ROLE_META, type Permission } from "@workspace/cms-auth";
 
