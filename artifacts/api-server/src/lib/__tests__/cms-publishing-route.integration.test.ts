@@ -87,7 +87,7 @@ describe.skipIf(!RUN)("CMS publishing routes — audit trail over HTTP (rolled-b
 
     async function insertUser(
       tx: typeof db,
-      role: string,
+      role: NonNullable<(typeof usersTable.$inferInsert)["role"]>,
     ): Promise<{ id: string; email: string; sid: string }> {
       const email = `${role}-${suffix}@example.com`;
       const [u] = await tx
@@ -109,7 +109,7 @@ describe.skipIf(!RUN)("CMS publishing routes — audit trail over HTTP (rolled-b
         },
         expire: FUTURE,
       });
-      return { id: u!.id, email: u!.email, sid };
+      return { id: u!.id, email: u!.email!, sid };
     }
 
     async function insertDraft(tx: typeof db, slug: string): Promise<string> {
@@ -149,7 +149,7 @@ describe.skipIf(!RUN)("CMS publishing routes — audit trail over HTTP (rolled-b
         );
     }
 
-    let restore: (() => void) | null = null;
+    let restore: () => void = () => {};
     try {
       await db.transaction(async (txRaw) => {
         const tx = txRaw as unknown as typeof db;
@@ -261,7 +261,7 @@ describe.skipIf(!RUN)("CMS publishing routes — audit trail over HTTP (rolled-b
     } catch (err) {
       if (!(err instanceof Rollback)) throw err;
     } finally {
-      restore?.();
+      restore();
     }
   }, 30000);
 });

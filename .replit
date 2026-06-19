@@ -73,12 +73,12 @@ isValidation = true
 name = "typecheck"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm run typecheck"
-
 [workflows.workflow.metadata]
 isValidation = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm run typecheck:libs && pnpm --filter @workspace/api-server --filter @workspace/cms --filter @workspace/blog run typecheck"
 
 [[workflows.workflow]]
 name = "cms-e2e"
