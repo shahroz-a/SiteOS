@@ -35,6 +35,7 @@ import {
   imagesTable,
   internalLinksTable,
   externalLinksTable,
+  componentTreeTable,
   metadataTable,
 } from "@workspace/db";
 import {
@@ -196,10 +197,16 @@ async function pageIdByCanonical(
 }
 
 /**
- * Cheap, bounded sample selection for BOUNDED mode: the `topN` pages with the
- * MOST images plus the `bottomN` with the FEWEST, via two small LIMITed
- * aggregate queries (no full-corpus scan). De-duplicated, preserving the
- * extremes a small corpus might share.
+ * Cheap, bounded sample selection for BOUNDED mode. Spans several independent
+ * "stress" dimensions so the round-trip catches more than image-loss bugs, all
+ * via small LIMITed aggregate queries (no full-corpus materialization):
+ *   - the `topN` pages with the MOST images + the `bottomN` with the FEWEST
+ *     (many-inline-image vs empty/near-empty shapes),
+ *   - the page with the MOST internal + external links (link-heavy pages, where
+ *     dropped/mangled links surface that image sampling never touches),
+ *   - the page with the LARGEST assembled component tree (deeply nested blocks,
+ *     where structural regressions hide).
+ * De-duplicated, preserving the extremes a small corpus might share.
  */
 async function pickSamplePageIds(
   topN: number,
@@ -225,6 +232,29 @@ async function pickSamplePageIds(
       .limit(bottomN);
     ids.push(...bottom.map((r) => r.id));
   }
+
+  // Page with the MOST internal + external links. count(distinct …) over the
+  // two left joins avoids the cartesian-product double counting.
+  const linkCount = sql<number>`count(distinct ${internalLinksTable.id}) + count(distinct ${externalLinksTable.id})`;
+  const [mostLinks] = await db
+    .select({ id: pagesTable.id })
+    .from(pagesTable)
+    .leftJoin(internalLinksTable, eq(internalLinksTable.pageId, pagesTable.id))
+    .leftJoin(externalLinksTable, eq(externalLinksTable.pageId, pagesTable.id))
+    .groupBy(pagesTable.id)
+    .orderBy(desc(linkCount), asc(pagesTable.slug))
+    .limit(1);
+  if (mostLinks) ids.push(mostLinks.id);
+
+  // Page with the LARGEST assembled component tree (one row per page), ranked by
+  // the JSON text length so the deepest/most-complex tree is sampled.
+  const [biggestTree] = await db
+    .select({ id: componentTreeTable.pageId })
+    .from(componentTreeTable)
+    .orderBy(desc(sql`length(${componentTreeTable.tree}::text)`))
+    .limit(1);
+  if (biggestTree) ids.push(biggestTree.id);
+
   return [...new Set(ids)];
 }
 
@@ -239,9 +269,10 @@ describe.runIf(RUN)("CMS import/export/restore round-trip on real data", () => {
 
     if (VERIFY_LIMIT !== null) {
       // BOUNDED mode: never materialize the whole corpus. Pick the sample page
-      // ids straight from the DB (1 with the most images + the rest with the
-      // fewest), then load ONLY those pages. `bundle` and `sampleBundle` are the
-      // same small, self-contained bundle (taxonomy pruned to referenced docs).
+      // ids straight from the DB (image extremes + the most-linked page + the
+      // largest component tree), then load ONLY those pages. `bundle` and
+      // `sampleBundle` are the same small, self-contained bundle (taxonomy
+      // pruned to referenced docs).
       const topN = Math.min(SAMPLE_TOP, VERIFY_LIMIT);
       const bottomN = VERIFY_LIMIT - topN;
       const ids = await pickSamplePageIds(topN, bottomN);
