@@ -476,7 +476,20 @@ describe("ReparsePanel — mutation feedback wiring", () => {
     expect(payload.title).toBe("Re-parsed");
     expect(payload.description).toContain("Now passing");
     expect(payload.variant).toBeUndefined();
-    // The success path refreshes the held-back list and the source view.
-    expect(invalidateQueriesMock).toHaveBeenCalled();
+    // The success path refreshes BOTH the held-back list and the source view
+    // (mocked query-key helpers return these stable keys).
+    const invalidatedKeys = invalidateQueriesMock.mock.calls.map(
+      (call) => (call[0] as { queryKey: unknown }).queryKey,
+    );
+    expect(invalidatedKeys).toContainEqual(["held-back"]);
+    expect(invalidatedKeys).toContainEqual(["held-back-source"]);
+  });
+
+  it("does not toast or invalidate any queries before the mutation settles", () => {
+    renderReparsePanel();
+
+    // Rendering the panel must wire the handlers up without firing feedback.
+    expect(toastMock).not.toHaveBeenCalled();
+    expect(invalidateQueriesMock).not.toHaveBeenCalled();
   });
 });
