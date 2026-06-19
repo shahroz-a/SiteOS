@@ -56,7 +56,12 @@ import {
   type EditorSeoState,
   type SeoMetaInput,
 } from "@/editor/model";
-import { PublishPanel } from "@/editor/publish-panel";
+import {
+  PublishPanel,
+  PublishBlockDialog,
+  extractPublishBlock,
+  type PublishBlock,
+} from "@/editor/publish-panel";
 import { SeoPanel } from "@/editor/seo-panel";
 import {
   AiSuggestionList,
@@ -74,7 +79,7 @@ interface EditorBodyProps {
   canEdit: boolean;
 }
 
-function EditorBody({ detail, canEdit }: EditorBodyProps) {
+export function EditorBody({ detail, canEdit }: EditorBodyProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -94,6 +99,7 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   const [aiOpen, setAiOpen] = useState(false);
   const [seo, setSeo] = useState<SeoMetaInput>(() => initialSeoState(detail));
   const [canonicalUrl, setCanonicalUrl] = useState(detail.canonicalUrl ?? "");
+  const [publishBlock, setPublishBlock] = useState<PublishBlock | null>(null);
 
   // Apply an accepted AI field suggestion to whichever editor state owns the
   // field. Returns false for an unknown target so the UI can warn instead of
@@ -186,8 +192,17 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
         queryClient.invalidateQueries({ queryKey: getGetCmsPostQueryKey(detail.id) });
         queryClient.invalidateQueries({ queryKey: getListCmsPostQueryKey() });
       },
-      onError: () => {
+      onError: (err: unknown) => {
         setSaveState("error");
+        // A save that crosses the publish gate (e.g. saving while the status is
+        // being moved to published/scheduled) can come back as a 422
+        // `CmsPublishBlocked`. Surface the same block dialog the PublishPanel
+        // uses rather than the generic autosave-failed toast.
+        const block = extractPublishBlock(err);
+        if (block) {
+          setPublishBlock(block);
+          return;
+        }
         toast({ title: "Autosave failed", description: "Your latest changes weren't saved.", variant: "destructive" });
       },
     },
@@ -413,6 +428,12 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
           </div>
         </SheetContent>
       </Sheet>
+
+      <PublishBlockDialog
+        block={publishBlock}
+        onClose={() => setPublishBlock(null)}
+        onOpenSeoPanel={() => setSeoOpen(true)}
+      />
     </div>
   );
 }

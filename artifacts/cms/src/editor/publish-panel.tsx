@@ -62,7 +62,7 @@ function toLocalInputValue(d: Date): string {
 }
 
 /** The 422 body the publish gate returns when critical SEO checks fail. */
-interface PublishBlock {
+export interface PublishBlock {
   message: string;
   blocking: SeoCheck[];
 }
@@ -285,46 +285,72 @@ export function PublishPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={block !== null} onOpenChange={(open) => !open && setBlock(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              SEO issues blocking publish
-            </DialogTitle>
-            <DialogDescription>
-              {block?.message}
-            </DialogDescription>
-          </DialogHeader>
-          <ul className="space-y-2">
-            {block?.blocking.map((c) => (
-              <li key={c.id} className="flex items-start gap-2 text-sm">
-                <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                <span className="flex-1">
-                  <span className="font-medium">{c.label}.</span>{" "}
-                  <span className="text-muted-foreground">{c.message}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBlock(null)}>
-              Dismiss
-            </Button>
-            {onOpenSeoPanel && (
-              <Button
-                onClick={() => {
-                  setBlock(null);
-                  onOpenSeoPanel();
-                }}
-              >
-                <Search className="mr-1 h-4 w-4" /> Open SEO panel
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PublishBlockDialog
+        block={block}
+        onClose={() => setBlock(null)}
+        onOpenSeoPanel={onOpenSeoPanel}
+      />
     </div>
+  );
+}
+
+/**
+ * The shared "SEO issues blocking publish" dialog. Rendered wherever a publish
+ * gate 422 (`{ error, blocking[] }`) can surface — the PublishPanel status
+ * transitions AND the editor's main save/publish button — so the block UX
+ * can't drift between the two paths. Pass the `PublishBlock` (or `null` to
+ * close), an `onClose` handler, and optionally `onOpenSeoPanel` to offer a
+ * jump to the SEO panel.
+ */
+export function PublishBlockDialog({
+  block,
+  onClose,
+  onOpenSeoPanel,
+}: {
+  block: PublishBlock | null;
+  onClose: () => void;
+  onOpenSeoPanel?: () => void;
+}) {
+  return (
+    <Dialog open={block !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            SEO issues blocking publish
+          </DialogTitle>
+          <DialogDescription>
+            {block?.message}
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-2">
+          {block?.blocking.map((c) => (
+            <li key={c.id} className="flex items-start gap-2 text-sm">
+              <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <span className="flex-1">
+                <span className="font-medium">{c.label}.</span>{" "}
+                <span className="text-muted-foreground">{c.message}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Dismiss
+          </Button>
+          {onOpenSeoPanel && (
+            <Button
+              onClick={() => {
+                onClose();
+                onOpenSeoPanel();
+              }}
+            >
+              <Search className="mr-1 h-4 w-4" /> Open SEO panel
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
