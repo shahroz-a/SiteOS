@@ -57,6 +57,13 @@ import {
   type EditorSeoState,
   type SeoMetaInput,
 } from "@/editor/model";
+import {
+  AiSuggestionList,
+  SEO_AI_KINDS,
+  type AiApplyField,
+  type AiApplyFaq,
+} from "@/editor/ai-assistant";
+import { Sparkles } from "lucide-react";
 
 interface SeoPanelProps {
   open: boolean;
@@ -68,6 +75,10 @@ interface SeoPanelProps {
   onSeoChange: (patch: Partial<SeoMetaInput>) => void;
   /** Patch the page-level canonical URL override. */
   onCanonicalChange: (value: string | null) => void;
+  /** Apply an accepted AI field suggestion to whichever editor state owns it. */
+  onAiApplyField: AiApplyField;
+  /** Apply an accepted AI FAQ suggestion (inserts a FAQ block). */
+  onAiApplyFaq: AiApplyFaq;
   disabled: boolean;
 }
 
@@ -90,6 +101,8 @@ export function SeoPanel({
   state,
   onSeoChange,
   onCanonicalChange,
+  onAiApplyField,
+  onAiApplyFaq,
   disabled,
 }: SeoPanelProps) {
   // Live, instant validation input from the current editor state.
@@ -152,6 +165,24 @@ export function SeoPanel({
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
           {/* Score + summary */}
           <ScoreCard result={result} loadingDupes={validationQuery.isLoading} />
+
+          {/* AI assist (suggest-only) */}
+          <section className="space-y-2">
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+              <Sparkles className="h-4 w-4" /> AI assistant
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Suggestions only — review and accept what you want. Nothing is
+              applied automatically.
+            </p>
+            <AiSuggestionList
+              postId={detail.id}
+              kinds={SEO_AI_KINDS}
+              disabled={disabled}
+              onApplyField={onAiApplyField}
+              onApplyFaq={onAiApplyFaq}
+            />
+          </section>
 
           {/* Google preview */}
           <section className="space-y-2">

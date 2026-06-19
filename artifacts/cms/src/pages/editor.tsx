@@ -21,6 +21,7 @@ import {
   Loader2,
   Redo2,
   Search,
+  Sparkles,
   Trash2,
   Undo2,
   X,
@@ -48,6 +49,7 @@ import { validateSeo } from "@workspace/seo-validation";
 import {
   blocksFromDetail,
   buildEditorValidationInput,
+  createBlock,
   detailToInput,
   initialSeoState,
   type EditorBlock,
@@ -56,6 +58,12 @@ import {
 } from "@/editor/model";
 import { PublishPanel } from "@/editor/publish-panel";
 import { SeoPanel } from "@/editor/seo-panel";
+import {
+  AiSuggestionList,
+  EDITOR_AI_KINDS,
+  type AiApplyField,
+  type AiApplyFaq,
+} from "@/editor/ai-assistant";
 
 const AUTOSAVE_DELAY = 1500;
 
@@ -83,8 +91,57 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
   const [bannerWarningDismissed, setBannerWarningDismissed] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
   const [seoOpen, setSeoOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [seo, setSeo] = useState<SeoMetaInput>(() => initialSeoState(detail));
   const [canonicalUrl, setCanonicalUrl] = useState(detail.canonicalUrl ?? "");
+
+  // Apply an accepted AI field suggestion to whichever editor state owns the
+  // field. Returns false for an unknown target so the UI can warn instead of
+  // silently dropping it. Suggest-only: only fires on an explicit Accept.
+  const applyAiField = useCallback<AiApplyField>((target, value) => {
+    switch (target) {
+      case "excerpt":
+        setExcerpt(value);
+        return true;
+      case "subtitle":
+        setSubtitle(value);
+        return true;
+      case "canonicalUrl":
+        setCanonicalUrl(value);
+        return true;
+      case "keywords":
+        setSeo((prev) => ({
+          ...prev,
+          keywords: value
+            .split(",")
+            .map((k) => k.trim())
+            .filter(Boolean),
+        }));
+        return true;
+      case "metaTitle":
+      case "metaDescription":
+      case "focusKeyword":
+      case "ogTitle":
+      case "ogDescription":
+      case "ogImage":
+      case "twitterTitle":
+      case "twitterDescription":
+        setSeo((prev) => ({ ...prev, [target]: value }));
+        return true;
+      default:
+        return false;
+    }
+  }, []);
+
+  // Insert an accepted AI FAQ suggestion as a new FAQ block at the end.
+  const applyAiFaq = useCallback<AiApplyFaq>(
+    (question, answer) => {
+      const block = createBlock("faq");
+      block.data = { heading: "", entries: [{ question, answer }] };
+      editor.insertBlock(block);
+    },
+    [editor],
+  );
 
   // Non-blocking nudge: a published article with no banner image looks bare on
   // the public blog and weak in social/SEO previews. Drafts/archived are exempt.
@@ -236,6 +293,14 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
           >
             <Search className="mr-1 h-4 w-4" /> SEO
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            title="AI writing & SEO assistant"
+            onClick={() => setAiOpen(true)}
+          >
+            <Sparkles className="mr-1 h-4 w-4" /> AI assist
+          </Button>
           <Button variant="ghost" size="icon" title="Undo" disabled={!editor.canUndo} onClick={editor.undo}>
             <Undo2 className="h-4 w-4" />
           </Button>
@@ -321,8 +386,33 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
         state={seoState}
         onSeoChange={(patch) => setSeo((prev) => ({ ...prev, ...patch }))}
         onCanonicalChange={(value) => setCanonicalUrl(value ?? "")}
+        onAiApplyField={applyAiField}
+        onAiApplyFaq={applyAiFaq}
         disabled={!canEdit}
       />
+
+      <Sheet open={aiOpen} onOpenChange={setAiOpen}>
+        <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg">
+          <SheetHeader className="border-b border-border/60 px-6 py-4">
+            <SheetTitle className="flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4" /> AI assistant
+            </SheetTitle>
+            <SheetDescription>
+              Suggestions only — review and accept what you want. Nothing is
+              applied automatically.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            <AiSuggestionList
+              postId={detail.id}
+              kinds={EDITOR_AI_KINDS}
+              disabled={!canEdit}
+              onApplyField={applyAiField}
+              onApplyFaq={applyAiFaq}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

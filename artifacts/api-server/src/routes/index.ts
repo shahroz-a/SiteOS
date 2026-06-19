@@ -19,6 +19,7 @@ import analyticsRouter from "./analytics";
 import cmsRedirectsRouter from "./cms-redirects";
 import cmsPublishingRouter from "./cms-publishing";
 import cmsValidationRouter from "./cms-validation";
+import cmsAiRouter from "./cms-ai";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(analyticsRouter);
 router.use(cmsRedirectsRouter);
 router.use(cmsPublishingRouter);
 router.use(cmsValidationRouter);
+router.use(cmsAiRouter);
 
 export default router;

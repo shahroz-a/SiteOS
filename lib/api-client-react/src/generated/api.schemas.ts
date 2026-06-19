@@ -459,6 +459,63 @@ export interface CmsDuplicateInput {
 }
 
 /**
+ * Which kind of AI suggestion to generate.
+ */
+export type AiSuggestRequestKind = typeof AiSuggestRequestKind[keyof typeof AiSuggestRequestKind];
+
+
+export const AiSuggestRequestKind = {
+  seo: 'seo',
+  metadata: 'metadata',
+  summary: 'summary',
+  social: 'social',
+  faq: 'faq',
+  related: 'related',
+  readability: 'readability',
+  duplicate: 'duplicate',
+  'internal-links': 'internal-links',
+} as const;
+
+export interface AiSuggestRequest {
+  /** Which kind of AI suggestion to generate. */
+  kind: AiSuggestRequestKind;
+}
+
+export type AiSuggestionApply = typeof AiSuggestionApply[keyof typeof AiSuggestionApply];
+
+
+export const AiSuggestionApply = {
+  field: 'field',
+  faq: 'faq',
+  info: 'info',
+} as const;
+
+/**
+ * A single suggest-only suggestion. `apply` tells the editor how to apply it if accepted: `field` writes `value` into the editor field named by `target`; `faq` adds a FAQ entry (`question`/`answer`); `info` is advisory/copyable (`value`).
+ */
+export interface AiSuggestion {
+  id: string;
+  apply: AiSuggestionApply;
+  label: string;
+  detail: string;
+  /** @nullable */
+  target: string | null;
+  /** @nullable */
+  value: string | null;
+  /** @nullable */
+  question: string | null;
+  /** @nullable */
+  answer: string | null;
+}
+
+export interface AiSuggestResponse {
+  kind: string;
+  model: string;
+  summary: string;
+  suggestions: AiSuggestion[];
+}
+
+/**
  * @nullable
  */
 export type CmsAuthorInputSocial = {[key: string]: string} | null;

@@ -1754,6 +1754,45 @@ paths:
         "404":
           $ref: "#/components/responses/CmsNotFound"
 
+  /cms/posts/{id}/ai/suggest:
+    post:
+      tags: [cms]
+      operationId: suggestCmsAi
+      summary: AI writing & SEO suggestions for an article (requires content.edit)
+      description: >-
+        Runs the in-editor AI assistant over the article and returns structured,
+        suggest-only suggestions of the requested kind (SEO, metadata,
+        summaries, social captions, FAQ generation, related articles,
+        readability notes, duplicate detection, internal-link ideas). Strictly
+        advisory — it NEVER writes to content; the editor accepts or rejects each
+        suggestion. Related/duplicate/internal-link kinds are grounded against
+        published sibling articles so paths can't be hallucinated.
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSuggestRequest"
+      responses:
+        "200":
+          description: The generated suggestions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSuggestResponse"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
   /cms/posts/{id}/preview-link:
     post:
       tags: [cms]
@@ -3309,6 +3348,79 @@ components:
         slug:
           type: ["string", "null"]
           description: Slug for the copy; auto-generated and uniquified when omitted.
+
+    AiSuggestRequest:
+      type: object
+      properties:
+        kind:
+          type: string
+          description: Which kind of AI suggestion to generate.
+          enum:
+            - seo
+            - metadata
+            - summary
+            - social
+            - faq
+            - related
+            - readability
+            - duplicate
+            - internal-links
+      required:
+        - kind
+
+    AiSuggestion:
+      type: object
+      description: >-
+        A single suggest-only suggestion. `apply` tells the editor how to apply
+        it if accepted: `field` writes `value` into the editor field named by
+        `target`; `faq` adds a FAQ entry (`question`/`answer`); `info` is
+        advisory/copyable (`value`).
+      properties:
+        id:
+          type: string
+        apply:
+          type: string
+          enum: [field, faq, info]
+        label:
+          type: string
+        detail:
+          type: string
+        target:
+          type: ["string", "null"]
+        value:
+          type: ["string", "null"]
+        question:
+          type: ["string", "null"]
+        answer:
+          type: ["string", "null"]
+      required:
+        - id
+        - apply
+        - label
+        - detail
+        - target
+        - value
+        - question
+        - answer
+
+    AiSuggestResponse:
+      type: object
+      properties:
+        kind:
+          type: string
+        model:
+          type: string
+        summary:
+          type: string
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiSuggestion"
+      required:
+        - kind
+        - model
+        - summary
+        - suggestions
 
     CmsAuthorInput:
       type: object

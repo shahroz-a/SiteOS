@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AiSuggestRequest,
+  AiSuggestResponse,
   ApproveHeldBackArticleResponse,
   AuditLogListResponse,
   AuthUserEnvelope,
@@ -4271,6 +4273,79 @@ export function useGetCmsPostValidation<TData = Awaited<ReturnType<typeof getCms
 
 
 
+
+export const getSuggestCmsAiUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/ai/suggest`
+}
+
+/**
+ * Runs the in-editor AI assistant over the article and returns structured, suggest-only suggestions of the requested kind (SEO, metadata, summaries, social captions, FAQ generation, related articles, readability notes, duplicate detection, internal-link ideas). Strictly advisory — it NEVER writes to content; the editor accepts or rejects each suggestion. Related/duplicate/internal-link kinds are grounded against published sibling articles so paths can't be hallucinated.
+ * @summary AI writing & SEO suggestions for an article (requires content.edit)
+ */
+export const suggestCmsAi = async (id: string,
+    aiSuggestRequest: AiSuggestRequest, options?: RequestInit): Promise<AiSuggestResponse> => {
+
+  return customFetch<AiSuggestResponse>(getSuggestCmsAiUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      aiSuggestRequest,)
+  }
+);}
+
+
+
+
+export const getSuggestCmsAiMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestCmsAi>>, TError,{id: string;data: BodyType<AiSuggestRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestCmsAi>>, TError,{id: string;data: BodyType<AiSuggestRequest>}, TContext> => {
+
+const mutationKey = ['suggestCmsAi'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestCmsAi>>, {id: string;data: BodyType<AiSuggestRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  suggestCmsAi(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestCmsAiMutationResult = NonNullable<Awaited<ReturnType<typeof suggestCmsAi>>>
+    export type SuggestCmsAiMutationBody = BodyType<AiSuggestRequest>
+    export type SuggestCmsAiMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary AI writing & SEO suggestions for an article (requires content.edit)
+ */
+export const useSuggestCmsAi = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestCmsAi>>, TError,{id: string;data: BodyType<AiSuggestRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestCmsAi>>,
+        TError,
+        {id: string;data: BodyType<AiSuggestRequest>},
+        TContext
+      > => {
+      return useMutation(getSuggestCmsAiMutationOptions(options));
+    }
 
 export const getCreateCmsPreviewLinkUrl = (id: string,) => {
 

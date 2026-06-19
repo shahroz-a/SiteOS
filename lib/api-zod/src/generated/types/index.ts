@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './aiSuggestion';
+export * from './aiSuggestionApply';
+export * from './aiSuggestRequest';
+export * from './aiSuggestRequestKind';
+export * from './aiSuggestResponse';
 export * from './analyticsHealth';
 export * from './analyticsLeader';
 export * from './analyticsReferrer';

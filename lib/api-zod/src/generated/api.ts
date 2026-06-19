@@ -2408,6 +2408,39 @@ export const GetCmsPostValidationResponse = zod.object({
 
 
 /**
+ * Runs the in-editor AI assistant over the article and returns structured, suggest-only suggestions of the requested kind (SEO, metadata, summaries, social captions, FAQ generation, related articles, readability notes, duplicate detection, internal-link ideas). Strictly advisory — it NEVER writes to content; the editor accepts or rejects each suggestion. Related/duplicate/internal-link kinds are grounded against published sibling articles so paths can't be hallucinated.
+ * @summary AI writing & SEO suggestions for an article (requires content.edit)
+ */
+export const SuggestCmsAiParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const SuggestCmsAiHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const SuggestCmsAiBody = zod.object({
+  "kind": zod.enum(['seo', 'metadata', 'summary', 'social', 'faq', 'related', 'readability', 'duplicate', 'internal-links']).describe('Which kind of AI suggestion to generate.')
+})
+
+export const SuggestCmsAiResponse = zod.object({
+  "kind": zod.string(),
+  "model": zod.string(),
+  "summary": zod.string(),
+  "suggestions": zod.array(zod.object({
+  "id": zod.string(),
+  "apply": zod.enum(['field', 'faq', 'info']),
+  "label": zod.string(),
+  "detail": zod.string(),
+  "target": zod.string().nullable(),
+  "value": zod.string().nullable(),
+  "question": zod.string().nullable(),
+  "answer": zod.string().nullable()
+}).describe('A single suggest-only suggestion. `apply` tells the editor how to apply it if accepted: `field` writes `value` into the editor field named by `target`; `faq` adds a FAQ entry (`question`\/`answer`); `info` is advisory\/copyable (`value`).'))
+})
+
+
+/**
  * @summary Mint an expiring shareable preview link for a draft (requires content.view)
  */
 export const CreateCmsPreviewLinkParams = zod.object({

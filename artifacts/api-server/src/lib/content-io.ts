@@ -1,6 +1,6 @@
 import { randomUUID, createHash } from "node:crypto";
 import { asc, eq, inArray } from "drizzle-orm";
-import type { PgColumn } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   db,
   pagesTable,
@@ -112,7 +112,7 @@ export async function loadContentBundle(
   // (which Postgres rejects) is never built.
   const pageScope =
     pageIds !== undefined ? inArray(pagesTable.id, pageIds) : undefined;
-  const childScope = (col: PgColumn) =>
+  const childScope = (col: AnyPgColumn) =>
     pageIds !== undefined ? inArray(col, pageIds) : undefined;
 
   const [authors, categories, tags, pages] = await Promise.all([
