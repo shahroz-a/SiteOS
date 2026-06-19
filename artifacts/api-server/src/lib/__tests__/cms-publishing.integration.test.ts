@@ -7,6 +7,9 @@
  *   - a draft -> published transition flips `status` and stamps `publishedAt`
  *   - scheduling stores `scheduledFor`, and the background due-publish query
  *     (`publishDueScheduledPosts`) picks the post up once its time has passed
+ *   - each auto-publish leaves the editor-visible history behind: an
+ *     `audit_logs` row (action `article.publish.scheduled`, entityType `page`,
+ *     scheduled->published before/after) plus a matching `crawl_logs` line
  *   - a slug change writes an active 301 redirect whose OLD path resolves to the
  *     NEW path through `resolveRedirect` (the function backing
  *     `GET /redirects/resolve`)
@@ -41,9 +44,9 @@ describe.skipIf(!RUN)("CMS publishing — live DB (rolled-back)", () => {
       changePostUrl,
       resolveRedirect,
     } = mod;
-    const { db, pagesTable } = dbMod;
+    const { db, pagesTable, auditLogsTable, crawlLogsTable } = dbMod;
     const { canonicalUrlForSlug, pathnameForSlug } = contentMod;
-    const { eq } = await import("drizzle-orm");
+    const { eq, and } = await import("drizzle-orm");
 
     const suffix = Date.now();
 
@@ -137,6 +140,59 @@ describe.skipIf(!RUN)("CMS publishing — live DB (rolled-back)", () => {
           scheduledFor.getTime(),
         );
         expect(autoPublished?.scheduledFor).toBeNull();
+
+        // 2b) the auto-publish leaves the editor-visible history behind: one
+        //     audit_logs row (no human actor, scheduled->published) and one
+        //     matching crawl_logs line, both scoped to this post.
+        const [audit] = await tx
+          .select({
+            action: auditLogsTable.action,
+            entityType: auditLogsTable.entityType,
+            entityId: auditLogsTable.entityId,
+            actorId: auditLogsTable.actorId,
+            before: auditLogsTable.before,
+            after: auditLogsTable.after,
+            metadata: auditLogsTable.metadata,
+          })
+          .from(auditLogsTable)
+          .where(
+            and(
+              eq(auditLogsTable.entityId, scheduleId),
+              eq(auditLogsTable.action, "article.publish.scheduled"),
+            ),
+          )
+          .limit(1);
+        expect(audit).toBeTruthy();
+        expect(audit?.entityType).toBe("page");
+        expect(audit?.actorId).toBeNull();
+        expect(audit?.before).toEqual({ status: "scheduled" });
+        expect(audit?.after).toEqual({
+          status: "published",
+          publishedAt: scheduledFor.toISOString(),
+        });
+        expect(
+          (audit?.metadata as { slug?: string } | null)?.slug,
+        ).toBe(`schedule-me-${suffix}`);
+
+        const [crawlLog] = await tx
+          .select({
+            url: crawlLogsTable.url,
+            level: crawlLogsTable.level,
+            message: crawlLogsTable.message,
+            details: crawlLogsTable.details,
+          })
+          .from(crawlLogsTable)
+          .where(eq(crawlLogsTable.url, pathnameForSlug(`schedule-me-${suffix}`)))
+          .limit(1);
+        expect(crawlLog).toBeTruthy();
+        expect(crawlLog?.level).toBe("info");
+        expect(crawlLog?.message).toContain(`schedule-me-${suffix}`);
+        expect(
+          (crawlLog?.details as { action?: string } | null)?.action,
+        ).toBe("publish-scheduled");
+        expect(
+          (crawlLog?.details as { id?: string } | null)?.id,
+        ).toBe(scheduleId);
 
         // 3) a slug change writes a working 301: the OLD path resolves to the
         //    NEW path via resolveRedirect (the GET /redirects/resolve backend).

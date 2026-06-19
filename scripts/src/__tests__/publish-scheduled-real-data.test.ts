@@ -136,6 +136,60 @@ describe.skipIf(!RUN)(
               futureFor.toISOString(),
             );
 
+            // AUDIT TRAIL: the due post's auto-publish wrote an audit_logs row
+            // (action article.publish.scheduled, entityType page, NO human
+            // actor, scheduled->published before/after) and a matching
+            // crawl_logs line — the editor-visible history a future refactor
+            // must not silently drop. The future post wrote neither.
+            const dueId = dueEntry!.id;
+            const audit = await tx.execute<{
+              action: string;
+              entity_type: string | null;
+              actor_id: string | null;
+              before: { status?: string } | null;
+              after: { status?: string; publishedAt?: string | null } | null;
+              metadata: { source?: string; slug?: string } | null;
+            }>(sql`
+              select action, entity_type, actor_id, before, after, metadata
+              from audit_logs
+              where entity_id = ${dueId}
+                and action = 'article.publish.scheduled'
+            `);
+            expect(audit.rows.length).toBe(1);
+            const auditRow = audit.rows[0]!;
+            expect(auditRow.entity_type).toBe("page");
+            expect(auditRow.actor_id).toBeNull();
+            expect(auditRow.before?.status).toBe("scheduled");
+            expect(auditRow.after?.status).toBe("published");
+            expect(auditRow.after?.publishedAt).toBe(pastFor.toISOString());
+            expect(auditRow.metadata?.source).toBe("publish-scheduled-job");
+            expect(auditRow.metadata?.slug).toBe(dueSlug);
+
+            const crawl = await tx.execute<{
+              level: string;
+              message: string | null;
+              details: { action?: string; slug?: string; id?: string } | null;
+            }>(sql`
+              select level, message, details
+              from crawl_logs
+              where url = ${`/blog/${dueSlug}`}
+                and (details->>'action') = 'publish-scheduled'
+            `);
+            expect(crawl.rows.length).toBe(1);
+            const crawlRow = crawl.rows[0]!;
+            expect(crawlRow.level).toBe("info");
+            expect(crawlRow.message).toContain(dueSlug);
+            expect(crawlRow.details?.slug).toBe(dueSlug);
+            expect(crawlRow.details?.id).toBe(dueId);
+
+            // The future (untouched) post produced no audit/crawl rows.
+            const futureAudit = await tx.execute<{ n: number }>(sql`
+              select count(*)::int as n from audit_logs
+              where action = 'article.publish.scheduled'
+                and (metadata->>'slug') = ${futureSlug}
+            `);
+            expect(Number(futureAudit.rows[0]?.n ?? -1)).toBe(0);
+
             // --- Idempotency: a second run never re-publishes our due post. ---
             const second = await run({ dryRun: false }, now, tx);
             expect(second.published.some((p) => p.slug === dueSlug)).toBe(false);
