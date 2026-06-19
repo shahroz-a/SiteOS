@@ -19,6 +19,7 @@ import { validateExtraction } from "./validate";
 import { logCrawl, storePage, storeValidation } from "./store";
 import { closeBrowser, isBrowserAvailable } from "./browser";
 import { generateReports } from "./reports";
+import { runRedirectCleanup } from "../cleanup-redirects";
 import {
   collapseSlashes,
   isAssetUrl,
@@ -275,10 +276,43 @@ export async function runCrawl(opts: CrawlRunOptions = {}): Promise<QueueStats> 
   return stats;
 }
 
-export async function runReports(log: (m: string) => void = console.log): Promise<string[]> {
+/**
+ * How (if at all) `runReports` should run the redirect cleanup after writing
+ * the migration reports:
+ *   - "off"     — do nothing (default; a normal crawl never touches redirects)
+ *   - "dry-run" — classify forwards-to-nowhere rows and surface a summary, no writes
+ *   - "apply"   — actually repair/deactivate the dead redirects
+ */
+export type RedirectCleanupMode = "off" | "dry-run" | "apply";
+
+export interface RunReportsOptions {
+  cleanupRedirects?: RedirectCleanupMode;
+}
+
+export async function runReports(
+  log: (m: string) => void = console.log,
+  opts: RunReportsOptions = {},
+): Promise<string[]> {
   const stats = await queueStats();
   log("Generating migration deliverable reports…");
   const files = await generateReports(stats);
   for (const f of files) log(`  wrote ${f}`);
+
+  // Opt-in redirect cleanup. Default is "off" so a normal crawl never silently
+  // mutates the redirects table; apply mode is gated behind an explicit
+  // flag/env upstream (see crawl.ts). Reuses the SAME classify/repair logic the
+  // standalone `cleanup:redirects` command (and the prerender) serves with.
+  const cleanupMode = opts.cleanupRedirects ?? "off";
+  if (cleanupMode !== "off") {
+    log(`Cleaning up forwards-to-nowhere redirects (${cleanupMode})…`);
+    const summary = await runRedirectCleanup({ apply: cleanupMode === "apply", log });
+    log(
+      `Redirect cleanup ${summary.applied ? "applied" : "dry run"}: ` +
+        `${summary.repairs} repaired, ${summary.deactivations} deactivated ` +
+        `of ${summary.forwardingNowhere} forwarding nowhere ` +
+        `(${summary.active} active / ${summary.total} total).`,
+    );
+  }
+
   return files;
 }

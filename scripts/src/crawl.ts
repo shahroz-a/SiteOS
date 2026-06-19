@@ -6,6 +6,7 @@ import {
   resetQueue,
   resetFailedToPending,
   type CrawlerConfig,
+  type RedirectCleanupMode,
 } from "./crawler";
 
 interface CliFlags {
@@ -18,6 +19,7 @@ interface CliFlags {
   limit: number;
   concurrency: number | null;
   noBrowser: boolean;
+  cleanupRedirects: RedirectCleanupMode | null;
   help: boolean;
 }
 
@@ -32,6 +34,7 @@ function parseFlags(argv: string[]): CliFlags {
     limit: 0,
     concurrency: null,
     noBrowser: false,
+    cleanupRedirects: null,
     help: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -61,6 +64,15 @@ function parseFlags(argv: string[]): CliFlags {
         break;
       case "--no-browser":
         flags.noBrowser = true;
+        break;
+      case "--cleanup-redirects":
+        flags.cleanupRedirects = "dry-run";
+        break;
+      case "--cleanup-redirects=apply":
+        flags.cleanupRedirects = "apply";
+        break;
+      case "--cleanup-redirects=dry-run":
+        flags.cleanupRedirects = "dry-run";
         break;
       case "--all":
         flags.discover = true;
@@ -101,6 +113,11 @@ Flags:
   --limit=N             Process at most N pages this run (0 = unlimited)
   --concurrency=N       Override worker concurrency
   --no-browser          Force the HTTP fetch path (skip Playwright)
+  --cleanup-redirects[=apply|dry-run]
+                        After --reports, clean up forwards-to-nowhere redirects.
+                        Bare flag (or =dry-run) only reports; =apply writes the
+                        repairs/deactivations. Opt-in (also via CLEANUP_REDIRECTS
+                        env); a normal crawl never mutates the redirects table.
   -h, --help            Show this help
 
 Examples:
@@ -152,8 +169,22 @@ async function main(): Promise<void> {
   }
 
   if (flags.reports) {
-    await runReports();
+    await runReports(console.log, { cleanupRedirects: resolveCleanupMode(flags) });
   }
+}
+
+/**
+ * Resolve the redirect-cleanup mode for the report pass. The explicit CLI flag
+ * wins; otherwise fall back to the CLEANUP_REDIRECTS env var (`apply` /
+ * `dry-run` / `dryrun` / `true`). Anything else (incl. unset) leaves it off, so
+ * a plain crawl never mutates the redirects table.
+ */
+function resolveCleanupMode(flags: CliFlags): RedirectCleanupMode {
+  if (flags.cleanupRedirects) return flags.cleanupRedirects;
+  const env = (process.env.CLEANUP_REDIRECTS ?? "").trim().toLowerCase();
+  if (env === "apply") return "apply";
+  if (env === "dry-run" || env === "dryrun" || env === "true" || env === "1") return "dry-run";
+  return "off";
 }
 
 main()

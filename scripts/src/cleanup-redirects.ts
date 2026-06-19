@@ -315,15 +315,33 @@ async function runRestoreLast(): Promise<void> {
   await pool.end();
 }
 
-async function main(): Promise<void> {
-  if (REACTIVATE_ID !== null) {
-    await runReactivate(REACTIVATE_ID);
-    return;
-  }
-  if (RESTORE_LAST) {
-    await runRestoreLast();
-    return;
-  }
+export interface RedirectCleanupSummary {
+  /** Whether the changes were written (true) or this was a dry run (false). */
+  applied: boolean;
+  total: number;
+  active: number;
+  /** Active redirects that currently forward nowhere (= repairs + deactivations). */
+  forwardingNowhere: number;
+  repairs: number;
+  deactivations: number;
+  repairsByReason: Record<string, number>;
+  deactivationsByReason: Record<string, number>;
+}
+
+/**
+ * Run (or dry-run) the redirect cleanup against the database and return a
+ * machine-readable summary.
+ *
+ * Reusable from both the standalone CLI ({@link main}) and the crawl/report
+ * pipeline. Does NOT close the connection pool — the caller owns the pool's
+ * lifecycle (the CLI ends it; the pipeline keeps it open for the rest of the
+ * run). Defaults to a dry run; pass `apply: true` to write.
+ */
+export async function runRedirectCleanup(
+  opts: { apply?: boolean; log?: (m: string) => void } = {},
+): Promise<RedirectCleanupSummary> {
+  const apply = opts.apply ?? false;
+  const log = opts.log ?? console.log;
 
   const all = await db
     .select({
@@ -348,40 +366,52 @@ async function main(): Promise<void> {
         acc[a.reason] = (acc[a.reason] ?? 0) + 1;
         return acc;
       }, {});
+  const repairsByReason = byReason("repair");
+  const deactivationsByReason = byReason("deactivate");
 
   // --- Report -------------------------------------------------------------
-  console.log(`\n=== cleanup-redirects (${APPLY ? "APPLY" : "DRY RUN"}) ===`);
-  console.log(`total redirects:        ${all.length}`);
-  console.log(`active:                 ${activeRedirects.length}`);
-  console.log(`forwarding nowhere:     ${actions.length}`);
-  console.log(`  → repair:             ${repairs.length}`);
-  for (const [reason, n] of Object.entries(byReason("repair"))) {
-    console.log(`      ${String(n).padStart(4)}  ${reason}`);
+  log(`\n=== cleanup-redirects (${apply ? "APPLY" : "DRY RUN"}) ===`);
+  log(`total redirects:        ${all.length}`);
+  log(`active:                 ${activeRedirects.length}`);
+  log(`forwarding nowhere:     ${actions.length}`);
+  log(`  → repair:             ${repairs.length}`);
+  for (const [reason, n] of Object.entries(repairsByReason)) {
+    log(`      ${String(n).padStart(4)}  ${reason}`);
   }
-  console.log(`  → deactivate:         ${deactivations.length}`);
-  for (const [reason, n] of Object.entries(byReason("deactivate"))) {
-    console.log(`      ${String(n).padStart(4)}  ${reason}`);
+  log(`  → deactivate:         ${deactivations.length}`);
+  for (const [reason, n] of Object.entries(deactivationsByReason)) {
+    log(`      ${String(n).padStart(4)}  ${reason}`);
   }
 
   const sample = (arr: Action[]) => arr.slice(0, 20);
   if (repairs.length) {
-    console.log(`\nrepairs (first ${Math.min(20, repairs.length)}):`);
+    log(`\nrepairs (first ${Math.min(20, repairs.length)}):`);
     for (const a of sample(repairs)) {
       if (a.kind !== "repair") continue;
-      console.log(`  [${a.reason}] ${a.fromPath}  →  ${a.newFromPath}`);
+      log(`  [${a.reason}] ${a.fromPath}  →  ${a.newFromPath}`);
     }
   }
   if (deactivations.length) {
-    console.log(`\ndeactivations (first ${Math.min(20, deactivations.length)}):`);
+    log(`\ndeactivations (first ${Math.min(20, deactivations.length)}):`);
     for (const a of sample(deactivations)) {
-      console.log(`  [${a.reason}] ${a.fromPath}  →  ${a.toPath}`);
+      log(`  [${a.reason}] ${a.fromPath}  →  ${a.toPath}`);
     }
   }
 
-  if (!APPLY) {
-    console.log(`\nDry run only. Re-run with --apply to write.\n`);
-    await pool.end();
-    return;
+  const summary: RedirectCleanupSummary = {
+    applied: apply,
+    total: all.length,
+    active: activeRedirects.length,
+    forwardingNowhere: actions.length,
+    repairs: repairs.length,
+    deactivations: deactivations.length,
+    repairsByReason,
+    deactivationsByReason,
+  };
+
+  if (!apply) {
+    log(`\nDry run only. Re-run with --apply to write.\n`);
+    return summary;
   }
 
   // --- Apply --------------------------------------------------------------
@@ -408,10 +438,23 @@ async function main(): Promise<void> {
   const record = buildCleanupRecord(actions, new Date().toISOString());
   await writeCleanupRecord(record);
 
-  console.log(
+  log(
     `\nApplied. Repaired ${repairs.length}, deactivated ${deactivations.length}.`,
   );
-  console.log(`Run recorded to ${CLEANUP_REPORT_PATH} (undo with --restore-last).\n`);
+  log(`Run recorded to ${CLEANUP_REPORT_PATH} (undo with --restore-last).\n`);
+  return summary;
+}
+
+async function main(): Promise<void> {
+  if (REACTIVATE_ID !== null) {
+    await runReactivate(REACTIVATE_ID);
+    return;
+  }
+  if (RESTORE_LAST) {
+    await runRestoreLast();
+    return;
+  }
+  await runRedirectCleanup({ apply: APPLY });
   await pool.end();
 }
 

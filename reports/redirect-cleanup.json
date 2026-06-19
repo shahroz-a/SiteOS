@@ -1,0 +1,26 @@
+{
+  "ranAt": "2026-06-19T15:05:41.571Z",
+  "repaired": [
+    {
+      "id": "dup",
+      "originalFromPath": "/blog/acropolis//tickets/",
+      "newFromPath": "/blog/acropolis/tickets/",
+      "toPath": "/blog/acropolis-tickets/",
+      "reason": "malformed-segment"
+    }
+  ],
+  "deactivated": [
+    {
+      "id": "off",
+      "fromPath": "/london-tickets/",
+      "toPath": "/blog/new/",
+      "reason": "non-blog-source"
+    },
+    {
+      "id": "loop",
+      "fromPath": "/blog/loop/",
+      "toPath": "/blog/loop/",
+      "reason": "self-redirect"
+    }
+  ]
+}
