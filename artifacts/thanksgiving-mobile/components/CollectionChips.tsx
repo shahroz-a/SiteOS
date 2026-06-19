@@ -227,9 +227,11 @@ function DraggableChip({
     [layouts, id],
   );
 
-  const tap = Gesture.Tap().onEnd(() => {
-    runOnJS(select)();
-  });
+  const tap = Gesture.Tap()
+    .withTestId(`chip-tap-${id}`)
+    .onEnd(() => {
+      runOnJS(select)();
+    });
 
   const pan = Gesture.Pan()
     .activateAfterLongPress(220)

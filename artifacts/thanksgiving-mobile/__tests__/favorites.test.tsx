@@ -6,6 +6,11 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react-native";
+import { State } from "react-native-gesture-handler";
+import {
+  fireGestureHandler,
+  getByGestureTestId,
+} from "react-native-gesture-handler/jest-utils";
 import React from "react";
 
 import { makePost, makePostDetail } from "./fixtures";
@@ -187,8 +192,14 @@ describe("favorites end to end", () => {
       expect(screen.getByText(/1 article bookmarked/)).toBeTruthy(),
     );
 
-    // Switch to the collection's filtered view.
-    fireEvent.press(screen.getByTestId("collection-chip-col1"));
+    // Switch to the collection's filtered view. The chip selects via a
+    // react-native-gesture-handler Tap (not a Pressable onPress), so it must be
+    // driven through the gesture-handler test harness rather than fireEvent.
+    fireGestureHandler(getByGestureTestId("chip-tap-col1"), [
+      { state: State.BEGAN },
+      { state: State.ACTIVE },
+      { state: State.END },
+    ]);
 
     // The inline remove button is now available; tap it.
     const removeBtn = await screen.findByTestId(
