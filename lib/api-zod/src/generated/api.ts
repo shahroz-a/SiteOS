@@ -2494,6 +2494,8 @@ export const ListSavedViewsResponse = zod.object({
   "shared": zod.boolean().describe('When true, this view is visible to every authenticated CMS user. Non-owners can apply it but cannot rename\/update\/delete it.'),
   "isOwner": zod.boolean().describe('Whether the requesting user owns this view. Only owners may rename, update or delete it.'),
   "ownerId": zod.string().describe('The id of the user who owns this view.'),
+  "ownerName": zod.string().nullish().describe('Display name of the user who owns this view, resolved from their user record. Null when the owner has no name on file.'),
+  "ownerImageUrl": zod.string().nullish().describe('Profile image URL of the user who owns this view, if any.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }))
@@ -2549,6 +2551,8 @@ export const UpdateSavedViewResponse = zod.object({
   "shared": zod.boolean().describe('When true, this view is visible to every authenticated CMS user. Non-owners can apply it but cannot rename\/update\/delete it.'),
   "isOwner": zod.boolean().describe('Whether the requesting user owns this view. Only owners may rename, update or delete it.'),
   "ownerId": zod.string().describe('The id of the user who owns this view.'),
+  "ownerName": zod.string().nullish().describe('Display name of the user who owns this view, resolved from their user record. Null when the owner has no name on file.'),
+  "ownerImageUrl": zod.string().nullish().describe('Profile image URL of the user who owns this view, if any.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

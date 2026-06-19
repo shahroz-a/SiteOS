@@ -500,7 +500,12 @@ export default function SearchPage() {
                   title={
                     view.isOwner
                       ? (view.description ?? undefined)
-                      : [view.description, "Shared by a teammate"]
+                      : [
+                          view.description,
+                          view.ownerName
+                            ? `Shared by ${view.ownerName}`
+                            : "Shared by a teammate",
+                        ]
                           .filter(Boolean)
                           .join(" · ")
                   }
@@ -548,9 +553,21 @@ export default function SearchPage() {
                 ) : (
                   <Badge
                     variant="outline"
-                    className="px-1.5 py-0 text-[10px] font-normal"
+                    className="flex items-center gap-1 px-1.5 py-0 text-[10px] font-normal"
+                    title={
+                      view.ownerName
+                        ? `Shared by ${view.ownerName}`
+                        : "Shared by a teammate"
+                    }
                   >
-                    Team
+                    {view.ownerImageUrl ? (
+                      <img
+                        src={view.ownerImageUrl}
+                        alt=""
+                        className="h-3.5 w-3.5 rounded-full object-cover"
+                      />
+                    ) : null}
+                    {view.ownerName ?? "Team"}
                   </Badge>
                 )}
               </div>

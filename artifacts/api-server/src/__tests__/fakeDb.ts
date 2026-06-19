@@ -44,6 +44,23 @@ function isColRef(v: unknown): v is ColRef {
   );
 }
 
+/** A whole-table descriptor (e.g. `.select({ view: savedViewsTable })`). */
+function isTableRef(v: unknown): v is { __table: string } {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    "__table" in v &&
+    !("__col" in v)
+  );
+}
+
+/** Resolve a projection descriptor against a (possibly joined) combined row. */
+function resolveProjection(desc: unknown, r: Combined): unknown {
+  if (isColRef(desc)) return resolveCol(desc, r);
+  if (isTableRef(desc)) return r[(desc as { __table: string }).__table];
+  return undefined;
+}
+
 function resolveCol(col: ColRef, combined: Combined): unknown {
   return combined[col.__table]?.[col.__col];
 }
@@ -104,7 +121,7 @@ function orderKeyParts(key: OrderKey): { col: ColRef; dir: "asc" | "desc" } {
 
 class SelectBuilder {
   private fromTable = "";
-  private joins: { table: string; on: Cond }[] = [];
+  private joins: { table: string; on: Cond; left?: boolean }[] = [];
   private cond?: Cond;
   private orderKeys: OrderKey[] = [];
   private _limit?: number;
@@ -121,6 +138,10 @@ class SelectBuilder {
   }
   innerJoin(table: { __table: string }, on: Cond) {
     this.joins.push({ table: table.__table, on });
+    return this;
+  }
+  leftJoin(table: { __table: string }, on: Cond) {
+    this.joins.push({ table: table.__table, on, left: true });
     return this;
   }
   where(cond: Cond) {
@@ -148,9 +169,18 @@ class SelectBuilder {
     for (const join of this.joins) {
       const next: Combined[] = [];
       for (const cr of rows) {
+        let matched = false;
         for (const jr of this.tables[join.table] ?? []) {
           const merged = { ...cr, [join.table]: jr };
-          if (evalCond(join.on, merged)) next.push(merged);
+          if (evalCond(join.on, merged)) {
+            next.push(merged);
+            matched = true;
+          }
+        }
+        // A LEFT JOIN keeps the left row even with no match, padding the
+        // joined table with an empty record (its columns resolve to undefined).
+        if (!matched && join.left) {
+          next.push({ ...cr, [join.table]: {} });
         }
       }
       rows = next;
@@ -193,7 +223,7 @@ class SelectBuilder {
       return rows.map((r) => {
         const out: Row = {};
         for (const [key, desc] of Object.entries(proj)) {
-          out[key] = isColRef(desc) ? resolveCol(desc, r) : undefined;
+          out[key] = resolveProjection(desc, r);
         }
         return out;
       });

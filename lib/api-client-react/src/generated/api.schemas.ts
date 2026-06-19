@@ -598,6 +598,16 @@ export interface SavedView {
   isOwner: boolean;
   /** The id of the user who owns this view. */
   ownerId: string;
+  /**
+     * Display name of the user who owns this view, resolved from their user record. Null when the owner has no name on file.
+     * @nullable
+     */
+  ownerName?: string | null;
+  /**
+     * Profile image URL of the user who owns this view, if any.
+     * @nullable
+     */
+  ownerImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }

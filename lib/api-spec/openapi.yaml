@@ -3159,6 +3159,14 @@ components:
         ownerId:
           type: string
           description: The id of the user who owns this view.
+        ownerName:
+          type: ["string", "null"]
+          description: >-
+            Display name of the user who owns this view, resolved from their
+            user record. Null when the owner has no name on file.
+        ownerImageUrl:
+          type: ["string", "null"]
+          description: Profile image URL of the user who owns this view, if any.
         createdAt:
           type: string
           format: date-time

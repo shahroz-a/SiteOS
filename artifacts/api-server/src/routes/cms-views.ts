@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, or } from "drizzle-orm";
-import { db, savedViewsTable } from "@workspace/db";
+import { db, savedViewsTable, usersTable } from "@workspace/db";
 import {
   ListSavedViewsResponse,
   CreateSavedViewBody,
@@ -16,7 +16,20 @@ const router: IRouter = Router();
 
 type SavedViewRow = typeof savedViewsTable.$inferSelect;
 
-function serialize(row: SavedViewRow, viewerId: string) {
+type OwnerInfo = { firstName: string | null; lastName: string | null; profileImageUrl: string | null };
+
+/** Build a human display name from a user's first/last name. */
+function ownerDisplayName(owner: OwnerInfo | undefined): string | null {
+  if (!owner) return null;
+  const name = [owner.firstName, owner.lastName].filter(Boolean).join(" ").trim();
+  return name.length > 0 ? name : null;
+}
+
+function serialize(
+  row: SavedViewRow,
+  viewerId: string,
+  owner?: OwnerInfo,
+) {
   return {
     id: row.id,
     name: row.name,
@@ -25,6 +38,8 @@ function serialize(row: SavedViewRow, viewerId: string) {
     shared: row.shared,
     isOwner: row.userId === viewerId,
     ownerId: row.userId,
+    ownerName: ownerDisplayName(owner),
+    ownerImageUrl: owner?.profileImageUrl ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -41,9 +56,16 @@ router.get(
       return;
     }
     // Return the user's own views plus any view shared by another user.
+    // Join the owner's user record so non-owners can see who shared a view.
     const rows = await db
-      .select()
+      .select({
+        view: savedViewsTable,
+        ownerFirstName: usersTable.firstName,
+        ownerLastName: usersTable.lastName,
+        ownerImageUrl: usersTable.profileImageUrl,
+      })
       .from(savedViewsTable)
+      .leftJoin(usersTable, eq(usersTable.id, savedViewsTable.userId))
       .where(
         or(
           eq(savedViewsTable.userId, req.user.id),
@@ -54,7 +76,13 @@ router.get(
 
     res.json(
       ListSavedViewsResponse.parse({
-        items: rows.map((row) => serialize(row, req.user.id)),
+        items: rows.map((row) =>
+          serialize(row.view, req.user.id, {
+            firstName: row.ownerFirstName,
+            lastName: row.ownerLastName,
+            profileImageUrl: row.ownerImageUrl,
+          }),
+        ),
       }),
     );
   },
