@@ -2551,6 +2551,7 @@ export const ListSavedViewsResponse = zod.object({
   "ownerId": zod.string().describe('The id of the user who owns this view.'),
   "ownerName": zod.string().nullish().describe('Display name of the user who owns this view, resolved from their user record. Null when the owner has no name on file.'),
   "ownerImageUrl": zod.string().nullish().describe('Profile image URL of the user who owns this view, if any.'),
+  "ownerEmail": zod.string().nullish().describe('Email address of the user who owns this view, resolved from their user record. Lets editors contact the owner about the view. Null when the owner has no email on file.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }))
@@ -2608,6 +2609,7 @@ export const UpdateSavedViewResponse = zod.object({
   "ownerId": zod.string().describe('The id of the user who owns this view.'),
   "ownerName": zod.string().nullish().describe('Display name of the user who owns this view, resolved from their user record. Null when the owner has no name on file.'),
   "ownerImageUrl": zod.string().nullish().describe('Profile image URL of the user who owns this view, if any.'),
+  "ownerEmail": zod.string().nullish().describe('Email address of the user who owns this view, resolved from their user record. Lets editors contact the owner about the view. Null when the owner has no email on file.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

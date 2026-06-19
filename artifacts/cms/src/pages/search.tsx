@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import {
   Bookmark,
   BookmarkPlus,
+  Mail,
   Pencil,
   Search as SearchIcon,
   Trash2,
@@ -550,6 +551,28 @@ export default function SearchPage() {
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </>
+                ) : view.ownerEmail ? (
+                  <a
+                    href={`mailto:${view.ownerEmail}?subject=${encodeURIComponent(
+                      `Question about your shared view "${view.name}"`,
+                    )}`}
+                    title={`Email ${view.ownerName ?? "the owner"} (${view.ownerEmail}) about this view`}
+                  >
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1 px-1.5 py-0 text-[10px] font-normal transition-colors hover:bg-muted hover:text-primary"
+                    >
+                      {view.ownerImageUrl ? (
+                        <img
+                          src={view.ownerImageUrl}
+                          alt=""
+                          className="h-3.5 w-3.5 rounded-full object-cover"
+                        />
+                      ) : null}
+                      {view.ownerName ?? "Team"}
+                      <Mail className="h-3 w-3" />
+                    </Badge>
+                  </a>
                 ) : (
                   <Badge
                     variant="outline"

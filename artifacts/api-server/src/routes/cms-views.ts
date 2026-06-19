@@ -16,7 +16,12 @@ const router: IRouter = Router();
 
 type SavedViewRow = typeof savedViewsTable.$inferSelect;
 
-type OwnerInfo = { firstName: string | null; lastName: string | null; profileImageUrl: string | null };
+type OwnerInfo = {
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
+  email: string | null;
+};
 
 /** Build a human display name from a user's first/last name. */
 function ownerDisplayName(owner: OwnerInfo | undefined): string | null {
@@ -40,6 +45,7 @@ function serialize(
     ownerId: row.userId,
     ownerName: ownerDisplayName(owner),
     ownerImageUrl: owner?.profileImageUrl ?? null,
+    ownerEmail: owner?.email ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -63,6 +69,7 @@ router.get(
         ownerFirstName: usersTable.firstName,
         ownerLastName: usersTable.lastName,
         ownerImageUrl: usersTable.profileImageUrl,
+        ownerEmail: usersTable.email,
       })
       .from(savedViewsTable)
       .leftJoin(usersTable, eq(usersTable.id, savedViewsTable.userId))
@@ -81,6 +88,7 @@ router.get(
             firstName: row.ownerFirstName,
             lastName: row.ownerLastName,
             profileImageUrl: row.ownerImageUrl,
+            email: row.ownerEmail,
           }),
         ),
       }),

@@ -608,6 +608,11 @@ export interface SavedView {
      * @nullable
      */
   ownerImageUrl?: string | null;
+  /**
+     * Email address of the user who owns this view, resolved from their user record. Lets editors contact the owner about the view. Null when the owner has no email on file.
+     * @nullable
+     */
+  ownerEmail?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -3245,6 +3245,12 @@ components:
         ownerImageUrl:
           type: ["string", "null"]
           description: Profile image URL of the user who owns this view, if any.
+        ownerEmail:
+          type: ["string", "null"]
+          description: >-
+            Email address of the user who owns this view, resolved from their
+            user record. Lets editors contact the owner about the view. Null
+            when the owner has no email on file.
         createdAt:
           type: string
           format: date-time

@@ -413,6 +413,8 @@ describe("saved-views — sharing/visibility", () => {
       expect(byId[VIEW_SHARED].shared).toBe(true);
       // A non-owner sees who shared the view, resolved from the owner's record.
       expect(byId[VIEW_SHARED].ownerName).toBe("Owner User");
+      // ...including a contact email so editors can reach the owner.
+      expect(byId[VIEW_SHARED].ownerEmail).toBe("owner@example.com");
       expect(byId[VIEW_OTHER_PRIVATE].isOwner).toBe(true);
     });
 
