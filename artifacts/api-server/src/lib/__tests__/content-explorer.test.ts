@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { PgDialect } from "drizzle-orm/pg-core";
+import type { SQL } from "drizzle-orm";
 import {
   extractValidationIssues,
   listContentExplorer,
@@ -242,5 +244,248 @@ describe("listContentExplorer — seoFactors mapping", () => {
     expect(items[0]?.validationIssues).toEqual([
       { id: "links", label: "Links", severity: "error", message: "Link dropped" },
     ]);
+  });
+});
+
+/**
+ * A capturing `Executor` that records the rendered SQL + bound params of every
+ * query `listContentExplorer` issues (count, then the page of rows). Rendering
+ * the drizzle `SQL` through the real `PgDialect` lets us assert the WHERE/ORDER
+ * BY assembly and pagination math without a live database — a regression in the
+ * filter or sort SQL is exactly the silent "wrong rows" bug this guards.
+ */
+const dialect = new PgDialect();
+
+function capturingExecutor(resultSets: unknown[][]) {
+  const queries: { sql: string; params: unknown[] }[] = [];
+  let call = 0;
+  const exec = {
+    execute: async (query: SQL) => {
+      queries.push(dialect.sqlToQuery(query));
+      return { rows: resultSets[call++] ?? [] };
+    },
+  } as unknown as Executor;
+  return { exec, queries };
+}
+
+/** Collapse whitespace so multi-line SQL is easy to substring-match. */
+const flat = (s: string) => s.replace(/\s+/g, " ").trim();
+
+describe("listContentExplorer — WHERE filter assembly", () => {
+  it("filters to posts only with no extra conditions when no filters are given", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer(BASE_OPTS, exec);
+    const count = queries[0]!;
+    expect(flat(count.sql)).toContain("where p.page_type = 'post'");
+    // page_type is inlined, so no filter params on the count query.
+    expect(count.params).toEqual([]);
+    // The rows query shares the same WHERE.
+    expect(flat(queries[1]!.sql)).toContain("where p.page_type = 'post'");
+  });
+
+  it("adds a status equality predicate bound to the requested status", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer({ ...BASE_OPTS, status: "draft" }, exec);
+    expect(flat(queries[0]!.sql)).toContain("p.status = $1");
+    expect(queries[0]!.params).toEqual(["draft"]);
+  });
+
+  it("adds a case-insensitive title/slug search bound to an escaped LIKE pattern", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer({ ...BASE_OPTS, q: "  paris  " }, exec);
+    expect(flat(queries[0]!.sql)).toContain(
+      "(p.title ilike $1 or p.slug ilike $2)",
+    );
+    // Trimmed, wrapped in %…%; the pattern is bound once per column.
+    expect(queries[0]!.params).toEqual(["%paris%", "%paris%"]);
+  });
+
+  it("escapes LIKE wildcards in the search term so they match literally", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer({ ...BASE_OPTS, q: "50%_off" }, exec);
+    expect(queries[0]!.params).toEqual(["%50\\%\\_off%", "%50\\%\\_off%"]);
+  });
+
+  it("adds an author-slug predicate bound to the trimmed slug", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer({ ...BASE_OPTS, author: "  jane-doe  " }, exec);
+    expect(flat(queries[0]!.sql)).toContain("a.slug = $1");
+    expect(queries[0]!.params).toEqual(["jane-doe"]);
+  });
+
+  it("adds a category-slug predicate bound to the trimmed slug", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer({ ...BASE_OPTS, category: "  tickets  " }, exec);
+    expect(flat(queries[0]!.sql)).toContain("c.slug = $1");
+    expect(queries[0]!.params).toEqual(["tickets"]);
+  });
+
+  it("combines every filter with AND, in a stable parameter order", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer(
+      { ...BASE_OPTS, status: "published", q: "louvre", author: "jane", category: "museums" },
+      exec,
+    );
+    const sqlFlat = flat(queries[0]!.sql);
+    expect(sqlFlat).toContain("p.page_type = 'post'");
+    expect(sqlFlat).toContain("p.status = $1");
+    expect(sqlFlat).toContain("(p.title ilike $2 or p.slug ilike $3)");
+    expect(sqlFlat).toContain("a.slug = $4");
+    expect(sqlFlat).toContain("c.slug = $5");
+    expect(sqlFlat).toContain(" and ");
+    expect(queries[0]!.params).toEqual([
+      "published",
+      "%louvre%",
+      "%louvre%",
+      "jane",
+      "museums",
+    ]);
+  });
+
+  it("ignores blank/whitespace-only search, author, and category filters", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer(
+      { ...BASE_OPTS, q: "   ", author: "  ", category: "" },
+      exec,
+    );
+    expect(flat(queries[0]!.sql)).toContain("where p.page_type = 'post'");
+    expect(queries[0]!.params).toEqual([]);
+    expect(flat(queries[0]!.sql)).not.toContain("ilike");
+    expect(flat(queries[0]!.sql)).not.toContain("a.slug =");
+    expect(flat(queries[0]!.sql)).not.toContain("c.slug =");
+  });
+});
+
+describe("listContentExplorer — ORDER BY sort columns and direction", () => {
+  it.each([
+    ["title", "p.title"],
+    ["slug", "p.slug"],
+    ["status", "p.status"],
+    ["modified", "p.modified_at"],
+    ["published", "p.published_at"],
+    ["updated", "p.updated_at"],
+    ["seo", "seo_score"],
+    ["validation", "validation_score"],
+  ] as const)("sorts by the %s column expression", async (sort, expr) => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer({ ...BASE_OPTS, sort }, exec);
+    expect(flat(queries[1]!.sql)).toContain(`order by ${expr} desc nulls last, p.id asc`);
+  });
+
+  it.each([
+    ["asc", "asc"],
+    ["desc", "desc"],
+  ] as const)("applies %s direction and a stable id tiebreaker", async (order, dir) => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer({ ...BASE_OPTS, sort: "seo", order }, exec);
+    expect(flat(queries[1]!.sql)).toContain(`order by seo_score ${dir} nulls last, p.id asc`);
+  });
+
+  it("pushes the validation score sort to nulls last regardless of direction", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    await listContentExplorer({ ...BASE_OPTS, sort: "validation", order: "asc" }, exec);
+    expect(flat(queries[1]!.sql)).toContain(
+      "order by validation_score asc nulls last, p.id asc",
+    );
+  });
+});
+
+describe("listContentExplorer — pagination math", () => {
+  it("reports a single page and offset 0 for an empty result", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 0 }], []]);
+    const { pagination } = await listContentExplorer({ ...BASE_OPTS, page: 1, limit: 20 }, exec);
+    expect(pagination).toEqual({ page: 1, limit: 20, total: 0, totalPages: 1 });
+    // limit, then offset are the trailing bound params of the rows query.
+    expect(queries[1]!.params.slice(-2)).toEqual([20, 0]);
+  });
+
+  it("rounds a partial last page up", async () => {
+    const { exec } = capturingExecutor([[{ count: 45 }], []]);
+    const { pagination } = await listContentExplorer({ ...BASE_OPTS, page: 1, limit: 20 }, exec);
+    expect(pagination).toEqual({ page: 1, limit: 20, total: 45, totalPages: 3 });
+  });
+
+  it("keeps an exact multiple at the exact page count", async () => {
+    const { exec } = capturingExecutor([[{ count: 40 }], []]);
+    const { pagination } = await listContentExplorer({ ...BASE_OPTS, page: 1, limit: 20 }, exec);
+    expect(pagination.totalPages).toBe(2);
+  });
+
+  it("computes the SQL offset from the requested page and limit", async () => {
+    const { exec, queries } = capturingExecutor([[{ count: 100 }], []]);
+    const { pagination } = await listContentExplorer({ ...BASE_OPTS, page: 3, limit: 20 }, exec);
+    expect(pagination).toEqual({ page: 3, limit: 20, total: 100, totalPages: 5 });
+    expect(queries[1]!.params.slice(-2)).toEqual([20, 40]);
+  });
+
+  it("coerces a missing/non-numeric count row to a zero total", async () => {
+    const { exec } = capturingExecutor([[], []]);
+    const { pagination } = await listContentExplorer(BASE_OPTS, exec);
+    expect(pagination.total).toBe(0);
+    expect(pagination.totalPages).toBe(1);
+  });
+});
+
+describe("listContentExplorer — row → item mapping", () => {
+  it("maps the joined author and primary category onto nested objects", async () => {
+    const { exec } = capturingExecutor([
+      [{ count: 1 }],
+      [
+        explorerRow({
+          author_id: "au1",
+          author_name: "Jane Doe",
+          author_slug: "jane-doe",
+          author_avatar_url: "https://cdn/x.png",
+          author_role: "Editor",
+          category_id: "ca1",
+          category_name: "Museums",
+          category_slug: "museums",
+        }),
+      ],
+    ]);
+    const { items } = await listContentExplorer(BASE_OPTS, exec);
+    expect(items[0]?.author).toEqual({
+      id: "au1",
+      name: "Jane Doe",
+      slug: "jane-doe",
+      avatarUrl: "https://cdn/x.png",
+      role: "Editor",
+    });
+    expect(items[0]?.primaryCategory).toEqual({ id: "ca1", name: "Museums", slug: "museums" });
+  });
+
+  it("leaves author and primaryCategory null when the joins miss", async () => {
+    const { exec } = capturingExecutor([[{ count: 1 }], [explorerRow()]]);
+    const { items } = await listContentExplorer(BASE_OPTS, exec);
+    expect(items[0]?.author).toBeNull();
+    expect(items[0]?.primaryCategory).toBeNull();
+  });
+
+  it("normalizes Date and string timestamps to ISO strings, leaving nulls null", async () => {
+    const { exec } = capturingExecutor([
+      [{ count: 1 }],
+      [
+        explorerRow({
+          modified_at: new Date("2026-01-02T03:04:05.000Z"),
+          published_at: "2026-02-03T04:05:06.000Z",
+          updated_at: null,
+        }),
+      ],
+    ]);
+    const { items } = await listContentExplorer(BASE_OPTS, exec);
+    expect(items[0]?.modifiedAt).toBe("2026-01-02T03:04:05.000Z");
+    expect(items[0]?.publishedAt).toBe("2026-02-03T04:05:06.000Z");
+    expect(items[0]?.updatedAt).toBeNull();
+  });
+
+  it("coerces the SEO score and a null validation score correctly", async () => {
+    const { exec } = capturingExecutor([
+      [{ count: 1 }],
+      [explorerRow({ seo_score: 80, validation_score: null, validation_status: null })],
+    ]);
+    const { items } = await listContentExplorer(BASE_OPTS, exec);
+    expect(items[0]?.seoScore).toBe(80);
+    expect(items[0]?.validationScore).toBeNull();
+    expect(items[0]?.validationStatus).toBeNull();
   });
 });
