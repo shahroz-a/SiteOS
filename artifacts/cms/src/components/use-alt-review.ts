@@ -81,6 +81,7 @@ export function useAltReview({
   initialApproved,
   fetchNext,
   onSkippedChange,
+  onSkippedReset,
   onApprovedChange,
   onCompleted,
 }: {
@@ -112,6 +113,15 @@ export function useAltReview({
    * close/reopen (and page reload) without re-showing skipped images.
    */
   onSkippedChange?: (skippedUrls: string[]) => void;
+  /**
+   * Called when the skip set *shrinks* — skips pulled back in for review,
+   * forgotten, or promoted to an approval by a concurrent tab. Carries the new
+   * (smaller) full set so the parent can authoritatively *replace* the persisted
+   * value, since `onSkippedChange`/`saveSkipped` only ever grows it (union) and
+   * can't honour a removal. Kept separate so concurrent tabs adding skips still
+   * converge while deliberate reductions actually take effect.
+   */
+  onSkippedReset?: (skippedUrls: string[]) => void;
   /**
    * Called whenever an image is approved, with the full url→alt map approved so
    * far this pass. The parent persists this on the cross-tab channel so other
@@ -394,9 +404,10 @@ export function useAltReview({
         }));
       }
       // A promotion shrinks the persisted skip set, so the reopened pass won't
-      // re-show the now-approved image as skipped.
+      // re-show the now-approved image as skipped. This is a *reduction*, so it
+      // must replace (not union) the persisted value.
       if (promoted.length > 0) {
-        onSkippedChange?.([...skippedRef.current]);
+        onSkippedReset?.([...skippedRef.current]);
       }
     });
   }, [filter]);
@@ -413,7 +424,7 @@ export function useAltReview({
     setAdvancing(true);
     for (const url of skippedUrls) seenRef.current.delete(url);
     skippedRef.current.clear();
-    onSkippedChange?.([]);
+    onSkippedReset?.([]);
     setSession((s) => ({ ...s, skipped: 0 }));
     setDone(false);
     try {
@@ -448,7 +459,7 @@ export function useAltReview({
     if (skippedRef.current.size === 0) return;
     for (const url of skippedRef.current) seenRef.current.delete(url);
     skippedRef.current.clear();
-    onSkippedChange?.([]);
+    onSkippedReset?.([]);
     setSession((s) => ({ ...s, skipped: 0 }));
   };
 

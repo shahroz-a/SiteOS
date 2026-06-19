@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   loadSkipped,
   saveSkipped,
+  replaceSkipped,
   clearSkipped,
   subscribeSkipped,
   loadApproved,
@@ -118,6 +119,52 @@ describe("bulk-alt-progress persistence", () => {
     saveSkipped("", ["a", "b"]);
     saveSkipped("", ["b", "c"]);
     expect(loadSkipped("")).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("replaceSkipped (authoritative replace)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", { localStorage: makeStorage() });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shrinks the persisted set instead of unioning (the saveSkipped trap)", () => {
+    saveSkipped("", ["a", "b", "c"]);
+    // A reduction to a subset: saveSkipped would union back to [a,b,c].
+    replaceSkipped("", ["a"]);
+    expect(loadSkipped("")).toEqual(["a"]);
+  });
+
+  it("removes the storage key entirely when given an empty set", () => {
+    saveSkipped("", ["a", "b"]);
+    replaceSkipped("", []);
+    expect(loadSkipped("")).toEqual([]);
+    // Key is gone, not left as an empty array, so it reads clean cross-tab.
+    expect(
+      window.localStorage.getItem("headout-cms:bulk-alt-skipped:"),
+    ).toBeNull();
+  });
+
+  it("writes the exact set, deduplicated, accepting any iterable", () => {
+    replaceSkipped("", new Set(["x", "y", "x"]));
+    expect(loadSkipped("")).toEqual(["x", "y"]);
+  });
+
+  it("scopes the replace to the targeted filter only", () => {
+    saveSkipped("", ["a"]);
+    saveSkipped("cats", ["b", "c"]);
+    replaceSkipped("cats", ["c"]);
+    expect(loadSkipped("cats")).toEqual(["c"]);
+    expect(loadSkipped("")).toEqual(["a"]);
+  });
+
+  it("does not throw when storage is unavailable", () => {
+    vi.stubGlobal("window", undefined);
+    expect(() => replaceSkipped("", ["a"])).not.toThrow();
+    expect(() => replaceSkipped("", [])).not.toThrow();
   });
 });
 

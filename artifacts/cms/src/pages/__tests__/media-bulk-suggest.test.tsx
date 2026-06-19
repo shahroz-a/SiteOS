@@ -54,6 +54,7 @@ const h_ = vi.hoisted(() => {
   const listCmsMedia = vi.fn((params: ListParams) => listImplRef.current(params));
   const loadSkipped = vi.fn((filter: string) => loadSkippedRef.current(filter));
   const saveSkipped = vi.fn();
+  const replaceSkipped = vi.fn();
   const clearSkipped = vi.fn();
   const loadApproved = vi.fn((filter: string) =>
     loadApprovedRef.current(filter),
@@ -79,6 +80,7 @@ const h_ = vi.hoisted(() => {
     listCmsMedia,
     loadSkipped,
     saveSkipped,
+    replaceSkipped,
     clearSkipped,
     loadApproved,
     saveApproved,
@@ -109,6 +111,7 @@ vi.mock("@workspace/ui", () => ({
 vi.mock("@/lib/bulk-alt-progress", () => ({
   loadSkipped: h_.loadSkipped,
   saveSkipped: h_.saveSkipped,
+  replaceSkipped: h_.replaceSkipped,
   clearSkipped: h_.clearSkipped,
   loadApproved: h_.loadApproved,
   saveApproved: h_.saveApproved,

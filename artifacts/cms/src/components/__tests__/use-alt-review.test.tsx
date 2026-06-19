@@ -142,6 +142,7 @@ function renderReview(args: {
   initialApproved?: Record<string, string>;
   fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
   onSkippedChange?: (skippedUrls: string[]) => void;
+  onSkippedReset?: (skippedUrls: string[]) => void;
   onApprovedChange?: (approved: Record<string, string>) => void;
   onCompleted?: () => void;
 }) {
@@ -650,10 +651,12 @@ describe("useAltReview — cross-tab approval sync", () => {
 
   it("promotes an image skipped here then approved in another tab from skipped to approved", () => {
     const onSkippedChange = vi.fn();
+    const onSkippedReset = vi.fn();
     const r = renderReview({
       initialItems: [mk("a")],
       total: 5,
       onSkippedChange,
+      onSkippedReset,
       fetchNext: vi.fn(async () => []),
     });
     // Skip 'a' in this tab.
@@ -673,8 +676,10 @@ describe("useAltReview — cross-tab approval sync", () => {
     expect(r.api.session.skipped).toBe(0);
     expect(r.api.session.approved).toBe(1);
     expect(r.api.handled).toBe(1);
-    // The persisted skip set shrinks so a reopened pass won't re-show it.
-    expect(onSkippedChange).toHaveBeenLastCalledWith([]);
+    // The persisted skip set shrinks via the reset channel (an authoritative
+    // replace), not onSkippedChange (which only ever grows it), so a reopened
+    // pass won't re-show the now-approved image as skipped.
+    expect(onSkippedReset).toHaveBeenLastCalledWith([]);
     r.unmount();
   });
 

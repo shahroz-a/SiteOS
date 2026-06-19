@@ -275,6 +275,7 @@ describe("ReviewBody — skipped review & clear", () => {
     );
 
     const onSkippedChange = vi.fn();
+    const onSkippedReset = vi.fn();
     const fetchNext = vi.fn().mockResolvedValue(refetched);
     const renderer = render({
       filter: "",
@@ -283,6 +284,7 @@ describe("ReviewBody — skipped review & clear", () => {
       initialSkipped: skipped,
       fetchNext,
       onSkippedChange,
+      onSkippedReset,
       onClose: vi.fn(),
     });
 
@@ -303,8 +305,9 @@ describe("ReviewBody — skipped review & clear", () => {
     // The previously-skipped url is no longer excluded from the gather.
     const excludeArg = fetchNext.mock.calls.at(-1)![0] as string[];
     expect(excludeArg).not.toContain(skipped[0]);
-    // Persistence was cleared and the counter reset.
-    expect(onSkippedChange).toHaveBeenLastCalledWith([]);
+    // Persistence was cleared (via the authoritative reset channel) and the
+    // counter reset.
+    expect(onSkippedReset).toHaveBeenLastCalledWith([]);
     const json = textOf(renderer.toJSON());
     expect(json).not.toContain("Review 1 skipped");
     expect(fetchNext).toHaveBeenCalled();
@@ -313,6 +316,7 @@ describe("ReviewBody — skipped review & clear", () => {
   it("Clear forgets restored skips without reviewing them", () => {
     const skipped = ["https://cdn-img.headout.com/old-1.jpg"];
     const onSkippedChange = vi.fn();
+    const onSkippedReset = vi.fn();
     const fetchNext = vi.fn().mockResolvedValue([]);
     const renderer = render({
       filter: "",
@@ -321,6 +325,7 @@ describe("ReviewBody — skipped review & clear", () => {
       initialSkipped: skipped,
       fetchNext,
       onSkippedChange,
+      onSkippedReset,
       onClose: vi.fn(),
     });
 
@@ -331,8 +336,9 @@ describe("ReviewBody — skipped review & clear", () => {
       .find((b) => b.props["aria-label"] === "Clear skipped images")!;
     act(() => clearBtn.props.onClick());
 
-    // Persistence cleared, count zeroed, and no window reload was triggered.
-    expect(onSkippedChange).toHaveBeenLastCalledWith([]);
+    // Persistence cleared (via the authoritative reset channel), count zeroed,
+    // and no window reload was triggered.
+    expect(onSkippedReset).toHaveBeenLastCalledWith([]);
     expect(fetchNext).not.toHaveBeenCalled();
     expect(textOf(renderer.toJSON())).not.toContain("skipped");
   });

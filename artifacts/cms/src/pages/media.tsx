@@ -21,6 +21,7 @@ import {
 import {
   loadSkipped,
   saveSkipped,
+  replaceSkipped,
   clearSkipped,
   loadApproved,
   saveApproved,
@@ -255,6 +256,9 @@ export default function MediaPage() {
         }
         onSkippedChange={(skipped) => {
           if (bulkSession) saveSkipped(bulkSession.filter, skipped);
+        }}
+        onSkippedReset={(skipped) => {
+          if (bulkSession) replaceSkipped(bulkSession.filter, skipped);
         }}
         onApprovedChange={(approved) => {
           if (bulkSession) saveApproved(bulkSession.filter, approved);

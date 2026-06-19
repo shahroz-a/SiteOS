@@ -90,6 +90,32 @@ export function clearSkipped(filter: string): void {
 }
 
 /**
+ * Authoritatively replace the persisted skipped set for a filter with exactly
+ * `urls` (removing the key entirely when empty). Never throws.
+ *
+ * This is the counterpart to `saveSkipped`'s union/grow semantics: `saveSkipped`
+ * can only ever *add* URLs, so it can't honour an intentional *shrink* — when a
+ * pass pulls its skips back in for review, forgets them, or promotes one to an
+ * approval, the new (smaller) set must overwrite, not merge. Callers that need
+ * to reduce the persisted set use this; callers that record a new skip keep
+ * using `saveSkipped` so concurrent tabs each adding skips still converge.
+ */
+export function replaceSkipped(filter: string, urls: Iterable<string>): void {
+  const storage = safeStorage();
+  if (!storage) return;
+  try {
+    const next = [...new Set(urls)];
+    if (next.length === 0) {
+      storage.removeItem(keyFor(filter));
+    } else {
+      storage.setItem(keyFor(filter), JSON.stringify(next));
+    }
+  } catch {
+    // Quota exceeded or storage unavailable — progress is best-effort.
+  }
+}
+
+/**
  * Subscribe to cross-tab changes to a filter's persisted skip set.
  *
  * The browser fires a `storage` event in *other* tabs (never the one that made

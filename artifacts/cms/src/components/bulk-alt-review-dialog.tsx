@@ -68,6 +68,13 @@ interface BulkAltReviewDialogProps {
    */
   onSkippedChange?: (skippedUrls: string[]) => void;
   /**
+   * Called when the skip set *shrinks* (skips reviewed, forgotten, or promoted
+   * to an approval). The parent must authoritatively *replace* the persisted
+   * value here — `onSkippedChange` only ever grows it (union) and can't honour a
+   * removal.
+   */
+  onSkippedReset?: (skippedUrls: string[]) => void;
+  /**
    * Called whenever an image is approved, with the full url→alt map approved so
    * far this pass. The parent persists this on the cross-tab channel so other
    * open tabs running the same pass reflect it as already handled.
@@ -83,6 +90,7 @@ export function BulkAltReviewDialog({
   onOpenChange,
   fetchNext,
   onSkippedChange,
+  onSkippedReset,
   onApprovedChange,
   onCompleted,
 }: BulkAltReviewDialogProps) {
@@ -98,6 +106,7 @@ export function BulkAltReviewDialog({
             initialApproved={session.approved}
             fetchNext={fetchNext}
             onSkippedChange={onSkippedChange}
+            onSkippedReset={onSkippedReset}
             onApprovedChange={onApprovedChange}
             onCompleted={onCompleted}
             onClose={() => onOpenChange(false)}
@@ -116,6 +125,7 @@ export function ReviewBody({
   initialApproved,
   fetchNext,
   onSkippedChange,
+  onSkippedReset,
   onApprovedChange,
   onCompleted,
   onClose,
@@ -127,6 +137,7 @@ export function ReviewBody({
   initialApproved: Record<string, string>;
   fetchNext: (excludeUrls: string[]) => Promise<MediaItem[]>;
   onSkippedChange?: (skippedUrls: string[]) => void;
+  onSkippedReset?: (skippedUrls: string[]) => void;
   onApprovedChange?: (approved: Record<string, string>) => void;
   onCompleted?: () => void;
   onClose: () => void;
@@ -156,6 +167,7 @@ export function ReviewBody({
     initialApproved,
     fetchNext,
     onSkippedChange,
+    onSkippedReset,
     onApprovedChange,
     onCompleted,
   });
