@@ -4,6 +4,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 import {
   useListCmsHeldBackArticles,
   useResolveCmsHeldBackArticle,
+  useApproveCmsHeldBackArticle,
   useReparseCmsHeldBackArticle,
   useGetCmsHeldBackArticleSource,
   getGetCmsHeldBackArticleSourceQueryKey,
@@ -675,6 +676,10 @@ function ReextractPanel({
 }
 
 export default function HeldBackPage() {
+  const { toast } = useToast();
+  const { can } = useCmsAuth();
+  const queryClient = useQueryClient();
+  const canApprove = can("review.approve");
   const [search, setSearch] = useState("");
   const [issue, setIssue] = useState<ListCmsHeldBackArticlesIssue | typeof ALL_ISSUES>(
     ALL_ISSUES,
@@ -682,6 +687,39 @@ export default function HeldBackPage() {
   const [page, setPage] = useState(1);
 
   const q = useDebouncedValue(search, 300);
+
+  // Per-row "Approve" action. The endpoint re-validates server-side and only
+  // publishes when the article now passes; if it still fails it stays a draft
+  // and reports why. On a successful approval the list refetches so the row
+  // drops off the queue.
+  const approve = useApproveCmsHeldBackArticle({
+    mutation: {
+      onSuccess: (result) => {
+        if (result.approved) {
+          queryClient.invalidateQueries({
+            queryKey: getListCmsHeldBackArticlesQueryKey(),
+          });
+          toast({ title: "Article approved", description: "It passed validation and was published." });
+        } else {
+          toast({
+            title: "Not approved yet",
+            description:
+              result.validationStatus === null
+                ? "There's no validation data to confirm a pass. Open it to re-extract first."
+                : "It still fails content-fidelity checks. Open it to review and fix the import.",
+            variant: "destructive",
+          });
+        }
+      },
+      onError: () => {
+        toast({
+          title: "Could not approve article",
+          description: "You may not have permission, or something went wrong.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
 
   // Reset to the first page whenever the filters change.
   useEffect(() => {
@@ -825,13 +863,37 @@ export default function HeldBackPage() {
                     <FailIssues issues={article.issues} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openArticle(article)}
-                    >
-                      Review
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      {canApprove &&
+                      (article.validationStatus === "pass" ||
+                        article.validationStatus === "warn") ? (
+                        <Button
+                          size="sm"
+                          disabled={
+                            approve.isPending &&
+                            approve.variables?.id === article.id
+                          }
+                          onClick={() => approve.mutate({ id: article.id })}
+                        >
+                          {approve.isPending &&
+                          approve.variables?.id === article.id ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
+                              Approving…
+                            </>
+                          ) : (
+                            "Approve"
+                          )}
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openArticle(article)}
+                      >
+                        Review
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

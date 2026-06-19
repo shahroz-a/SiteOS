@@ -1097,6 +1097,59 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /cms/held-back-articles/{id}/approve:
+    post:
+      tags: [cms]
+      operationId: approveCmsHeldBackArticle
+      summary: Approve a held-back article if it now passes validation (requires review.approve)
+      description: >-
+        Re-validate a held-back article server-side using the CURRENT
+        content-fidelity rules (re-scoring the latest captured source/parsed
+        tallies) and, only if it now passes (no failing checks), flip
+        pages.status from draft to published so it leaves the review queue and
+        becomes public. Unlike the "publish" override on PATCH
+        /cms/held-back-articles/{id}, this never publishes an article that still
+        fails — it returns approved=false with the live verdict instead, leaving
+        the article a draft. A successful approval is audited via the
+        append-only audit log. Restricted to articles still in the review queue
+        (pages.status="draft", page_type="post").
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The page id of the held-back article to approve.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: >-
+            The approval outcome. When approved is true the article was
+            published; when false it still fails validation and stays a draft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApproveHeldBackArticleResponse"
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Insufficient permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Article not found or not in the review queue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /cms/held-back-articles/{id}/source:
     get:
       tags: [cms]
@@ -5272,6 +5325,41 @@ components:
           type: string
           enum: [published, archived]
           description: The article's status after the decision was applied.
+
+    ApproveHeldBackArticleResponse:
+      type: object
+      required: [id, slug, approved, status, validationStatus, validationScore, issues]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        approved:
+          type: boolean
+          description: >-
+            True when the article re-validated cleanly and was published; false
+            when it still fails (or has no validation data) and was left a draft.
+        status:
+          type: string
+          enum: [published, draft]
+          description: The article's status after the approval attempt.
+        validationStatus:
+          type:
+            - string
+            - 'null'
+          enum: [pass, warn, fail, null]
+          description: >-
+            The live content-fidelity verdict computed server-side at approval
+            time, or null when the article has no validation data to re-score.
+        validationScore:
+          type:
+            - integer
+            - 'null'
+          description: The content-fidelity score (0-100), or null when there is no data.
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/HeldBackValidationIssue'
 
     ReparseHeldBackArticleRequest:
       type: object

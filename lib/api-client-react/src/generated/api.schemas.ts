@@ -1611,6 +1611,50 @@ export interface ResolveHeldBackArticleResponse {
   status: ResolveHeldBackArticleResponseStatus;
 }
 
+/**
+ * The article's status after the approval attempt.
+ */
+export type ApproveHeldBackArticleResponseStatus = typeof ApproveHeldBackArticleResponseStatus[keyof typeof ApproveHeldBackArticleResponseStatus];
+
+
+export const ApproveHeldBackArticleResponseStatus = {
+  published: 'published',
+  draft: 'draft',
+} as const;
+
+/**
+ * The live content-fidelity verdict computed server-side at approval time, or null when the article has no validation data to re-score.
+ * @nullable
+ */
+export type ApproveHeldBackArticleResponseValidationStatus = typeof ApproveHeldBackArticleResponseValidationStatus[keyof typeof ApproveHeldBackArticleResponseValidationStatus] | null;
+
+
+export const ApproveHeldBackArticleResponseValidationStatus = {
+  pass: 'pass',
+  warn: 'warn',
+  fail: 'fail',
+} as const;
+
+export interface ApproveHeldBackArticleResponse {
+  id: string;
+  slug: string;
+  /** True when the article re-validated cleanly and was published; false when it still fails (or has no validation data) and was left a draft. */
+  approved: boolean;
+  /** The article's status after the approval attempt. */
+  status: ApproveHeldBackArticleResponseStatus;
+  /**
+     * The live content-fidelity verdict computed server-side at approval time, or null when the article has no validation data to re-score.
+     * @nullable
+     */
+  validationStatus: ApproveHeldBackArticleResponseValidationStatus;
+  /**
+     * The content-fidelity score (0-100), or null when there is no data.
+     * @nullable
+     */
+  validationScore: number | null;
+  issues: HeldBackValidationIssue[];
+}
+
 export interface ReparseHeldBackArticleRequest {
   /** Hand-edited article body HTML to parse instead of the stored source. When omitted, the stored source HTML (cleaned, falling back to the raw original) is re-parsed as-is. */
   html?: string;

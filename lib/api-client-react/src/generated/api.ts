@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApproveHeldBackArticleResponse,
   AuditLogListResponse,
   AuthUserEnvelope,
   Author,
@@ -2829,6 +2830,77 @@ export const useResolveCmsHeldBackArticle = <TError = ErrorType<ErrorEnvelope>,
         TContext
       > => {
       return useMutation(getResolveCmsHeldBackArticleMutationOptions(options));
+    }
+
+export const getApproveCmsHeldBackArticleUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/held-back-articles/${id}/approve`
+}
+
+/**
+ * Re-validate a held-back article server-side using the CURRENT content-fidelity rules (re-scoring the latest captured source/parsed tallies) and, only if it now passes (no failing checks), flip pages.status from draft to published so it leaves the review queue and becomes public. Unlike the "publish" override on PATCH /cms/held-back-articles/{id}, this never publishes an article that still fails — it returns approved=false with the live verdict instead, leaving the article a draft. A successful approval is audited via the append-only audit log. Restricted to articles still in the review queue (pages.status="draft", page_type="post").
+ * @summary Approve a held-back article if it now passes validation (requires review.approve)
+ */
+export const approveCmsHeldBackArticle = async (id: string, options?: RequestInit): Promise<ApproveHeldBackArticleResponse> => {
+
+  return customFetch<ApproveHeldBackArticleResponse>(getApproveCmsHeldBackArticleUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getApproveCmsHeldBackArticleMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCmsHeldBackArticle>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveCmsHeldBackArticle>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['approveCmsHeldBackArticle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveCmsHeldBackArticle>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  approveCmsHeldBackArticle(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveCmsHeldBackArticleMutationResult = NonNullable<Awaited<ReturnType<typeof approveCmsHeldBackArticle>>>
+
+    export type ApproveCmsHeldBackArticleMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Approve a held-back article if it now passes validation (requires review.approve)
+ */
+export const useApproveCmsHeldBackArticle = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCmsHeldBackArticle>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveCmsHeldBackArticle>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getApproveCmsHeldBackArticleMutationOptions(options));
     }
 
 export const getGetCmsHeldBackArticleSourceUrl = (id: string,) => {

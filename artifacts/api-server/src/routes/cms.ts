@@ -25,6 +25,8 @@ import {
   ResolveCmsHeldBackArticleBody,
   ResolveCmsHeldBackArticleParams,
   ResolveCmsHeldBackArticleResponse,
+  ApproveCmsHeldBackArticleParams,
+  ApproveCmsHeldBackArticleResponse,
   UpdateCmsUserRoleBody,
   UpdateCmsUserRoleParams,
   UpdateCmsUserRoleResponse,
@@ -390,6 +392,127 @@ router.patch(
         id: updated.id,
         slug: updated.slug,
         status: updated.status,
+      }),
+    );
+  },
+);
+
+// Approve a held-back article ONLY IF it now passes content-fidelity
+// validation. Unlike the "publish" action above (an explicit override that
+// releases an article despite failing checks), this is the safe happy-path
+// approval: it re-scores the article's latest captured validation tallies
+// through the CURRENT validator (the same `rescoreStoredValidation` the queue
+// list uses), and publishes (draft → published) only when there is no failing
+// check. If it still fails — or has no validation data to re-score — the
+// article is left a draft and the live verdict is returned with approved=false,
+// so the per-row table action can tell the editor it isn't ready yet. A
+// successful approval is audited. Gated on review.approve.
+router.post(
+  "/cms/held-back-articles/:id/approve",
+  requireAuth,
+  requirePermission("review.approve"),
+  async (req: Request, res: Response) => {
+    const { id } = ApproveCmsHeldBackArticleParams.parse(req.params);
+
+    // Only a draft post is part of the review queue.
+    const [page] = await db
+      .select({
+        id: pagesTable.id,
+        slug: pagesTable.slug,
+        title: pagesTable.title,
+        url: pagesTable.canonicalUrl,
+        pageType: pagesTable.pageType,
+      })
+      .from(pagesTable)
+      .where(
+        and(
+          eq(pagesTable.id, id),
+          eq(pagesTable.status, "draft"),
+          eq(pagesTable.pageType, "post"),
+        ),
+      );
+
+    if (!page) {
+      res.status(404).json({ error: "Article not found in the review queue" });
+      return;
+    }
+
+    // Re-score the LATEST captured validation row through the current validator.
+    const [latest] = await db
+      .select({ issues: validationReportsTable.issues })
+      .from(validationReportsTable)
+      .where(eq(validationReportsTable.pageId, id))
+      .orderBy(desc(validationReportsTable.createdAt))
+      .limit(1);
+
+    // No validation data → cannot confirm a pass; refuse (zero-count tallies
+    // would otherwise score as a false "pass"). Editor should re-extract first.
+    if (!latest) {
+      res.json(
+        ApproveCmsHeldBackArticleResponse.parse({
+          id: page.id,
+          slug: page.slug,
+          approved: false,
+          status: "draft",
+          validationStatus: null,
+          validationScore: null,
+          issues: [],
+        }),
+      );
+      return;
+    }
+
+    const verdict = rescoreStoredValidation(latest.issues, {
+      pageType: page.pageType,
+      url: page.url,
+      title: page.title,
+    });
+
+    // Still failing → leave it a draft and report the live verdict.
+    if (verdict.status === "fail") {
+      res.json(
+        ApproveCmsHeldBackArticleResponse.parse({
+          id: page.id,
+          slug: page.slug,
+          approved: false,
+          status: "draft",
+          validationStatus: verdict.status,
+          validationScore: verdict.score,
+          issues: verdict.issues,
+        }),
+      );
+      return;
+    }
+
+    // Passes (pass/warn) → publish and audit the approval.
+    const [updated] = await db
+      .update(pagesTable)
+      .set({ status: "published", updatedAt: new Date() })
+      .where(eq(pagesTable.id, id))
+      .returning({ id: pagesTable.id, slug: pagesTable.slug });
+
+    await recordAudit(req, {
+      action: "article.approve",
+      entityType: "page",
+      entityId: id,
+      actorRole: req.cmsRole ?? null,
+      before: { status: "draft" },
+      after: {
+        status: "published",
+        validationStatus: verdict.status,
+        validationScore: verdict.score,
+      },
+    });
+
+    res.json(
+      ApproveCmsHeldBackArticleResponse.parse({
+        id: updated.id,
+        slug: updated.slug,
+        approved: true,
+        status: "published",
+        validationStatus: verdict.status,
+        validationScore: verdict.score,
+        issues: verdict.issues,
       }),
     );
   },

@@ -36,6 +36,7 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: "post.restore", label: "Restored a version" },
   { value: "post.update", label: "Updated a post" },
   { value: "post.publish", label: "Published a post" },
+  { value: "article.approve", label: "Approved a held-back article" },
   { value: MEDIA_UPDATE_ACTION, label: "Edited image description" },
 ];
 

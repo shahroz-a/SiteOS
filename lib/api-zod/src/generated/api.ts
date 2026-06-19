@@ -1019,6 +1019,35 @@ export const ResolveCmsHeldBackArticleResponse = zod.object({
 
 
 /**
+ * Re-validate a held-back article server-side using the CURRENT content-fidelity rules (re-scoring the latest captured source/parsed tallies) and, only if it now passes (no failing checks), flip pages.status from draft to published so it leaves the review queue and becomes public. Unlike the "publish" override on PATCH /cms/held-back-articles/{id}, this never publishes an article that still fails — it returns approved=false with the live verdict instead, leaving the article a draft. A successful approval is audited via the append-only audit log. Restricted to articles still in the review queue (pages.status="draft", page_type="post").
+ * @summary Approve a held-back article if it now passes validation (requires review.approve)
+ */
+export const ApproveCmsHeldBackArticleParams = zod.object({
+  "id": zod.string().describe('The page id of the held-back article to approve.')
+})
+
+export const ApproveCmsHeldBackArticleHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ApproveCmsHeldBackArticleResponse = zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "approved": zod.boolean().describe('True when the article re-validated cleanly and was published; false when it still fails (or has no validation data) and was left a draft.'),
+  "status": zod.enum(['published', 'draft']).describe('The article\'s status after the approval attempt.'),
+  "validationStatus": zod.union([zod.literal('pass'),zod.literal('warn'),zod.literal('fail'),zod.literal(null)]).nullable().describe('The live content-fidelity verdict computed server-side at approval time, or null when the article has no validation data to re-score.'),
+  "validationScore": zod.number().nullable().describe('The content-fidelity score (0-100), or null when there is no data.'),
+  "issues": zod.array(zod.object({
+  "field": zod.string(),
+  "source": zod.number(),
+  "parsed": zod.number(),
+  "severity": zod.enum(['warn', 'fail']),
+  "message": zod.string()
+}))
+})
+
+
+/**
  * The faithful source body (cleaned article HTML, falling back to the raw original HTML when no cleaned body exists) alongside the parsed structured representations (componentTree and richText) the importer extracted. Lets an editor render the source next to the parsed output and visually spot what the importer dropped or garbled before deciding to publish or dismiss. Restricted to articles still in the review queue (pages.status="draft", page_type="post").
  * @summary Source vs parsed bodies for one held-back article (requires review.approve)
  */

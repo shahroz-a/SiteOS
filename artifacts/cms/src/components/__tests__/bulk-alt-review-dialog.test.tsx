@@ -160,6 +160,7 @@ describe("ReviewBody — suggestion mapping across chunks", () => {
 
     const renderer = render({
       initialItems: items,
+      initialSkipped: [],
       total: items.length,
       fetchNext: vi.fn().mockResolvedValue([]),
       onClose: vi.fn(),
@@ -212,6 +213,7 @@ describe("ReviewBody — approve & skip", () => {
     const fetchNext = vi.fn().mockResolvedValue([]);
     const renderer = render({
       initialItems: items,
+      initialSkipped: [],
       total: items.length,
       fetchNext,
       onClose: vi.fn(),
@@ -286,6 +288,7 @@ describe("ReviewBody — failed chunk", () => {
 
     const renderer = render({
       initialItems: items,
+      initialSkipped: [],
       total: items.length,
       fetchNext: vi.fn().mockResolvedValue([]),
       onClose: vi.fn(),

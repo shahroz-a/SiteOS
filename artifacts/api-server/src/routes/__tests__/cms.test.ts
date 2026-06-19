@@ -779,3 +779,103 @@ describe("PATCH /api/cms/held-back-articles/:id", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("POST /api/cms/held-back-articles/:id/approve", () => {
+  const PERMITTED: Role[] = ["admin", "editor", "reviewer"];
+
+  beforeEach(() => {
+    const fresh = seedHeldBack();
+    for (const k of Object.keys(tables)) delete tables[k];
+    for (const [k, v] of Object.entries(fresh)) tables[k] = v;
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    const res = await request(app).post(
+      "/api/cms/held-back-articles/p-pass/approve",
+    );
+    expect(res.status).toBe(401);
+  });
+
+  for (const role of ROLES.filter((r) => !PERMITTED.includes(r))) {
+    it(`returns 403 for ${role} (lacks review.approve)`, async () => {
+      const res = await request(app)
+        .post("/api/cms/held-back-articles/p-pass/approve")
+        .set("Authorization", bearer(role));
+      expect(res.status).toBe(403);
+    });
+  }
+
+  it("publishes an article that now re-scores to a pass and audits it", async () => {
+    // p-pass's latest stored report re-scores to a pass under current rules.
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-pass/approve")
+      .set("Authorization", bearer("reviewer"));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: "p-pass",
+      slug: "fine-article",
+      approved: true,
+      status: "published",
+      validationStatus: "pass",
+    });
+    expect(tables.pages.find((p) => p.id === "p-pass")?.status).toBe(
+      "published",
+    );
+    expect(tables.audit_logs).toHaveLength(1);
+    expect(tables.audit_logs[0].action).toBe("article.approve");
+    expect(tables.audit_logs[0].entityId).toBe("p-pass");
+  });
+
+  it("refuses to publish an article that still fails (stays a draft, not audited)", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-fail/approve")
+      .set("Authorization", bearer("editor"));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: "p-fail",
+      approved: false,
+      status: "draft",
+      validationStatus: "fail",
+    });
+    expect(tables.pages.find((p) => p.id === "p-fail")?.status).toBe("draft");
+    expect(tables.audit_logs).toHaveLength(0);
+  });
+
+  it("refuses to publish when there is no validation data (approved=false, null verdict)", async () => {
+    // Drop every validation row so the article has nothing to re-score.
+    tables.validation_reports = [];
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-pass/approve")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      approved: false,
+      status: "draft",
+      validationStatus: null,
+      validationScore: null,
+    });
+    expect(tables.pages.find((p) => p.id === "p-pass")?.status).toBe("draft");
+    expect(tables.audit_logs).toHaveLength(0);
+  });
+
+  it("returns 404 for a published post (not in the queue)", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-pub/approve")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for a draft non-post page (not in the queue)", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/p-cat/approve")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for an unknown id", async () => {
+    const res = await request(app)
+      .post("/api/cms/held-back-articles/does-not-exist/approve")
+      .set("Authorization", bearer("admin"));
+    expect(res.status).toBe(404);
+  });
+});
