@@ -18,7 +18,7 @@ import { validateExtraction } from "./validate";
 import { logCrawl, storePage, storeValidation } from "./store";
 import { closeBrowser, isBrowserAvailable } from "./browser";
 import { generateReports } from "./reports";
-import { isAssetUrl, isBlogUrl, sleep } from "./util";
+import { collapseSlashes, isAssetUrl, isBlogUrl, isMalformedBlogUrl, sleep } from "./util";
 import type { CrawlQueueItem } from "@workspace/db";
 
 export interface DiscoverResult {
@@ -116,8 +116,14 @@ export async function processItem(
     });
 
     // Frontier expansion: enqueue internal blog links discovered on the page.
+    // Normalize (collapse accidental `//`) and drop structurally malformed hrefs
+    // (concatenated/bare-domain links) so the queue's failed count reflects real
+    // fetch problems, not garbage source markup that can never resolve.
     for (const link of page.internalLinks) {
-      if (isBlogUrl(link.href) && !isAssetUrl(link.href)) await enqueueOne(link.href, item.url, 10);
+      const href = collapseSlashes(link.href);
+      if (isBlogUrl(href) && !isAssetUrl(href) && !isMalformedBlogUrl(href)) {
+        await enqueueOne(href, item.url, 10);
+      }
     }
 
     return { status: "completed", pageId: stored.pageId, changed: stored.changed, validation };

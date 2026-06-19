@@ -61,6 +61,48 @@ export function isAssetUrl(url: string): boolean {
   return ASSET_EXT.test(path);
 }
 
+/**
+ * Collapse accidental repeated slashes in a URL's path (e.g.
+ * `…/singapore-zoo//` → `…/singapore-zoo/`), which source markup frequently
+ * produces. The `scheme://` separator and the query/hash are left untouched.
+ * Returns the input unchanged if it can't be parsed.
+ */
+export function collapseSlashes(url: string): string {
+  try {
+    const u = new URL(url);
+    u.pathname = u.pathname.replace(/\/{2,}/g, "/");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * True when a blog URL's path is structurally malformed — an artifact of bad
+ * source markup, not a real page: a bare domain mistakenly used as a relative
+ * link (`…/introducingathens.com`, `…/www.collectionpage.com`) or a concatenated
+ * href carrying an embedded protocol/quote (`…/:%22https://…`, `…/“https://…`).
+ * Such links never resolve, so enqueuing them only inflates the permanent-failure
+ * count. Non-page assets are handled separately by `isAssetUrl`.
+ */
+export function isMalformedBlogUrl(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return true;
+  }
+  const path = u.pathname;
+  // An embedded protocol or quote character left over from a concatenated href.
+  if (/\/https?:|:\/\/|%22|%27|%e2%80%9[cd]|["'<>]/i.test(path)) return true;
+  // A path segment that is itself a hostname (dot-separated label). Real blog
+  // slugs never contain a dot, so any dotted non-asset segment is garbage.
+  for (const seg of path.split("/")) {
+    if (seg && /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(seg)) return true;
+  }
+  return false;
+}
+
 export function isInternalUrl(url: string): boolean {
   try {
     return new URL(url).origin === SITE_ORIGIN;
