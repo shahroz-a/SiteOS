@@ -87,7 +87,7 @@ function parseArgs(argv: string[]): Options {
  * page's pathname in ANY status (a held-back draft is pending review, not dead),
  * the explicit blog category/author routes, and the index.
  */
-async function loadServedPaths(): Promise<Set<string>> {
+export async function loadServedPaths(): Promise<Set<string>> {
   const served = new Set<string>();
   served.add(normalizeTargetPath("/blog/"));
 
@@ -114,7 +114,7 @@ async function loadServedPaths(): Promise<Set<string>> {
  * `null` if the request failed. Tries HEAD first and falls back to GET when the
  * origin rejects HEAD (405/501) — some hosts only answer GET.
  */
-async function probeStatus(url: string, timeoutMs: number): Promise<number | null> {
+export async function probeStatus(url: string, timeoutMs: number): Promise<number | null> {
   const headers = {
     "user-agent": DEFAULT_CONFIG.userAgent,
     accept: "text/html,application/xhtml+xml,*/*",
