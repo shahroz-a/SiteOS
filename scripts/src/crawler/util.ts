@@ -153,6 +153,50 @@ export function isCleanBlogUrl(url: string): boolean {
 }
 
 /**
+ * True when a redirect destination ("to") will forward readers to a clean,
+ * resolvable URL once stored. Storage (`crawler/store.ts` + the prerender's
+ * `redirectTargetUrl`) keeps only the destination's PATH and reattaches an
+ * off-blog path to the Headout origin, so this check mirrors that contract — a
+ * hop that fails it would otherwise be persisted as a redirect to a broken
+ * target:
+ *  - On-blog targets reuse the shared `isCleanBlogUrl` gate (collapses repeated
+ *    slashes, rejects embedded URLs, query/junk segments, mis-cased/over-nested
+ *    paths).
+ *  - Off-blog targets are kept ONLY when they already live on the Headout origin.
+ *    A foreign host (e.g. a Google Maps link or any embedded third-party URL)
+ *    would have its host stripped and be silently re-hosted under headout.com,
+ *    forwarding readers to a path that doesn't exist there — so it's dropped.
+ *    The path must also be structurally sane: no embedded protocol/quote,
+ *    leading-hyphen fragment, whitespace, bare-domain segment, or malformed
+ *    percent-encoding.
+ * Returns false for anything unparseable.
+ */
+export function isResolvableRedirectTarget(url: string): boolean {
+  const collapsed = collapseSlashes(url);
+  if (isBlogUrl(collapsed)) return isCleanBlogUrl(collapsed);
+  let u: URL;
+  try {
+    u = new URL(collapsed);
+  } catch {
+    return false;
+  }
+  if (u.origin !== SITE_ORIGIN) return false;
+  const path = u.pathname;
+  if (/\/https?:|:\/\/|%22|%27|%e2%80%9[cd]|["'<>]/i.test(path)) return false;
+  for (const seg of path.split("/").filter(Boolean)) {
+    try {
+      decodeURIComponent(seg);
+    } catch {
+      return false;
+    }
+    if (seg.startsWith("-")) return false;
+    if (/%20|\s/i.test(seg)) return false;
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(seg)) return false;
+  }
+  return true;
+}
+
+/**
  * True when a queue item was discovered by frontier link-expansion (its
  * `discoveredFrom` is the page it was found on) rather than from a sitemap.
  * A frontier link that 404s is a dead internal link in source content — cruft,

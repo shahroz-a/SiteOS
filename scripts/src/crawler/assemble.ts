@@ -12,6 +12,7 @@ import {
   classifyUrl,
   countWords,
   isCleanBlogUrl,
+  isResolvableRedirectTarget,
   parentPathOf,
   sha256,
   slugFromUrl,
@@ -74,13 +75,21 @@ export function assemblePage(
   const redirectTarget =
     fetch.redirectChain.length > 0 ? fetch.finalUrl : null;
 
-  // Filter the recorded redirect chain to hops whose OLD path (`from`) is a
-  // clean, blog-serveable URL, using the SAME predicate as frontier expansion.
-  // Malformed/off-blog source-markup junk (embedded URLs, query strings, map
-  // links, bare domains, mis-cased/doubled paths) is dropped here — at the point
-  // the page's chain is built — so it can never reach the redirect list. The raw
-  // `fetch.redirectChain` is still used above for off-blog/loop detection.
-  const redirectChain = fetch.redirectChain.filter((hop) => isCleanBlogUrl(hop.from));
+  // Filter the recorded redirect chain to hops that are safe to persist. A hop
+  // is kept only when BOTH ends are sound:
+  //  - its OLD path (`from`) is a clean, blog-serveable URL (same predicate as
+  //    frontier expansion), and
+  //  - its DESTINATION (`to`) resolves to a clean, reachable target — an on-blog
+  //    page or a real Headout-origin page — not junk (embedded URLs, bare
+  //    domains, map links / foreign hosts) that storage would otherwise re-host
+  //    under headout.com and forward readers to a broken target.
+  // Filtering here, where the destination's full URL (host included) is still
+  // available, means malformed source-markup junk can never reach the redirect
+  // list. The raw `fetch.redirectChain` is still used above for off-blog/loop
+  // detection.
+  const redirectChain = fetch.redirectChain.filter(
+    (hop) => isCleanBlogUrl(hop.from) && isResolvableRedirectTarget(hop.to),
+  );
 
   // Content hash over the meaningful, lossless content representation.
   const contentHash = sha256(

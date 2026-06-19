@@ -5,6 +5,7 @@ import {
   isCleanBlogUrl,
   isFrontierDiscovered,
   isMalformedBlogUrl,
+  isResolvableRedirectTarget,
 } from "../util";
 
 const BASE = "https://www.headout.com/blog";
@@ -144,6 +145,47 @@ describe("isCleanBlogUrl", () => {
     expect(isCleanBlogUrl(`${BASE}/athens-in-august/introducingathens.com/bus`)).toBe(false);
     expect(isCleanBlogUrl(`${BASE}/aladdin/:%22https://en.wikipedia.org/x`)).toBe(false);
     expect(isCleanBlogUrl(`${BASE}/best-broadway-shows-january/%22`)).toBe(false);
+  });
+});
+
+describe("isResolvableRedirectTarget", () => {
+  it("accepts clean on-blog destinations (incl. ones needing slash-collapse)", () => {
+    expect(isResolvableRedirectTarget(`${BASE}/new-name/`)).toBe(true);
+    expect(isResolvableRedirectTarget(`${BASE}/acropolis-athens//tickets/`)).toBe(true);
+    expect(isResolvableRedirectTarget(`${BASE}/category/things-to-do-city-singapore/`)).toBe(true);
+  });
+
+  it("accepts legitimate off-blog destinations on the Headout origin", () => {
+    expect(
+      isResolvableRedirectTarget("https://www.headout.com/empire-state-building-tickets-c-234/"),
+    ).toBe(true);
+    expect(
+      isResolvableRedirectTarget("https://www.headout.com/london-theatre-tickets/six-e-9858/"),
+    ).toBe(true);
+  });
+
+  it("rejects foreign-host destinations (would be re-hosted under headout.com)", () => {
+    expect(isResolvableRedirectTarget("https://maps.google.com/?q=rome")).toBe(false);
+    expect(isResolvableRedirectTarget("https://www.example.com/some-page/")).toBe(false);
+  });
+
+  it("rejects on-blog destinations that are structurally malformed junk", () => {
+    expect(
+      isResolvableRedirectTarget(`${BASE}/foo/https://www.headout.com/blog/bar/`),
+    ).toBe(false);
+    expect(isResolvableRedirectTarget(`${BASE}/best-broadway-shows-january/%22`)).toBe(false);
+  });
+
+  it("rejects off-blog destinations whose path is junk (bare domain, embedded URL)", () => {
+    expect(isResolvableRedirectTarget("https://www.headout.com/introducingathens.com")).toBe(false);
+    expect(
+      isResolvableRedirectTarget("https://www.headout.com/x/:%22https://en.wikipedia.org/y"),
+    ).toBe(false);
+  });
+
+  it("rejects asset and unparseable destinations", () => {
+    expect(isResolvableRedirectTarget(`${BASE}/wp-content/uploads/2020/x.jpg`)).toBe(false);
+    expect(isResolvableRedirectTarget("not-a-url")).toBe(false);
   });
 });
 

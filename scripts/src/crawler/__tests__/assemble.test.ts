@@ -58,4 +58,44 @@ describe("assemblePage redirect-chain filtering", () => {
     expect(page.redirectChain).toHaveLength(1);
     expect(page.redirectChain[0]!.from).toBe(`${ORIGIN}/blog/acropolis-athens//tickets/`);
   });
+
+  it("drops hops whose DESTINATION is junk while keeping clean on-blog and off-blog targets", () => {
+    const page = assembleWith([
+      // clean on-blog destination — kept
+      { from: `${ORIGIN}/blog/old-a/`, to: `${ORIGIN}/blog/new-a/`, status: 301 },
+      // legitimate off-blog destination on the Headout origin — kept
+      {
+        from: `${ORIGIN}/blog/retired-piece/`,
+        to: `${ORIGIN}/empire-state-building-tickets-c-234/`,
+        status: 301,
+      },
+      // foreign-host destination (map link) — dropped (would be re-hosted on headout.com)
+      {
+        from: `${ORIGIN}/blog/where-to-eat/`,
+        to: "https://maps.google.com/?q=rome",
+        status: 301,
+      },
+      // embedded-URL junk destination — dropped
+      {
+        from: `${ORIGIN}/blog/disneyland-tips/`,
+        to: `${ORIGIN}/blog/foo/https://www.headout.com/blog/bar/`,
+        status: 301,
+      },
+      // bare-domain segment destination — dropped
+      {
+        from: `${ORIGIN}/blog/athens-guide/`,
+        to: `${ORIGIN}/introducingathens.com`,
+        status: 301,
+      },
+    ]);
+
+    expect(page.redirectChain).toEqual([
+      { from: `${ORIGIN}/blog/old-a/`, to: `${ORIGIN}/blog/new-a/`, status: 301 },
+      {
+        from: `${ORIGIN}/blog/retired-piece/`,
+        to: `${ORIGIN}/empire-state-building-tickets-c-234/`,
+        status: 301,
+      },
+    ]);
+  });
 });
