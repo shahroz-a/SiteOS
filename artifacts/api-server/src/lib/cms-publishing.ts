@@ -78,8 +78,9 @@ export async function transitionPost(
   to: PageStatusValue,
   scheduledFor: Date | null,
   now: Date = new Date(),
+  exec: Executor = db,
 ): Promise<TransitionResult> {
-  const [page] = await db
+  const [page] = await exec
     .select({ id: pagesTable.id, status: pagesTable.status })
     .from(pagesTable)
     .where(eq(pagesTable.id, id))
@@ -112,8 +113,8 @@ export async function transitionPost(
     patch.scheduledFor = null;
   }
 
-  await db.update(pagesTable).set(patch).where(eq(pagesTable.id, id));
-  const detail = await serializeCmsPostDetail(id);
+  await exec.update(pagesTable).set(patch).where(eq(pagesTable.id, id));
+  const detail = await serializeCmsPostDetail(id, exec);
   return { ok: true, before: from, detail: detail ?? undefined };
 }
 
@@ -125,8 +126,9 @@ export async function transitionPost(
  */
 export async function publishDueScheduledPosts(
   now: Date = new Date(),
+  exec: Executor = db,
 ): Promise<string[]> {
-  const rows = await db
+  const rows = await exec
     .update(pagesTable)
     .set({
       status: "published",
@@ -225,6 +227,7 @@ export async function changePostUrl(
   id: string,
   desiredSlug: string,
   createRedirect: boolean,
+  exec: Executor = db,
 ): Promise<UrlChangeResult> {
   const slug = slugify(desiredSlug);
   if (!slug) return { ok: false, error: "empty-slug" };
@@ -232,7 +235,7 @@ export async function changePostUrl(
   const newCanonical = canonicalUrlForSlug(slug);
   const newPathname = pathnameForSlug(slug);
 
-  const result = await db.transaction(async (txRaw) => {
+  const result = await exec.transaction(async (txRaw) => {
     const tx = txRaw as unknown as Executor;
     const [page] = await tx
       .select({
@@ -298,7 +301,7 @@ export async function changePostUrl(
   });
 
   if (!result.ok) return result;
-  const detail = await serializeCmsPostDetail(id);
+  const detail = await serializeCmsPostDetail(id, exec);
   return { ok: true, before: result.before, detail: detail ?? undefined };
 }
 
@@ -311,8 +314,9 @@ export interface RedirectResolution {
 /** Resolve a (possibly old) path to its active redirect target, if any. */
 export async function resolveRedirect(
   path: string,
+  exec: Executor = db,
 ): Promise<RedirectResolution> {
-  const [row] = await db
+  const [row] = await exec
     .select({
       toPath: redirectsTable.toPath,
       statusCode: redirectsTable.statusCode,
