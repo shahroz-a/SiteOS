@@ -95,8 +95,23 @@ export function isMalformedBlogUrl(url: string): boolean {
   const path = u.pathname;
   // An embedded protocol or quote character left over from a concatenated href.
   if (/\/https?:|:\/\/|%22|%27|%e2%80%9[cd]|["'<>]/i.test(path)) return true;
+  // Repeated slashes (`…/venice-itinerary//`) are a source-markup artifact: the
+  // URL is just a duplicate of its slash-collapsed form, never a distinct page.
+  if (/\/{2,}/.test(path)) return true;
   const segments = path.split("/").filter(Boolean);
   for (const seg of segments) {
+    // Real WordPress slugs are always lowercase; an uppercase letter marks a
+    // mis-cased duplicate (`/Melbourne-travel-guide/`) or a junk template token
+    // (`/LINK`) that only ever resolves to the canonical lowercase page already
+    // crawled. Decode first so percent-encoding hex (`%E2…`) isn't misread as a
+    // letter — genuine encoded junk is already caught by the checks above.
+    let decoded = seg;
+    try {
+      decoded = decodeURIComponent(seg);
+    } catch {
+      return true;
+    }
+    if (/[A-Z]/.test(decoded)) return true;
     // A leading-hyphen segment (e.g. `…/paris-3-day-itinerary/-catacombs/`) is a
     // botched relative link — a trailing `/-…` fragment joined onto the path.
     // Real WordPress slugs are never produced with a leading hyphen.

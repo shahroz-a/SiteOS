@@ -65,6 +65,21 @@ export async function processItem(
   let attempt = 0;
   const maxExtractionRetries = 2;
 
+  // Defense-in-depth: a claimed item whose URL is a non-page asset or structurally
+  // malformed (multi-slash / mis-cased / concatenated source-markup artifact) can
+  // never resolve to a distinct article — skip it without spending a fetch or
+  // storing a junk duplicate. The startup hygiene pass reclassifies these too,
+  // but a link enqueued mid-run could be claimed before the next pass.
+  if (isAssetUrl(item.url) || isMalformedBlogUrl(item.url)) {
+    await logCrawl({
+      url: item.url,
+      level: "info",
+      message: "skipped: malformed/asset URL",
+      durationMs: Date.now() - started,
+    });
+    return { status: "skipped" };
+  }
+
   while (attempt < maxExtractionRetries) {
     attempt += 1;
     const fetchResult = await fetchPage(item.url, config);
@@ -104,13 +119,17 @@ export async function processItem(
     }
 
     // Non-2xx with no body: treat as a failure to retry/record. A frontier-
-    // discovered link that is simply gone (404/410) is a dead internal link in
-    // the source content — expected cruft, not a migration blocker — so skip it
-    // (one attempt) rather than retrying to exhaustion and inflating the failed
-    // count. Sitemap-declared URLs and transient errors (5xx) still fail loudly.
+    // discovered link returning any client error (4xx) — gone (404/410),
+    // forbidden / bot-blocked (403), etc. — is a dead or inaccessible internal
+    // link in the source content, expected cruft rather than a migration
+    // blocker, so skip it (one attempt) instead of retrying to exhaustion and
+    // inflating the failed count. 429 (rate-limited) is transient and stays a
+    // retryable failure; sitemap-declared URLs and 5xx errors still fail loudly.
     if (fetchResult.httpStatus >= 400 || (!fetchResult.html && fetchResult.httpStatus !== 200)) {
       const deadLink =
-        (fetchResult.httpStatus === 404 || fetchResult.httpStatus === 410) &&
+        fetchResult.httpStatus >= 400 &&
+        fetchResult.httpStatus < 500 &&
+        fetchResult.httpStatus !== 429 &&
         isFrontierDiscovered(item.discoveredFrom);
       await logCrawl({
         url: item.url,

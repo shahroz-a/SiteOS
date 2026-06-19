@@ -218,6 +218,26 @@ export async function reclassifyMalformedQueueItems(): Promise<number> {
   return deadIds.length;
 }
 
+/**
+ * Make permanently-`failed` rows reclaimable again by resetting them to
+ * `pending` with a cleared attempt count. `claimBatch` only claims rows with
+ * `attempts < maxAttempts`, so a row that exhausted its attempts under an older
+ * (stricter) classification — before, e.g., the dead-link / off-blog / malformed
+ * skip rules existed — is stranded as `failed` and can never be re-evaluated.
+ * Run this once after improving the pipeline's skip logic so the next crawl
+ * re-classifies those rows correctly. Returns the number of rows reset.
+ */
+export async function resetFailedToPending(): Promise<number> {
+  const rows = await withRetry(() =>
+    db
+      .update(crawlQueueTable)
+      .set({ status: "pending", attempts: 0, startedAt: null, lastError: null })
+      .where(eq(crawlQueueTable.status, "failed"))
+      .returning({ id: crawlQueueTable.id }),
+  );
+  return rows.length;
+}
+
 export interface QueueStats {
   pending: number;
   in_progress: number;

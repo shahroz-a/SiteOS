@@ -4,6 +4,7 @@ import {
   runReports,
   queueStats,
   resetQueue,
+  resetFailedToPending,
   type CrawlerConfig,
 } from "./crawler";
 
@@ -12,6 +13,7 @@ interface CliFlags {
   crawl: boolean;
   reports: boolean;
   reset: boolean;
+  retryFailed: boolean;
   status: boolean;
   limit: number;
   concurrency: number | null;
@@ -25,6 +27,7 @@ function parseFlags(argv: string[]): CliFlags {
     crawl: false,
     reports: false,
     reset: false,
+    retryFailed: false,
     status: false,
     limit: 0,
     concurrency: null,
@@ -45,6 +48,9 @@ function parseFlags(argv: string[]): CliFlags {
         break;
       case "--reset":
         flags.reset = true;
+        break;
+      case "--retry-failed":
+        flags.retryFailed = true;
         break;
       case "--status":
         flags.status = true;
@@ -89,6 +95,8 @@ Flags:
   --all                 Run discover + crawl + reports in sequence
   --resume              Alias for --crawl (the DB queue is always resumable)
   --reset               Clear the crawl queue before running
+  --retry-failed        Reset permanently-failed rows to pending (attempts=0) so
+                        the next crawl re-classifies them under current skip rules
   --status              Print queue statistics and exit
   --limit=N             Process at most N pages this run (0 = unlimited)
   --concurrency=N       Override worker concurrency
@@ -119,6 +127,11 @@ async function main(): Promise<void> {
   if (flags.reset) {
     console.log("Resetting crawl queue…");
     await resetQueue();
+  }
+
+  if (flags.retryFailed) {
+    const reset = await resetFailedToPending();
+    console.log(`Reset ${reset} failed row(s) to pending for re-classification.`);
   }
 
   if (flags.status) {

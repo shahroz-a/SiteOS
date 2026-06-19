@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-19T13:26:50.405Z",
-  "total": 217,
+  "generatedAt": "2026-06-19T13:54:16.862Z",
+  "total": 228,
   "redirects": [
     {
       "id": "c3d0b936-0037-41ee-a26e-21d0460d7943",
@@ -1737,6 +1737,94 @@
       "statusCode": 301,
       "isActive": true,
       "createdAt": "2026-06-19T07:20:59.139Z"
+    },
+    {
+      "id": "2d8b71ba-974d-4f68-8d19-67c20441b720",
+      "fromPath": "/blog/unique-christmas-traditions-around-the-world/",
+      "toPath": "/blog/christmas-around-the-world/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:22.493Z"
+    },
+    {
+      "id": "fd6c0c4a-8f40-4d85-ae05-26cc72caf5cc",
+      "fromPath": "/blog/shinkansen-bullet-train-to-mount-fuji/",
+      "toPath": "/blog/shinkansen-bullet-train-guide/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:22.547Z"
+    },
+    {
+      "id": "3c21592b-a359-40c6-b150-a7c5e027025e",
+      "fromPath": "/blog/hong-kong-cruises/hongkongcruise5",
+      "toPath": "/blog/hong-kong-cruises/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:23.774Z"
+    },
+    {
+      "id": "77eeb604-a36c-4309-8b60-76f88c0e5279",
+      "fromPath": "/blog/gardens-by-the-bay-garden-rhapsody/",
+      "toPath": "/blog/garden-rhapsody-at-gardens-by-the-bay/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:24.783Z"
+    },
+    {
+      "id": "f1061828-7884-4f32-a09a-b09c7428858f",
+      "fromPath": "/blog/web-stories/paris-in-1-day-itinerary/",
+      "toPath": "/blog/web-stories/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:24.786Z"
+    },
+    {
+      "id": "137ab534-3c0d-44f2-9a09-ec3293a5627a",
+      "fromPath": "/blog/hong-kong-cruises/hongkongcruise6",
+      "toPath": "/blog/hong-kong-cruises/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:25.772Z"
+    },
+    {
+      "id": "91e9881a-cd2c-46b7-a3f6-2fccbcc5822e",
+      "fromPath": "/blog/disneyland-paris-tips",
+      "toPath": "/blog/web-stories/disneyland-paris-tips/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:28.512Z"
+    },
+    {
+      "id": "f5691c8a-fec1-402e-8257-ed141f5e6827",
+      "fromPath": "/blog/hong-kong-cruises/hongkongcruise4",
+      "toPath": "/blog/hong-kong-cruises/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:26.604Z"
+    },
+    {
+      "id": "bbfc6c9c-5a04-4dbd-971c-1a7e31fc44bb",
+      "fromPath": "/blog/web-stories/landmarks-in-bangkok/",
+      "toPath": "/blog/web-stories/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:27.353Z"
+    },
+    {
+      "id": "130f402e-46a8-49be-9d2e-63f2eeb7f596",
+      "fromPath": "/blog/vatican-city-secrets/",
+      "toPath": "/blog/secrets-of-the-vatican-city/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:29.422Z"
+    },
+    {
+      "id": "658f3c0c-d634-4104-aa09-f85943b8f42e",
+      "fromPath": "/blog/historical-landmarks-world/",
+      "toPath": "/blog/historical-landmarks-around-the-world-you-should-visit/",
+      "statusCode": 301,
+      "isActive": true,
+      "createdAt": "2026-06-19T13:49:34.907Z"
     }
   ]
 }

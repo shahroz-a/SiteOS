@@ -1,30 +1,31 @@
 {
-  "generatedAt": "2026-06-19T13:26:46.733Z",
+  "generatedAt": "2026-06-19T13:54:14.667Z",
   "queue": {
     "pending": 0,
     "in_progress": 0,
-    "completed": 3970,
-    "failed": 145,
-    "skipped": 2,
-    "total": 4117
+    "completed": 3995,
+    "failed": 0,
+    "skipped": 131,
+    "total": 4126
   },
-  "pages": 3698,
+  "pages": 3710,
   "pagesByType": {
     "post": 2941,
-    "page": 124,
+    "page": 122,
     "category": 568,
-    "author": 65
+    "author": 65,
+    "web-story": 14
   },
   "pagesStoredByType": {
     "post": 2941,
     "category": 568,
     "author": 65,
-    "page": 124,
-    "webStory": 0
+    "page": 122,
+    "webStory": 14
   },
-  "webStories": 0,
+  "webStories": 14,
   "authors": 97,
   "categories": 2212,
   "tags": 0,
-  "images": 65569
+  "images": 65889
 }

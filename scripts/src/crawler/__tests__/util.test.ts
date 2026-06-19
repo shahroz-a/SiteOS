@@ -57,6 +57,22 @@ describe("isMalformedBlogUrl", () => {
     expect(isMalformedBlogUrl(`${BASE}/author/some-author-ca-5~8027/`)).toBe(false);
   });
 
+  it("flags repeated slashes — a duplicate of the slash-collapsed URL", () => {
+    // Real corpus garbage: `.../1-day-venice-itinerary//`, `.../acropolis-athens//`.
+    expect(isMalformedBlogUrl(`${BASE}/1-day-venice-itinerary//`)).toBe(true);
+    expect(isMalformedBlogUrl(`${BASE}/acropolis-athens//tickets`)).toBe(true);
+  });
+
+  it("flags an uppercase slug (mis-cased duplicate) and junk template tokens", () => {
+    // Real corpus garbage: `/Melbourne-travel-guide/` and `/Ambassadors-theatre-seating-plan/`
+    // both have completed lowercase twins; `/barcelona-in-march/LINK` is a template token.
+    expect(isMalformedBlogUrl(`${BASE}/Melbourne-travel-guide/`)).toBe(true);
+    expect(isMalformedBlogUrl(`${BASE}/Ambassadors-theatre-seating-plan/`)).toBe(true);
+    expect(isMalformedBlogUrl(`${BASE}/barcelona-in-march/LINK`)).toBe(true);
+    // A normal all-lowercase slug stays valid.
+    expect(isMalformedBlogUrl(`${BASE}/melbourne-travel-guide/`)).toBe(false);
+  });
+
   it("flags a leading-hyphen segment from a botched relative link", () => {
     // Real corpus garbage: `.../paris-3-day-itinerary/-catacombs/` etc.
     expect(
