@@ -127,11 +127,16 @@ function ReviewBody({
   const setState = (url: string, next: ItemState) =>
     setStates((prev) => ({ ...prev, [url]: next }));
 
-  const fireSuggestions = (windowItems: MediaItem[]) => {
-    const urls = windowItems.map((it) => it.url);
-    setStates(
-      Object.fromEntries(urls.map((url) => [url, { kind: "suggesting" }])),
-    );
+  // Request AI suggestions for a set of URLs, marking each "suggesting" first
+  // and resolving to "ready"/"error" as chunks return. Used for both the
+  // initial per-window pass and for retrying individual failures.
+  const runSuggestions = (urls: string[]) => {
+    if (urls.length === 0) return;
+    setStates((prev) => {
+      const next = { ...prev };
+      for (const url of urls) next[url] = { kind: "suggesting" };
+      return next;
+    });
 
     const chunks: string[][] = [];
     for (let i = 0; i < urls.length; i += MAX_URLS_PER_BATCH) {
@@ -180,6 +185,27 @@ function ReviewBody({
         },
       );
     }
+  };
+
+  const fireSuggestions = (windowItems: MediaItem[]) =>
+    runSuggestions(windowItems.map((it) => it.url));
+
+  // Re-request a suggestion for one previously-failed image. Clearing `done`
+  // lets the pass resume auto-advancing if the whole window had stalled on
+  // failures.
+  const retry = (url: string) => {
+    setDone(false);
+    runSuggestions([url]);
+  };
+
+  // Re-request suggestions for every failed image in the current window.
+  const retryAllFailed = () => {
+    const failedUrls = queue
+      .map((it) => it.url)
+      .filter((url) => states[url]?.kind === "error");
+    if (failedUrls.length === 0) return;
+    setDone(false);
+    runSuggestions(failedUrls);
   };
 
   // Generate suggestions for the current window whenever a new one loads.
@@ -338,11 +364,23 @@ function ReviewBody({
             onChangeAlt={(alt) => setState(item.url, { kind: "ready", alt })}
             onApprove={(alt) => approve(item.url, alt)}
             onSkip={() => skip(item.url)}
+            onRetry={() => retry(item.url)}
           />
         ))}
       </div>
 
-      <DialogFooter className="border-t border-border/60 px-6 py-4">
+      <DialogFooter className="border-t border-border/60 px-6 py-4 sm:justify-between">
+        {counts.error > 0 ? (
+          <Button
+            variant="outline"
+            onClick={retryAllFailed}
+            disabled={advancing}
+          >
+            <RotateCcw className="h-4 w-4" /> Retry all failed ({counts.error})
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button variant="outline" onClick={onClose}>
           {done ? "Done" : "Close"}
         </Button>
@@ -358,6 +396,7 @@ function ReviewRow({
   onChangeAlt,
   onApprove,
   onSkip,
+  onRetry,
 }: {
   item: MediaItem;
   state: ItemState;
@@ -365,6 +404,7 @@ function ReviewRow({
   onChangeAlt: (alt: string) => void;
   onApprove: (alt: string) => void;
   onSkip: () => void;
+  onRetry: () => void;
 }) {
   const [failed, setFailed] = useState(false);
   const altMeta = ALT_STATUS_META[item.altStatus];
@@ -408,6 +448,7 @@ function ReviewRow({
           onChangeAlt={onChangeAlt}
           onApprove={onApprove}
           onSkip={onSkip}
+          onRetry={onRetry}
         />
       </div>
     </div>
@@ -420,12 +461,14 @@ function RowControls({
   onChangeAlt,
   onApprove,
   onSkip,
+  onRetry,
 }: {
   state: ItemState;
   saving: boolean;
   onChangeAlt: (alt: string) => void;
   onApprove: (alt: string) => void;
   onSkip: () => void;
+  onRetry: () => void;
 }) {
   if (state.kind === "suggesting" || state.kind === "pending") {
     return (
@@ -457,9 +500,16 @@ function RowControls({
 
   if (state.kind === "error") {
     return (
-      <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>{state.message}</span>
+      <div className="space-y-2">
+        <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{state.message}</span>
+        </div>
+        <div className="flex justify-end">
+          <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+            <RotateCcw className="h-4 w-4" /> Retry
+          </Button>
+        </div>
       </div>
     );
   }
