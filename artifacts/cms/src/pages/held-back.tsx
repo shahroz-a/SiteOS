@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListCmsHeldBackArticles,
@@ -31,6 +31,7 @@ import {
 import { Separator } from "@workspace/ui/separator";
 import { useToast } from "@workspace/ui";
 import { useCmsAuth } from "@/lib/cms-auth-context";
+import { diffBlocks, normalizeUrl } from "@/lib/content-diff";
 
 function statusBadge(status: HeldBackArticle["validationStatus"]) {
   if (status === "fail") {
@@ -124,8 +125,348 @@ function IssueRow({ issue }: { issue: HeldBackValidationIssue }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Source-vs-parsed visual diff                                        */
+/* ------------------------------------------------------------------ */
+
+const BLOCK_SELECTOR =
+  "p, li, h1, h2, h3, h4, h5, h6, blockquote, figcaption, th, td, dt, dd, summary";
+
+const REMOVED_CLS = [
+  "diff-marker",
+  "bg-destructive/10",
+  "border-l-2",
+  "border-destructive",
+  "pl-3",
+  "rounded-sm",
+];
+const CHANGED_CLS = [
+  "diff-marker",
+  "bg-amber-500/10",
+  "border-l-2",
+  "border-amber-500",
+  "pl-3",
+  "rounded-sm",
+];
+const IMG_CLS = [
+  "diff-marker",
+  "outline",
+  "outline-2",
+  "outline-offset-2",
+  "outline-destructive",
+];
+const LINK_CLS = [
+  "diff-marker",
+  "text-destructive",
+  "underline",
+  "decoration-destructive",
+  "decoration-2",
+  "underline-offset-2",
+];
+const ACTIVE_CLS = ["ring-2", "ring-primary", "ring-offset-2"];
+
+type MarkerType = "removed" | "changed" | "image" | "link";
+
+interface MarkerInfo {
+  type: MarkerType;
+  label: string;
+}
+
+interface DiffViewState {
+  dropped: number;
+  changed: number;
+  added: number;
+  missingImages: number;
+  missingLinks: number;
+  markers: MarkerInfo[];
+}
+
+/** Leaf block elements that actually hold text (no nested block descendant). */
+function leafBlockEls(root: HTMLElement): HTMLElement[] {
+  const all = Array.from(root.querySelectorAll<HTMLElement>(BLOCK_SELECTOR));
+  return all.filter(
+    (el) =>
+      !el.querySelector(BLOCK_SELECTOR) && (el.textContent ?? "").trim().length,
+  );
+}
+
+function truncate(s: string, n = 90): string {
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length > n ? `${t.slice(0, n)}…` : t;
+}
+
+const MARKER_META: Record<
+  MarkerType,
+  { dot: string; verb: string }
+> = {
+  removed: { dot: "bg-destructive", verb: "Dropped paragraph" },
+  changed: { dot: "bg-amber-500", verb: "Changed text" },
+  image: { dot: "bg-destructive", verb: "Missing image" },
+  link: { dot: "bg-destructive", verb: "Dropped link" },
+};
+
+function DiffControls({
+  state,
+  active,
+  onPrev,
+  onNext,
+  onJump,
+}: {
+  state: DiffViewState | null;
+  active: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onJump: (index: number) => void;
+}) {
+  if (!state) {
+    return (
+      <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+        Analyzing differences…
+      </div>
+    );
+  }
+
+  const total = state.markers.length;
+
+  if (total === 0) {
+    return (
+      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-900 dark:text-emerald-200">
+        No differences detected — the importer kept every paragraph, image, and
+        link from the source.
+      </div>
+    );
+  }
+
+  const chips: { label: string; count: number; cls: string }[] = [
+    {
+      label: "dropped",
+      count: state.dropped,
+      cls: "bg-destructive/10 text-destructive",
+    },
+    {
+      label: "changed",
+      count: state.changed,
+      cls: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    },
+    {
+      label: "missing images",
+      count: state.missingImages,
+      cls: "bg-destructive/10 text-destructive",
+    },
+    {
+      label: "dropped links",
+      count: state.missingLinks,
+      cls: "bg-destructive/10 text-destructive",
+    },
+    {
+      label: "importer-added",
+      count: state.added,
+      cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    },
+  ].filter((c) => c.count > 0);
+
+  return (
+    <div className="space-y-3 rounded-md border border-border/60 bg-muted/20 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {chips.map((c) => (
+            <span
+              key={c.label}
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.cls}`}
+            >
+              {c.count} {c.label}
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {active >= 0 ? active + 1 : "—"} / {total}
+          </span>
+          <Button size="sm" variant="outline" onClick={onPrev}>
+            Prev
+          </Button>
+          <Button size="sm" variant="outline" onClick={onNext}>
+            Next difference
+          </Button>
+        </div>
+      </div>
+
+      <ol className="max-h-32 space-y-0.5 overflow-y-auto text-sm">
+        {state.markers.map((m, i) => {
+          const meta = MARKER_META[m.type];
+          return (
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => onJump(i)}
+                className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-muted ${
+                  i === active ? "bg-muted" : ""
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`}
+                  aria-hidden
+                />
+                <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                  {meta.verb}
+                </span>
+                <span className="truncate text-xs text-muted-foreground/80">
+                  {m.label}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
 function SourceComparison({ articleId }: { articleId: string }) {
   const { data, isLoading, isError } = useGetCmsHeldBackArticleSource(articleId);
+
+  const sourceRef = useRef<HTMLDivElement>(null);
+  const parsedRef = useRef<HTMLDivElement>(null);
+  const markerElsRef = useRef<HTMLElement[]>([]);
+  const [diff, setDiff] = useState<DiffViewState | null>(null);
+  const [active, setActive] = useState(-1);
+
+  const hasSource = Boolean(data?.sourceHtml && data.sourceHtml.trim().length);
+  const hasParsed = Boolean(
+    data &&
+      ((Array.isArray(data.componentTree)
+        ? data.componentTree.length > 0
+        : Boolean(data.componentTree)) ||
+        data.richText),
+  );
+
+  useEffect(() => {
+    setActive(-1);
+    markerElsRef.current = [];
+
+    const sourceRoot = sourceRef.current;
+    if (!data || !hasSource || !sourceRoot) {
+      setDiff(null);
+      return;
+    }
+
+    const sourceBlocks = leafBlockEls(sourceRoot);
+    const sourceTexts = sourceBlocks.map((el) => el.textContent ?? "");
+
+    const parsedRoot = hasParsed ? parsedRef.current : null;
+    const parsedBlocks = parsedRoot ? leafBlockEls(parsedRoot) : [];
+    const parsedTexts = parsedBlocks.map((el) => el.textContent ?? "");
+
+    const { blocks, dropped, added, changed } = diffBlocks(
+      sourceTexts,
+      parsedTexts,
+    );
+
+    // Build the set of parsed image/link targets so we can flag source assets
+    // the importer didn't carry over.
+    const parsedImgSet = new Set<string>();
+    const parsedLinkSet = new Set<string>();
+    parsedRoot?.querySelectorAll<HTMLImageElement>("img[src]").forEach((img) => {
+      const n = normalizeUrl(img.getAttribute("src") ?? "");
+      if (n) parsedImgSet.add(n);
+    });
+    parsedRoot?.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
+      const n = normalizeUrl(a.getAttribute("href") ?? "");
+      if (n) parsedLinkSet.add(n);
+    });
+
+    const annotated: HTMLElement[] = [];
+
+    for (const block of blocks) {
+      if (block.sourceIndex === null) continue;
+      const el = sourceBlocks[block.sourceIndex];
+      if (!el) continue;
+      if (block.kind === "removed") {
+        el.classList.add(...REMOVED_CLS);
+        annotated.push(el);
+      } else if (block.kind === "changed") {
+        el.classList.add(...CHANGED_CLS);
+        annotated.push(el);
+      }
+    }
+
+    let missingImages = 0;
+    sourceRoot.querySelectorAll<HTMLImageElement>("img[src]").forEach((img) => {
+      const n = normalizeUrl(img.getAttribute("src") ?? "");
+      if (!n || parsedImgSet.has(n)) return;
+      missingImages++;
+      img.classList.add(...IMG_CLS);
+      annotated.push(img);
+    });
+
+    let missingLinks = 0;
+    sourceRoot.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
+      const n = normalizeUrl(a.getAttribute("href") ?? "");
+      if (!n || parsedLinkSet.has(n)) return;
+      missingLinks++;
+      a.classList.add(...LINK_CLS);
+      annotated.push(a);
+    });
+
+    // Order every annotated element by its position in the source document so
+    // Prev/Next walks the article top-to-bottom.
+    annotated.sort((x, y) => {
+      const pos = x.compareDocumentPosition(y);
+      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+      return 0;
+    });
+    for (const el of annotated) {
+      el.style.scrollMarginTop = "1rem";
+    }
+    markerElsRef.current = annotated;
+
+    const markers: MarkerInfo[] = annotated.map((el) => {
+      if (el.tagName === "IMG") {
+        const img = el as HTMLImageElement;
+        return {
+          type: "image",
+          label: truncate(
+            img.getAttribute("alt") || img.getAttribute("src") || "",
+          ),
+        };
+      }
+      if (el.tagName === "A") {
+        return {
+          type: "link",
+          label: truncate(
+            el.textContent || el.getAttribute("href") || "",
+          ),
+        };
+      }
+      const isChanged = el.classList.contains("border-amber-500");
+      return {
+        type: isChanged ? "changed" : "removed",
+        label: truncate(el.textContent ?? ""),
+      };
+    });
+
+    setDiff({
+      dropped,
+      changed,
+      added,
+      missingImages,
+      missingLinks,
+      markers,
+    });
+    // `articleId` keys the request, so re-run whenever the loaded body changes.
+  }, [data, hasSource, hasParsed, articleId]);
+
+  function jumpTo(index: number) {
+    const els = markerElsRef.current;
+    if (els.length === 0) return;
+    const i = ((index % els.length) + els.length) % els.length;
+    for (const el of els) el.classList.remove(...ACTIVE_CLS);
+    const el = els[i];
+    el.classList.add(...ACTIVE_CLS);
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setActive(i);
+  }
 
   if (isLoading) {
     return (
@@ -144,50 +485,65 @@ function SourceComparison({ articleId }: { articleId: string }) {
     );
   }
 
-  const hasSource = Boolean(data.sourceHtml && data.sourceHtml.trim().length);
-  const hasParsed =
-    (Array.isArray(data.componentTree)
-      ? data.componentTree.length > 0
-      : Boolean(data.componentTree)) || Boolean(data.richText);
-
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <div className="flex min-w-0 flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="text-sm font-medium">Original article</h4>
-          {data.sourceKind === "original" ? (
-            <Badge variant="outline" className="text-[10px] uppercase">
-              Raw HTML
-            </Badge>
-          ) : null}
-        </div>
-        <div className="h-[60vh] overflow-y-auto rounded-md border border-border/60 bg-muted/20 p-4">
-          {hasSource ? (
-            <ContentRenderer post={{ contentHtml: data.sourceHtml }} />
-          ) : (
-            <p className="text-sm italic text-muted-foreground">
-              No source HTML was stored for this article.
-            </p>
-          )}
-        </div>
-      </div>
+    <div className="space-y-4">
+      <DiffControls
+        state={hasSource ? diff : null}
+        active={active}
+        onPrev={() => jumpTo(active < 0 ? -1 : active - 1)}
+        onNext={() => jumpTo(active + 1)}
+        onJump={jumpTo}
+      />
 
-      <div className="flex min-w-0 flex-col gap-2">
-        <h4 className="text-sm font-medium">What the importer extracted</h4>
-        <div className="h-[60vh] overflow-y-auto rounded-md border border-border/60 p-4">
-          {hasParsed ? (
-            <ContentRenderer
-              post={{
-                componentTree: data.componentTree,
-                richText: data.richText,
-              }}
-            />
-          ) : (
-            <p className="text-sm italic text-muted-foreground">
-              The importer extracted no structured content — everything on the
-              left was dropped.
-            </p>
-          )}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-sm font-medium">
+              Original article
+              <span className="ml-2 font-normal text-muted-foreground">
+                differences highlighted
+              </span>
+            </h4>
+            {data.sourceKind === "original" ? (
+              <Badge variant="outline" className="text-[10px] uppercase">
+                Raw HTML
+              </Badge>
+            ) : null}
+          </div>
+          <div
+            ref={sourceRef}
+            className="h-[60vh] overflow-y-auto rounded-md border border-border/60 bg-muted/20 p-4"
+          >
+            {hasSource ? (
+              <ContentRenderer post={{ contentHtml: data.sourceHtml }} />
+            ) : (
+              <p className="text-sm italic text-muted-foreground">
+                No source HTML was stored for this article.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-2">
+          <h4 className="text-sm font-medium">What the importer extracted</h4>
+          <div
+            ref={parsedRef}
+            className="h-[60vh] overflow-y-auto rounded-md border border-border/60 p-4"
+          >
+            {hasParsed ? (
+              <ContentRenderer
+                post={{
+                  componentTree: data.componentTree,
+                  richText: data.richText,
+                }}
+              />
+            ) : (
+              <p className="text-sm italic text-muted-foreground">
+                The importer extracted no structured content — everything on the
+                left was dropped.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -26,3 +26,4 @@
 - [Codegen leaves composite dist stale](api-codegen-stale-dist.md) — after api-spec codegen, cross-package consumers (project refs, e.g. mobile) see TS2305 for new hooks until `pnpm run typecheck:libs` rebuilds the lib's dist .d.ts.
 - [Search DB setup not migration-tracked](search-db-setup-not-migration-tracked.md) — pg_trgm + trigram GIN indexes are raw-executeSql DDL, not in any migration; a dev rollback wipes them; re-verify presence, prod gets them only via re-publish.
 - [componentTree type vs blockType](componenttree-type-vs-blocktype.md) — crawler nodes key the discriminator `type`, importer/shared lib use `blockType`; re-flatten crashes (NULL block_type) unless `componentTreeChildren` normalizes.
+- [Annotating rendered preview DOM](annotate-rendered-dom-react.md) — annotations on dangerouslySetInnerHTML children survive React re-renders; classes added to React-rendered nodes get wiped on next render — annotate the raw-HTML pane, not the React pane.
