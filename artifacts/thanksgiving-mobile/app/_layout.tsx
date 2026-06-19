@@ -21,6 +21,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { FavoritesProvider } from "@/hooks/useFavorites";
 import { setBaseUrl } from "@workspace/api-client-react";
 
 // Route all generated API calls (paths like `/api/...`) through the shared
@@ -66,11 +67,13 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView>
-            <KeyboardProvider>
-              <RootLayoutNav />
-            </KeyboardProvider>
-          </GestureHandlerRootView>
+          <FavoritesProvider>
+            <GestureHandlerRootView>
+              <KeyboardProvider>
+                <RootLayoutNav />
+              </KeyboardProvider>
+            </GestureHandlerRootView>
+          </FavoritesProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

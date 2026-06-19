@@ -24,6 +24,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "magnifyingglass", selected: "magnifyingglass" }} />
         <Label>Search</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="saved">
+        <Icon sf={{ default: "heart", selected: "heart.fill" }} />
+        <Label>Saved</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -88,6 +92,18 @@ function ClassicTabLayout() {
               <SymbolView name="magnifyingglass" tintColor={color} size={24} />
             ) : (
               <Feather name="search" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="saved"
+        options={{
+          title: "Saved",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="heart" tintColor={color} size={24} />
+            ) : (
+              <Feather name="heart" size={22} color={color} />
             ),
         }}
       />

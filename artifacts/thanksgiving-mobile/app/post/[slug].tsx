@@ -16,6 +16,7 @@ import { ArticleContent } from "@/components/ArticleContent";
 import { ErrorView, LoadingView } from "@/components/StateViews";
 import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
+import { useFavorites } from "@/hooks/useFavorites";
 import { useGetPostBySlug, type FaqItem } from "@workspace/api-client-react";
 
 function formatDate(value?: string | null): string | null {
@@ -62,10 +63,12 @@ export default function PostDetailScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   const { data: post, isLoading, isError, refetch } = useGetPostBySlug(slug);
 
   const date = formatDate(post?.publishedAt);
+  const saved = post ? isFavorite(post.id) : false;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -86,6 +89,30 @@ export default function PostDetailScreen() {
       >
         <Feather name="arrow-left" size={20} color={colors.foreground} />
       </Pressable>
+
+      {/* Floating favorite button */}
+      {post ? (
+        <Pressable
+          testID="favorite-toggle"
+          accessibilityRole="button"
+          accessibilityLabel={saved ? "Remove from saved" : "Save article"}
+          onPress={() => toggleFavorite(post)}
+          style={[
+            styles.favButton,
+            {
+              top: insets.top + (isWeb ? 67 : 8),
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Feather
+            name="heart"
+            size={20}
+            color={saved ? colors.primary : colors.foreground}
+          />
+        </Pressable>
+      ) : null}
 
       {isLoading ? (
         <LoadingView label="Loading article…" />
@@ -218,6 +245,17 @@ const styles = StyleSheet.create({
   backButton: {
     position: "absolute",
     left: 16,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  favButton: {
+    position: "absolute",
+    right: 16,
     zIndex: 10,
     width: 40,
     height: 40,

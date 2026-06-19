@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { fonts } from "@/constants/fonts";
 import { useColors } from "@/hooks/useColors";
+import { useFavorites } from "@/hooks/useFavorites";
 import type { PostSummary } from "@workspace/api-client-react";
 
 type Props = {
@@ -26,7 +27,9 @@ function formatDate(value?: string | null): string | null {
 
 function PostCardBase({ post, onPress, featured = false }: Props) {
   const colors = useColors();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const date = formatDate(post.publishedAt);
+  const saved = isFavorite(post.id);
 
   return (
     <Pressable
@@ -43,27 +46,55 @@ function PostCardBase({ post, onPress, featured = false }: Props) {
         },
       ]}
     >
-      {post.featuredImageUrl ? (
-        <Image
-          source={{ uri: post.featuredImageUrl }}
-          style={[
-            featured ? styles.featuredImage : styles.image,
-            { backgroundColor: colors.muted },
-          ]}
-          contentFit="cover"
-          transition={250}
-        />
-      ) : (
-        <View
-          style={[
-            featured ? styles.featuredImage : styles.image,
-            styles.imageFallback,
-            { backgroundColor: colors.muted },
+      <View>
+        {post.featuredImageUrl ? (
+          <Image
+            source={{ uri: post.featuredImageUrl }}
+            style={[
+              featured ? styles.featuredImage : styles.image,
+              { backgroundColor: colors.muted },
+            ]}
+            contentFit="cover"
+            transition={250}
+          />
+        ) : (
+          <View
+            style={[
+              featured ? styles.featuredImage : styles.image,
+              styles.imageFallback,
+              { backgroundColor: colors.muted },
+            ]}
+          >
+            <Feather name="image" size={28} color={colors.mutedForeground} />
+          </View>
+        )}
+
+        <Pressable
+          testID={`favorite-toggle-${post.slug}`}
+          accessibilityRole="button"
+          accessibilityLabel={saved ? "Remove from saved" : "Save article"}
+          hitSlop={8}
+          onPress={(e) => {
+            e.stopPropagation();
+            toggleFavorite(post);
+          }}
+          style={({ pressed }) => [
+            styles.favButton,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              opacity: pressed ? 0.8 : 1,
+            },
           ]}
         >
-          <Feather name="image" size={28} color={colors.mutedForeground} />
-        </View>
-      )}
+          <Feather
+            name="heart"
+            size={18}
+            color={saved ? colors.primary : colors.mutedForeground}
+            style={saved ? styles.favIconActive : undefined}
+          />
+        </Pressable>
+      </View>
 
       <View style={styles.body}>
         {post.primaryCategory ? (
@@ -146,6 +177,20 @@ const styles = StyleSheet.create({
   imageFallback: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  favButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  favIconActive: {
+    opacity: 1,
   },
   body: {
     padding: 16,
