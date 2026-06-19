@@ -499,6 +499,7 @@ export const UpdateCmsUserRoleResponse = zod.object({
 
 
 /**
+ * Paginated, newest-first activity feed. Optionally filtered by action, entity, actor, and a created-at date range.
  * @summary List the audit trail of privileged CMS actions (requires audit.view)
  */
 export const listCmsAuditLogsQueryPageDefault = 1;
@@ -511,7 +512,12 @@ export const listCmsAuditLogsQueryLimitMax = 100;
 export const ListCmsAuditLogsQueryParams = zod.object({
   "action": zod.string().optional().describe('Filter to a single action, e.g. \"media.metadata.update\" to show only image-description edits.'),
   "page": zod.coerce.number().min(1).default(listCmsAuditLogsQueryPageDefault).describe('1-based page number'),
-  "limit": zod.coerce.number().min(1).max(listCmsAuditLogsQueryLimitMax).default(listCmsAuditLogsQueryLimitDefault).describe('Number of items per page')
+  "limit": zod.coerce.number().min(1).max(listCmsAuditLogsQueryLimitMax).default(listCmsAuditLogsQueryLimitDefault).describe('Number of items per page'),
+  "entityType": zod.string().optional().describe('Filter by entity type, e.g. \"page\" or \"user\".'),
+  "entityId": zod.string().optional().describe('Filter by the affected entity\'s id.'),
+  "actorId": zod.string().optional().describe('Filter by the acting user\'s id.'),
+  "from": zod.date().optional().describe('Only entries created at or after this ISO-8601 timestamp.'),
+  "to": zod.date().optional().describe('Only entries created at or before this ISO-8601 timestamp.')
 })
 
 export const ListCmsAuditLogsHeader = zod.object({
@@ -1370,6 +1376,355 @@ export const DuplicateCmsPostHeader = zod.object({
 export const DuplicateCmsPostBody = zod.object({
   "title": zod.string().nullish().describe('Title for the copy; defaults to \"<original title> (Copy)\".'),
   "slug": zod.string().nullish().describe('Slug for the copy; auto-generated and uniquified when omitted.')
+})
+
+
+/**
+ * Returns every saved snapshot for the article, newest version first. Each entry carries lightweight metadata (version number, change summary, timestamp, title, status, and the article author at that point).
+ * @summary List the version history snapshots for an article (requires content.view)
+ */
+export const ListCmsPostVersionsParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const ListCmsPostVersionsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsPostVersionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "versionNumber": zod.number(),
+  "changeSummary": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()])
+})),
+  "latestVersion": zod.number().nullable()
+})
+
+
+/**
+ * @summary Get a single version snapshot for an article (requires content.view)
+ */
+
+
+
+export const GetCmsPostVersionParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.'),
+  "versionNumber": zod.coerce.number().min(1).describe('The 1-based snapshot version number.')
+})
+
+export const GetCmsPostVersionHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsPostVersionResponse = zod.object({
+  "versionNumber": zod.number(),
+  "changeSummary": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "snapshot": zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "pageType": zod.string(),
+  "title": zod.string(),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "canonicalUrl": zod.string(),
+  "pathname": zod.string(),
+  "parentPath": zod.string().nullish(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "language": zod.string(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional(),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "tags": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "faq": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number()
+})),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "galleries": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "title": zod.string().nullish(),
+  "layout": zod.string().nullish(),
+  "position": zod.number(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+}))
+})),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "focusKeyword": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "ogType": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "needsReview": zod.boolean()
+}),zod.null()]).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+})),
+  "internalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "externalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "latestVersion": zod.number().nullish()
+})
+})
+
+
+/**
+ * Computes a field-level diff between two snapshots of the same article. `from` is treated as the older/base version and `to` as the newer one.
+ * @summary Compare two version snapshots of an article (requires content.view)
+ */
+
+
+
+
+export const CompareCmsPostVersionsParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.'),
+  "from": zod.coerce.number().min(1).describe('The base (older) version number.'),
+  "to": zod.coerce.number().min(1).describe('The compared (newer) version number.')
+})
+
+export const CompareCmsPostVersionsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const CompareCmsPostVersionsResponse = zod.object({
+  "fromVersion": zod.number(),
+  "toVersion": zod.number(),
+  "changes": zod.array(zod.object({
+  "field": zod.string().describe('Machine field key, e.g. \"title\" or \"seo.metaTitle\".'),
+  "label": zod.string().describe('Human-readable label for the changed field.'),
+  "before": zod.unknown().describe('The value in the older version (JSON; null when absent).'),
+  "after": zod.unknown().describe('The value in the newer version (JSON; null when absent).')
+}))
+})
+
+
+/**
+ * Overwrites the article's current content with the chosen snapshot and records a new version entry (history is never deleted). The article's current slug is preserved for URL stability. Restoring a snapshot whose status is `published` additionally requires `content.publish`.
+ * @summary Restore an article to a previous version snapshot (requires content.edit)
+ */
+
+
+
+export const RestoreCmsPostVersionParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.'),
+  "versionNumber": zod.coerce.number().min(1).describe('The 1-based snapshot version number to restore.')
+})
+
+export const RestoreCmsPostVersionHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const RestoreCmsPostVersionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "pageType": zod.string(),
+  "title": zod.string(),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "canonicalUrl": zod.string(),
+  "pathname": zod.string(),
+  "parentPath": zod.string().nullish(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "language": zod.string(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional(),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "tags": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "faq": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number()
+})),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "galleries": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "title": zod.string().nullish(),
+  "layout": zod.string().nullish(),
+  "position": zod.number(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+}))
+})),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "focusKeyword": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "ogType": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "needsReview": zod.boolean()
+}),zod.null()]).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+})),
+  "internalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "externalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "latestVersion": zod.number().nullish()
 })
 
 

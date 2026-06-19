@@ -41,7 +41,12 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
-  { label: "Content", href: "/content", icon: FileText },
+  {
+    label: "Content",
+    href: "/content",
+    icon: FileText,
+    permission: "content.view",
+  },
   {
     label: "Import / Export",
     href: "/import-export",

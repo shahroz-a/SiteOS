@@ -6,6 +6,15 @@ import { isRole, ROLE_META } from "@workspace/cms-auth";
 import { Avatar, AvatarFallback } from "@workspace/ui/avatar";
 import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
+import { Input } from "@workspace/ui/input";
+import { Label } from "@workspace/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/select";
 import {
   Table,
   TableBody,
@@ -19,9 +28,34 @@ import { Skeleton } from "@workspace/ui/skeleton";
 const PAGE_SIZE = 20;
 
 const MEDIA_UPDATE_ACTION = "media.metadata.update";
+const ALL_ACTIONS = "all";
+const ALL_ENTITIES = "all";
+
+const ACTION_OPTIONS: { value: string; label: string }[] = [
+  { value: "user.role.update", label: "Changed user role" },
+  { value: "post.restore", label: "Restored a version" },
+  { value: "post.update", label: "Updated a post" },
+  { value: "post.publish", label: "Published a post" },
+  { value: MEDIA_UPDATE_ACTION, label: "Edited image description" },
+];
+
+const ENTITY_OPTIONS: { value: string; label: string }[] = [
+  { value: "page", label: "Page" },
+  { value: "user", label: "User" },
+];
+
+/** Convert a yyyy-mm-dd date input into an ISO timestamp at the day boundary. */
+function dayBoundaryIso(value: string, end: boolean): string | undefined {
+  if (!value) return undefined;
+  const iso = new Date(`${value}T${end ? "23:59:59.999" : "00:00:00.000"}`);
+  return Number.isNaN(iso.getTime()) ? undefined : iso.toISOString();
+}
 
 const ACTION_LABELS: Record<string, string> = {
   "user.role.update": "Changed user role",
+  "post.restore": "Restored a version",
+  "post.update": "Updated a post",
+  "post.publish": "Published a post",
   [MEDIA_UPDATE_ACTION]: "Edited image description",
 };
 
@@ -230,21 +264,48 @@ function MediaChange({ entry }: { entry: AuditLogEntry }) {
 
 export default function AuditLogPage() {
   const [page, setPage] = useState(1);
-  const [mediaOnly, setMediaOnly] = useState(false);
+  const [actionFilter, setActionFilter] = useState<string>(ALL_ACTIONS);
+  const [entityFilter, setEntityFilter] = useState<string>(ALL_ENTITIES);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
   const { data, isLoading, isError, isFetching } = useListCmsAuditLogs({
     page,
     limit: PAGE_SIZE,
-    ...(mediaOnly ? { action: MEDIA_UPDATE_ACTION } : {}),
+    ...(actionFilter !== ALL_ACTIONS ? { action: actionFilter } : {}),
+    ...(entityFilter !== ALL_ENTITIES ? { entityType: entityFilter } : {}),
+    ...(dayBoundaryIso(fromDate, false)
+      ? { from: dayBoundaryIso(fromDate, false) }
+      : {}),
+    ...(dayBoundaryIso(toDate, true)
+      ? { to: dayBoundaryIso(toDate, true) }
+      : {}),
   });
-
-  function setFilter(next: boolean) {
-    setMediaOnly(next);
-    setPage(1);
-  }
 
   const entries = data?.items ?? [];
   const pagination = data?.pagination;
   const totalPages = pagination?.totalPages ?? 1;
+
+  const hasFilters =
+    actionFilter !== ALL_ACTIONS ||
+    entityFilter !== ALL_ENTITIES ||
+    fromDate !== "" ||
+    toDate !== "";
+
+  function withReset<T>(setter: (v: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(1);
+    };
+  }
+
+  function clearFilters() {
+    setActionFilter(ALL_ACTIONS);
+    setEntityFilter(ALL_ENTITIES);
+    setFromDate("");
+    setToDate("");
+    setPage(1);
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -255,22 +316,70 @@ export default function AuditLogPage() {
             A record of privileged actions — who changed what, and when.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant={mediaOnly ? "outline" : "default"}
-            size="sm"
-            onClick={() => setFilter(false)}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Action</Label>
+          <Select
+            value={actionFilter}
+            onValueChange={withReset(setActionFilter)}
           >
-            All actions
-          </Button>
-          <Button
-            variant={mediaOnly ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter(true)}
-          >
-            Image edits
-          </Button>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Action" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_ACTIONS}>All actions</SelectItem>
+              {ACTION_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Entity</Label>
+          <Select
+            value={entityFilter}
+            onValueChange={withReset(setEntityFilter)}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Entity" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_ENTITIES}>All entities</SelectItem>
+              {ENTITY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">From</Label>
+          <Input
+            type="date"
+            value={fromDate}
+            onChange={(e) => withReset(setFromDate)(e.target.value)}
+            className="w-40"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">To</Label>
+          <Input
+            type="date"
+            value={toDate}
+            onChange={(e) => withReset(setToDate)(e.target.value)}
+            className="w-40"
+          />
+        </div>
+        {hasFilters ? (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            Clear
+          </Button>
+        ) : null}
       </div>
 
       <div className="rounded-lg border border-border/60">

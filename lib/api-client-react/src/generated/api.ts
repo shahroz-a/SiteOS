@@ -66,6 +66,8 @@ import type {
   MediaListResponse,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
+  PageVersionDetail,
+  PageVersionListResponse,
   PayloadMappingResponse,
   PostDetail,
   PostListResponse,
@@ -84,7 +86,8 @@ import type {
   UpdateMediaAltResponse,
   UpdateUserRoleRequest,
   UploadUrlRequest,
-  UploadUrlResponse
+  UploadUrlResponse,
+  VersionDiff
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1668,6 +1671,7 @@ export const getListCmsAuditLogsUrl = (params?: ListCmsAuditLogsParams,) => {
 }
 
 /**
+ * Paginated, newest-first activity feed. Optionally filtered by action, entity, actor, and a created-at date range.
  * @summary List the audit trail of privileged CMS actions (requires audit.view)
  */
 export const listCmsAuditLogs = async (params?: ListCmsAuditLogsParams, options?: RequestInit): Promise<AuditLogListResponse> => {
@@ -2707,6 +2711,327 @@ export const useDuplicateCmsPost = <TError = ErrorType<CmsBadRequestResponse | C
         TContext
       > => {
       return useMutation(getDuplicateCmsPostMutationOptions(options));
+    }
+
+export const getListCmsPostVersionsUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/versions`
+}
+
+/**
+ * Returns every saved snapshot for the article, newest version first. Each entry carries lightweight metadata (version number, change summary, timestamp, title, status, and the article author at that point).
+ * @summary List the version history snapshots for an article (requires content.view)
+ */
+export const listCmsPostVersions = async (id: string, options?: RequestInit): Promise<PageVersionListResponse> => {
+
+  return customFetch<PageVersionListResponse>(getListCmsPostVersionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsPostVersionsQueryKey = (id: string,) => {
+    return [
+    `/api/cms/posts/${id}/versions`
+    ] as const;
+    }
+
+
+export const getListCmsPostVersionsQueryOptions = <TData = Awaited<ReturnType<typeof listCmsPostVersions>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsPostVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsPostVersionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsPostVersions>>> = ({ signal }) => listCmsPostVersions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsPostVersions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsPostVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsPostVersions>>>
+export type ListCmsPostVersionsQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+
+/**
+ * @summary List the version history snapshots for an article (requires content.view)
+ */
+
+export function useListCmsPostVersions<TData = Awaited<ReturnType<typeof listCmsPostVersions>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsPostVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsPostVersionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCmsPostVersionUrl = (id: string,
+    versionNumber: number,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/versions/${versionNumber}`
+}
+
+/**
+ * @summary Get a single version snapshot for an article (requires content.view)
+ */
+export const getCmsPostVersion = async (id: string,
+    versionNumber: number, options?: RequestInit): Promise<PageVersionDetail> => {
+
+  return customFetch<PageVersionDetail>(getGetCmsPostVersionUrl(id,versionNumber),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsPostVersionQueryKey = (id: string,
+    versionNumber: number,) => {
+    return [
+    `/api/cms/posts/${id}/versions/${versionNumber}`
+    ] as const;
+    }
+
+
+export const getGetCmsPostVersionQueryOptions = <TData = Awaited<ReturnType<typeof getCmsPostVersion>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(id: string,
+    versionNumber: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPostVersion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsPostVersionQueryKey(id,versionNumber);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsPostVersion>>> = ({ signal }) => getCmsPostVersion(id,versionNumber, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id && versionNumber), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsPostVersion>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsPostVersionQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsPostVersion>>>
+export type GetCmsPostVersionQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+
+/**
+ * @summary Get a single version snapshot for an article (requires content.view)
+ */
+
+export function useGetCmsPostVersion<TData = Awaited<ReturnType<typeof getCmsPostVersion>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(
+ id: string,
+    versionNumber: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsPostVersion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsPostVersionQueryOptions(id,versionNumber,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCompareCmsPostVersionsUrl = (id: string,
+    from: number,
+    to: number,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/versions/${from}/compare/${to}`
+}
+
+/**
+ * Computes a field-level diff between two snapshots of the same article. `from` is treated as the older/base version and `to` as the newer one.
+ * @summary Compare two version snapshots of an article (requires content.view)
+ */
+export const compareCmsPostVersions = async (id: string,
+    from: number,
+    to: number, options?: RequestInit): Promise<VersionDiff> => {
+
+  return customFetch<VersionDiff>(getCompareCmsPostVersionsUrl(id,from,to),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCompareCmsPostVersionsQueryKey = (id: string,
+    from: number,
+    to: number,) => {
+    return [
+    `/api/cms/posts/${id}/versions/${from}/compare/${to}`
+    ] as const;
+    }
+
+
+export const getCompareCmsPostVersionsQueryOptions = <TData = Awaited<ReturnType<typeof compareCmsPostVersions>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(id: string,
+    from: number,
+    to: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof compareCmsPostVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCompareCmsPostVersionsQueryKey(id,from,to);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof compareCmsPostVersions>>> = ({ signal }) => compareCmsPostVersions(id,from,to, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id && from && to), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof compareCmsPostVersions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CompareCmsPostVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof compareCmsPostVersions>>>
+export type CompareCmsPostVersionsQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+
+/**
+ * @summary Compare two version snapshots of an article (requires content.view)
+ */
+
+export function useCompareCmsPostVersions<TData = Awaited<ReturnType<typeof compareCmsPostVersions>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>>(
+ id: string,
+    from: number,
+    to: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof compareCmsPostVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCompareCmsPostVersionsQueryOptions(id,from,to,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRestoreCmsPostVersionUrl = (id: string,
+    versionNumber: number,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/versions/${versionNumber}/restore`
+}
+
+/**
+ * Overwrites the article's current content with the chosen snapshot and records a new version entry (history is never deleted). The article's current slug is preserved for URL stability. Restoring a snapshot whose status is `published` additionally requires `content.publish`.
+ * @summary Restore an article to a previous version snapshot (requires content.edit)
+ */
+export const restoreCmsPostVersion = async (id: string,
+    versionNumber: number, options?: RequestInit): Promise<CmsPostDetail> => {
+
+  return customFetch<CmsPostDetail>(getRestoreCmsPostVersionUrl(id,versionNumber),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRestoreCmsPostVersionMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCmsPostVersion>>, TError,{id: string;versionNumber: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreCmsPostVersion>>, TError,{id: string;versionNumber: number}, TContext> => {
+
+const mutationKey = ['restoreCmsPostVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreCmsPostVersion>>, {id: string;versionNumber: number}> = (props) => {
+          const {id,versionNumber} = props ?? {};
+
+          return  restoreCmsPostVersion(id,versionNumber,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreCmsPostVersionMutationResult = NonNullable<Awaited<ReturnType<typeof restoreCmsPostVersion>>>
+
+    export type RestoreCmsPostVersionMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Restore an article to a previous version snapshot (requires content.edit)
+ */
+export const useRestoreCmsPostVersion = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCmsPostVersion>>, TError,{id: string;versionNumber: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof restoreCmsPostVersion>>,
+        TError,
+        {id: string;versionNumber: number},
+        TContext
+      > => {
+      return useMutation(getRestoreCmsPostVersionMutationOptions(options));
     }
 
 export const getListCmsAuthorsUrl = () => {

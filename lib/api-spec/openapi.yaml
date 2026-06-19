@@ -513,6 +513,9 @@ paths:
       tags: [cms]
       operationId: listCmsAuditLogs
       summary: List the audit trail of privileged CMS actions (requires audit.view)
+      description: >-
+        Paginated, newest-first activity feed. Optionally filtered by action,
+        entity, actor, and a created-at date range.
       parameters:
         - name: action
           in: query
@@ -524,6 +527,38 @@ paths:
             type: string
         - $ref: "#/components/parameters/PageParam"
         - $ref: "#/components/parameters/LimitParam"
+        - name: entityType
+          in: query
+          required: false
+          description: Filter by entity type, e.g. "page" or "user".
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          required: false
+          description: Filter by the affected entity's id.
+          schema:
+            type: string
+        - name: actorId
+          in: query
+          required: false
+          description: Filter by the acting user's id.
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          description: Only entries created at or after this ISO-8601 timestamp.
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: Only entries created at or before this ISO-8601 timestamp.
+          schema:
+            type: string
+            format: date-time
         - $ref: "#/components/parameters/AuthorizationSessionHeader"
         - $ref: "#/components/parameters/SessionCookie"
       responses:
@@ -959,6 +994,140 @@ paths:
       responses:
         "201":
           description: The duplicated draft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostDetail"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/posts/{id}/versions:
+    get:
+      tags: [cms]
+      operationId: listCmsPostVersions
+      summary: List the version history snapshots for an article (requires content.view)
+      description: >-
+        Returns every saved snapshot for the article, newest version first. Each
+        entry carries lightweight metadata (version number, change summary,
+        timestamp, title, status, and the article author at that point).
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The article's version history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageVersionListResponse"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/posts/{id}/versions/{versionNumber}:
+    get:
+      tags: [cms]
+      operationId: getCmsPostVersion
+      summary: Get a single version snapshot for an article (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - name: versionNumber
+          in: path
+          required: true
+          description: The 1-based snapshot version number.
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The requested version snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageVersionDetail"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/posts/{id}/versions/{from}/compare/{to}:
+    get:
+      tags: [cms]
+      operationId: compareCmsPostVersions
+      summary: Compare two version snapshots of an article (requires content.view)
+      description: >-
+        Computes a field-level diff between two snapshots of the same article.
+        `from` is treated as the older/base version and `to` as the newer one.
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - name: from
+          in: path
+          required: true
+          description: The base (older) version number.
+          schema:
+            type: integer
+            minimum: 1
+        - name: to
+          in: path
+          required: true
+          description: The compared (newer) version number.
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The field-level diff between the two versions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionDiff"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/posts/{id}/versions/{versionNumber}/restore:
+    post:
+      tags: [cms]
+      operationId: restoreCmsPostVersion
+      summary: Restore an article to a previous version snapshot (requires content.edit)
+      description: >-
+        Overwrites the article's current content with the chosen snapshot and
+        records a new version entry (history is never deleted). The article's
+        current slug is preserved for URL stability. Restoring a snapshot whose
+        status is `published` additionally requires `content.publish`.
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - name: versionNumber
+          in: path
+          required: true
+          description: The 1-based snapshot version number to restore.
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The article after restoring the chosen version.
           content:
             application/json:
               schema:
@@ -4052,3 +4221,95 @@ components:
           type: string
           enum: [published, archived]
           description: The article's status after the decision was applied.
+
+    PageVersionSummary:
+      type: object
+      required:
+        - versionNumber
+        - changeSummary
+        - createdAt
+        - title
+        - status
+        - author
+      properties:
+        versionNumber:
+          type: integer
+        changeSummary:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/PageStatus"
+        author:
+          oneOf:
+            - $ref: "#/components/schemas/AuthorSummary"
+            - type: "null"
+
+    PageVersionListResponse:
+      type: object
+      required:
+        - items
+        - latestVersion
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PageVersionSummary"
+        latestVersion:
+          type: ["integer", "null"]
+
+    PageVersionDetail:
+      type: object
+      required:
+        - versionNumber
+        - changeSummary
+        - createdAt
+        - snapshot
+      properties:
+        versionNumber:
+          type: integer
+        changeSummary:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        snapshot:
+          $ref: "#/components/schemas/CmsPostDetail"
+
+    VersionFieldChange:
+      type: object
+      required:
+        - field
+        - label
+        - before
+        - after
+      properties:
+        field:
+          type: string
+          description: Machine field key, e.g. "title" or "seo.metaTitle".
+        label:
+          type: string
+          description: Human-readable label for the changed field.
+        before:
+          description: The value in the older version (JSON; null when absent).
+        after:
+          description: The value in the newer version (JSON; null when absent).
+
+    VersionDiff:
+      type: object
+      required:
+        - fromVersion
+        - toVersion
+        - changes
+      properties:
+        fromVersion:
+          type: integer
+        toVersion:
+          type: integer
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/VersionFieldChange"

@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import {
   db,
   usersTable,
@@ -162,11 +162,23 @@ router.get(
   requireAuth,
   requirePermission("audit.view"),
   async (req: Request, res: Response) => {
-    const { page, limit, action } = ListCmsAuditLogsQueryParams.parse(
-      req.query,
-    );
+    const { page, limit, action, entityType, entityId, actorId, from, to } =
+      ListCmsAuditLogsQueryParams.parse({
+        ...req.query,
+        // `from`/`to` are date-typed in the contract; coerce the query strings.
+        from: req.query.from ? new Date(String(req.query.from)) : undefined,
+        to: req.query.to ? new Date(String(req.query.to)) : undefined,
+      });
     const offset = (page - 1) * limit;
-    const where = action ? eq(auditLogsTable.action, action) : undefined;
+
+    const filters: SQL[] = [];
+    if (action) filters.push(eq(auditLogsTable.action, action));
+    if (entityType) filters.push(eq(auditLogsTable.entityType, entityType));
+    if (entityId) filters.push(eq(auditLogsTable.entityId, entityId));
+    if (actorId) filters.push(eq(auditLogsTable.actorId, actorId));
+    if (from) filters.push(gte(auditLogsTable.createdAt, from));
+    if (to) filters.push(lte(auditLogsTable.createdAt, to));
+    const where = filters.length ? and(...filters) : undefined;
 
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })

@@ -10,7 +10,7 @@ import {
   type CmsPostSummary,
   type PageStatus,
 } from "@workspace/api-client-react";
-import { Copy, FileText, Plus, Search, Trash2 } from "lucide-react";
+import { Copy, FileText, History, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@workspace/ui/button";
 import { Input } from "@workspace/ui/input";
 import { Badge } from "@workspace/ui/badge";
@@ -213,6 +213,14 @@ export default function ContentPage() {
                 className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
                 onClick={(e) => e.stopPropagation()}
               >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Version history"
+                  onClick={() => navigate(`/content/${post.id}/history`)}
+                >
+                  <History className="h-4 w-4" />
+                </Button>
                 {canCreate ? (
                   <Button
                     variant="ghost"

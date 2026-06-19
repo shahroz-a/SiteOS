@@ -1330,6 +1330,47 @@ export interface ResolveHeldBackArticleResponse {
   status: ResolveHeldBackArticleResponseStatus;
 }
 
+export interface PageVersionSummary {
+  versionNumber: number;
+  /** @nullable */
+  changeSummary: string | null;
+  createdAt: string;
+  title: string;
+  status: PageStatus;
+  author: AuthorSummary | null;
+}
+
+export interface PageVersionListResponse {
+  items: PageVersionSummary[];
+  /** @nullable */
+  latestVersion: number | null;
+}
+
+export interface PageVersionDetail {
+  versionNumber: number;
+  /** @nullable */
+  changeSummary: string | null;
+  createdAt: string;
+  snapshot: CmsPostDetail;
+}
+
+export interface VersionFieldChange {
+  /** Machine field key, e.g. "title" or "seo.metaTitle". */
+  field: string;
+  /** Human-readable label for the changed field. */
+  label: string;
+  /** The value in the older version (JSON; null when absent). */
+  before: unknown;
+  /** The value in the newer version (JSON; null when absent). */
+  after: unknown;
+}
+
+export interface VersionDiff {
+  fromVersion: number;
+  toVersion: number;
+  changes: VersionFieldChange[];
+}
+
 /**
  * Invalid request body.
  */
@@ -1439,6 +1480,26 @@ page?: PageParamParameter;
  * @maximum 100
  */
 limit?: LimitParamParameter;
+/**
+ * Filter by entity type, e.g. "page" or "user".
+ */
+entityType?: string;
+/**
+ * Filter by the affected entity's id.
+ */
+entityId?: string;
+/**
+ * Filter by the acting user's id.
+ */
+actorId?: string;
+/**
+ * Only entries created at or after this ISO-8601 timestamp.
+ */
+from?: string;
+/**
+ * Only entries created at or before this ISO-8601 timestamp.
+ */
+to?: string;
 };
 
 export type ListCmsMediaParams = {

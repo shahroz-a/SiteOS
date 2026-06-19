@@ -17,6 +17,7 @@ import AuditLogPage from "@/pages/audit-log";
 import ImportExportPage from "@/pages/import-export";
 import MediaPage from "@/pages/media";
 import HeldBackPage from "@/pages/held-back";
+import ContentHistoryPage from "@/pages/content-history";
 import { AppShell } from "@/components/app-shell";
 import { CmsAuthProvider, useCmsAuth } from "@/lib/cms-auth-context";
 
@@ -94,6 +95,13 @@ function AuthenticatedApp() {
           <RequirePermission permission="content.view">
             <SearchPage />
           </RequirePermission>
+        </Route>
+        <Route path="/content/:id/history">
+          {(params) => (
+            <RequirePermission permission="content.view">
+              <ContentHistoryPage id={params.id} />
+            </RequirePermission>
+          )}
         </Route>
         <Route path="/users">
           <RequirePermission permission="users.manage">

@@ -24,4 +24,24 @@ page?: PageParamParameter;
  * @maximum 100
  */
 limit?: LimitParamParameter;
+/**
+ * Filter by entity type, e.g. "page" or "user".
+ */
+entityType?: string;
+/**
+ * Filter by the affected entity's id.
+ */
+entityId?: string;
+/**
+ * Filter by the acting user's id.
+ */
+actorId?: string;
+/**
+ * Only entries created at or after this ISO-8601 timestamp.
+ */
+from?: Date;
+/**
+ * Only entries created at or before this ISO-8601 timestamp.
+ */
+to?: Date;
 };

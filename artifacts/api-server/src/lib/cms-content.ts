@@ -1059,3 +1059,103 @@ function unique<T>(arr: T[]): T[] {
 
 // Re-export the page type for route handlers that need it.
 export type { Page };
+
+export function snapshotToInput(source: CmsPostDetail): CmsPostInput {
+  return {
+    title: source.title,
+    slug: source.slug,
+    subtitle: source.subtitle ?? null,
+    excerpt: source.excerpt ?? null,
+    status: source.status,
+    language: source.language,
+    parentPath: source.parentPath ?? null,
+    authorId: source.author?.id ?? null,
+    primaryCategoryId: source.primaryCategory?.id ?? null,
+    categoryIds: source.categories.map((c) => c.id),
+    tagIds: source.tags.map((t) => t.id),
+    featuredImageUrl: source.featuredImageUrl ?? null,
+    featuredImageAlt: source.featuredImageAlt ?? null,
+    contentHtml: source.contentHtml ?? null,
+    richText: source.richText ?? null,
+    componentTree: source.componentTree ?? null,
+    readingTimeMinutes: source.readingTimeMinutes ?? null,
+    wordCount: source.wordCount ?? null,
+    publishedAt: source.publishedAt,
+    seo: source.seo
+      ? {
+          metaTitle: source.seo.metaTitle ?? null,
+          metaDescription: source.seo.metaDescription ?? null,
+          canonicalUrl: source.seo.canonicalUrl ?? null,
+          robots: source.seo.robots ?? null,
+          focusKeyword: source.seo.focusKeyword ?? null,
+          keywords: source.seo.keywords ?? null,
+          ogTitle: source.seo.ogTitle ?? null,
+          ogDescription: source.seo.ogDescription ?? null,
+          ogImage: source.seo.ogImage ?? null,
+          ogType: source.seo.ogType ?? null,
+          twitterCard: source.seo.twitterCard ?? null,
+          twitterTitle: source.seo.twitterTitle ?? null,
+          twitterDescription: source.seo.twitterDescription ?? null,
+          twitterImage: source.seo.twitterImage ?? null,
+          needsReview: source.seo.needsReview,
+        }
+      : undefined,
+    faq: source.faq.map((f) => ({
+      question: f.question,
+      answer: f.answer,
+      position: f.position,
+    })),
+    breadcrumbs: source.breadcrumbs.map((b) => ({
+      label: b.label,
+      url: b.url ?? null,
+      position: b.position,
+    })),
+    jsonld: source.jsonld.map((j) => ({ type: j.type ?? null, data: j.data })),
+    images: source.images.map((img) => ({
+      url: img.url,
+      originalUrl: img.originalUrl ?? null,
+      alt: img.alt ?? null,
+      title: img.title ?? null,
+      caption: img.caption ?? null,
+      credit: img.credit ?? null,
+      width: img.width ?? null,
+      height: img.height ?? null,
+      mimeType: img.mimeType ?? null,
+      role: img.role ?? null,
+      position: img.position,
+    })),
+    galleries: source.galleries.map((g) => ({
+      title: g.title ?? null,
+      layout: g.layout ?? null,
+      position: g.position,
+      images: g.images.map((img) => ({
+        url: img.url,
+        originalUrl: img.originalUrl ?? null,
+        alt: img.alt ?? null,
+        title: img.title ?? null,
+        caption: img.caption ?? null,
+        credit: img.credit ?? null,
+        width: img.width ?? null,
+        height: img.height ?? null,
+        mimeType: img.mimeType ?? null,
+        role: img.role ?? null,
+        position: img.position,
+      })),
+    })),
+    internalLinks: source.internalLinks.map((l) => ({
+      href: l.href,
+      anchorText: l.anchorText ?? null,
+      rel: l.rel ?? null,
+      domain: l.domain ?? null,
+      position: l.position,
+    })),
+    externalLinks: source.externalLinks.map((l) => ({
+      href: l.href,
+      anchorText: l.anchorText ?? null,
+      rel: l.rel ?? null,
+      domain: l.domain ?? null,
+      position: l.position,
+    })),
+  } as CmsPostInput;
+}
+
