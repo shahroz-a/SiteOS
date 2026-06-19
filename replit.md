@@ -41,6 +41,16 @@ The raw `page_views` event log grows one row per article view, unbounded by traf
 - **Env:** `DATABASE_URL` must point at the **production** Postgres so the rollup persists where the analytics endpoint reads it.
 - **Observability:** the run summary (rows folded, days, buckets, cutoff) prints to stdout, visible in the deployment logs (`fetchDeploymentLogs`). The rollup is non-destructive of view *counts* — totals are preserved exactly in `page_view_daily`.
 
+### Scheduled auto-publish of scheduled posts (Scheduled Deployment)
+
+An editor can move a post into `scheduled` with a future `scheduledFor`, but nothing flips it to `published` once that time arrives unless the always-on api-server is up (it runs an in-process 60s scheduler — `publishDueScheduledPosts` in `artifacts/api-server/src/lib/cms-publishing.ts`, wired in `index.ts`). The standalone job (`scripts/src/publish-scheduled.ts`) provides the same guarantee as a **Replit Scheduled Deployment** so scheduling is hands-off even when the server is asleep — finding every `scheduled` post with `scheduledFor <= now`, transitioning it to `published`, stamping `publishedAt` with the originally-scheduled time, and clearing `scheduledFor` in one atomic, idempotent UPDATE. This is what makes the content dashboard's "overdue by X" badge stop appearing. The agent cannot create the deployment — set it up once from the **Publish** pane (Scheduled type). The script logic is intentionally a small re-implementation (scripts are leaf packages and can't import from `artifacts/api-server`); the shared truth is the `pages` schema + the publish state machine.
+
+- **Deployment type:** Scheduled. **Schedule:** frequent is fine (e.g. `*/5 * * * *` every 5 min, or hourly) — the closer the cadence, the smaller the "overdue" window before a due post goes live. Each run is idempotent and a no-op when nothing is due.
+- **Build command:** `pnpm install && pnpm --filter @workspace/scripts run build:jobs`
+- **Run command:** `pnpm --filter @workspace/scripts run publish:scheduled:prod`. Use `-- --dry-run` for a no-write preview (lists the due posts without publishing).
+- **Env:** `DATABASE_URL` must point at the **production** Postgres so publishes land where the live blog and CMS read them.
+- **Observability:** each auto-publish writes an `audit_logs` row (action `article.publish.scheduled`, no human actor, before/after status) for the CMS audit trail AND a durable `crawl_logs` info line (survives the ephemeral scheduled container); the per-post outcome + count also print to stdout (`fetchDeploymentLogs`). Both DB writes are best-effort and never fail the job.
+
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9

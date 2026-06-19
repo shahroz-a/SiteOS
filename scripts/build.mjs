@@ -18,6 +18,7 @@ const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const ENTRY_POINTS = [
   "src/redirect-health.ts",
   "src/rollup-page-views.ts",
+  "src/publish-scheduled.ts",
   "src/reextract.ts",
 ];
 
