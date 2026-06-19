@@ -386,7 +386,7 @@ function DecisionHistory({ articleId }: { articleId: string }) {
   );
 }
 
-function ArticleDrawer({
+export function ArticleDrawer({
   article,
   open,
   onOpenChange,
