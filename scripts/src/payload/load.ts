@@ -251,17 +251,23 @@ export async function loadPayloadExport(
       subtitle: p.subtitle,
       excerpt: p.excerpt,
       _status: p._status,
+      language: p.language,
       publishedAt: p.publishedAt,
       author: remap(p.author),
       categories: p.categories.map(remap).filter(Boolean),
+      primaryCategory: remap(p.primaryCategory),
       tags: p.tags.map(remap).filter(Boolean),
       heroImage: remap(p.heroImage),
       layout: p.layout,
       content: p.content,
       contentHtml: p.contentHtml,
       meta: p.meta,
+      url: p.url,
+      readingTimeMinutes: p.readingTimeMinutes,
+      wordCount: p.wordCount,
       breadcrumbs: p.breadcrumbs,
       faq: p.faq,
+      structuredData: p.structuredData,
     };
     const draft = p._status !== "published";
     const existing = await findByKey(payload, "posts", "slug", p.slug);

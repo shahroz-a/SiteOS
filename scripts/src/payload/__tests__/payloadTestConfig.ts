@@ -104,9 +104,11 @@ const posts: CollectionConfig = {
     { name: "slug", type: "text", required: true },
     { name: "subtitle", type: "text" },
     { name: "excerpt", type: "textarea" },
+    { name: "language", type: "text" },
     { name: "publishedAt", type: "date" },
     { name: "author", type: "relationship", relationTo: "authors" },
     { name: "categories", type: "relationship", relationTo: "categories", hasMany: true },
+    { name: "primaryCategory", type: "relationship", relationTo: "categories" },
     { name: "tags", type: "relationship", relationTo: "tags", hasMany: true },
     { name: "heroImage", type: "relationship", relationTo: "media" },
     {
@@ -116,6 +118,8 @@ const posts: CollectionConfig = {
     },
     { name: "content", type: "json" },
     { name: "contentHtml", type: "code" },
+    { name: "readingTimeMinutes", type: "number" },
+    { name: "wordCount", type: "number" },
     {
       name: "meta",
       type: "group",
@@ -132,6 +136,15 @@ const posts: CollectionConfig = {
       ],
     },
     {
+      name: "url",
+      type: "group",
+      fields: [
+        { name: "canonicalUrl", type: "text" },
+        { name: "pathname", type: "text" },
+        { name: "parentPath", type: "text" },
+      ],
+    },
+    {
       name: "breadcrumbs",
       type: "array",
       fields: [
@@ -145,6 +158,14 @@ const posts: CollectionConfig = {
       fields: [
         { name: "question", type: "text" },
         { name: "answer", type: "textarea" },
+      ],
+    },
+    {
+      name: "structuredData",
+      type: "array",
+      fields: [
+        { name: "type", type: "text" },
+        { name: "data", type: "json" },
       ],
     },
   ],

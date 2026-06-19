@@ -46,10 +46,18 @@ Default output: `scripts/out/payload-export.json`.
 Key conventions:
 
 - **Stable ids.** Every document keeps its original migration UUID as `id`.
-  Relationship fields (`author`, `categories`, `tags`, `heroImage`, category
-  `parent`) reference related documents **by that UUID string** — the shape a
-  Payload relationship value expects. The loader below remaps these UUIDs to the
-  ids Payload generates on create.
+  Relationship fields (`author`, `categories`, `primaryCategory`, `tags`,
+  `heroImage`, category `parent`) reference related documents **by that UUID
+  string** — the shape a Payload relationship value expects. The loader below
+  remaps these UUIDs to the ids Payload generates on create.
+- **Posts carry every exported field.** Beyond the relationships and content,
+  each `posts` doc includes `language`, the `url` group
+  (`canonicalUrl` / `pathname` / `parentPath`), `readingTimeMinutes`,
+  `wordCount` and `structuredData` (the JSON-LD array). Your `posts` collection
+  needs matching fields (`primaryCategory` as a `relationship` to `categories`;
+  `url` as a `group`; `structuredData` as an `array` of `{ type, data }`) so the
+  loader carries all of them — see the runnable schema in
+  `__tests__/payloadTestConfig.ts`.
 - **Media is an upload collection.** Each `media` doc carries `sourceUrl` /
   `url` (the original CDN asset) plus `filename`, `mimeType`, `width`,
   `height`. Files are *not* downloaded by the export — the loader fetches and

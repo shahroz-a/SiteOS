@@ -350,4 +350,32 @@ describe("export-payload.ts → real Payload load (end-to-end)", () => {
       "html",
     ]);
   });
+
+  it("carries every remaining exporter field onto the loaded post", async () => {
+    const postId = result.idMap.get(IDS.post)!;
+    const post = (await instance.payload.findByID({
+      collection: "posts",
+      id: postId,
+      depth: 0,
+    })) as {
+      primaryCategory?: unknown;
+      language?: string;
+      readingTimeMinutes?: number;
+      wordCount?: number;
+      url?: { canonicalUrl?: string; pathname?: string; parentPath?: string };
+      structuredData?: Array<{ type?: string | null; data?: unknown }>;
+    };
+
+    // primaryCategory remaps to the parent category's new Payload id.
+    expect(post.primaryCategory).toBe(result.idMap.get(IDS.parentCat));
+    expect(post.language).toBe("en");
+    expect(post.readingTimeMinutes).toBe(8);
+    expect(post.wordCount).toBe(1500);
+    expect(post.url?.canonicalUrl).toBe("https://www.headout.com/blog/thanksgiving/");
+    expect(post.url?.pathname).toBe("/blog/thanksgiving/");
+    expect(post.url?.parentPath).toBe("/blog/");
+    // The JSON-LD structured data survives the load.
+    expect((post.structuredData ?? []).map((s) => s.type)).toEqual(["Article"]);
+    expect((post.structuredData ?? [])[0]?.data).toEqual({ "@type": "Article" });
+  });
 });
