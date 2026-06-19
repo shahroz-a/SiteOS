@@ -1,1 +1,2 @@
 - [Drizzle bulk-write gotchas](drizzle-bulk-writes.md) — `sql`-template arrays expand to `ANY($1,$2,…)` (err 42809, use `inArray`); partial backfills must also clean the complement set + assert a postcondition.
+- [thanksgiving-mobile test runners](mobile-test-runners.md) — jest (`__tests__/*.test.tsx`, RTL) vs vitest (`hooks/__tests__/*.test.tsx`, node) globs overlap; cross-runner parse failures are expected, not regressions.

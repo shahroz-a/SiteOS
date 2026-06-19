@@ -12,7 +12,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CollectionChips } from "@/components/CollectionChips";
 import { CollectionFormModal } from "@/components/CollectionFormModal";
-import { CollectionReorderModal } from "@/components/CollectionReorderModal";
 import { CollectionsModal } from "@/components/CollectionsModal";
 import { PostCard } from "@/components/PostCard";
 import { EmptyView, LoadingView } from "@/components/StateViews";
@@ -84,7 +83,6 @@ export default function SavedScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [managingPost, setManagingPost] = useState<PostSummary | null>(null);
   const [form, setForm] = useState<FormState>(null);
-  const [reordering, setReordering] = useState(false);
 
   // The selected collection may have been deleted; fall back to "All".
   const activeSelected =
@@ -144,15 +142,6 @@ export default function SavedScreen() {
           text: "Rename",
           onPress: () => setForm({ mode: "rename", collection }),
         },
-      ];
-      // Reordering only makes sense with more than one collection.
-      if (collections.length > 1) {
-        buttons.push({
-          text: "Reorder collections",
-          onPress: () => setReordering(true),
-        });
-      }
-      buttons.push(
         {
           text: "Delete",
           style: "destructive",
@@ -162,10 +151,10 @@ export default function SavedScreen() {
           },
         },
         { text: "Cancel", style: "cancel" },
-      );
+      ];
       Alert.alert(collection.name, "Manage this collection", buttons);
     },
-    [deleteCollection, collections.length],
+    [deleteCollection],
   );
 
   const handleFormSubmit = useCallback(
@@ -209,6 +198,7 @@ export default function SavedScreen() {
             countFor={countFor}
             onCreate={() => setForm({ mode: "create" })}
             onManage={handleManageCollection}
+            onReorder={reorderCollections}
           />
         </View>
       ) : null}
@@ -293,13 +283,6 @@ export default function SavedScreen() {
         initialName={form?.mode === "rename" ? form.collection.name : ""}
         onSubmit={handleFormSubmit}
         onClose={() => setForm(null)}
-      />
-
-      <CollectionReorderModal
-        visible={reordering}
-        collections={collections}
-        onReorder={reorderCollections}
-        onClose={() => setReordering(false)}
       />
     </View>
   );
