@@ -98,17 +98,31 @@ const SEO_FACTORS: { id: string; col: string; label: string; presentSql: SQL }[]
   { id: "canonicalUrl", col: "seo_canonical_url", label: "Canonical URL", presentSql: sql`(s.canonical_url is not null and s.canonical_url <> '')` },
 ];
 
-/** SQL expression computing the 0-100 SEO completeness score for the joined `seo` row. */
-const SEO_SCORE_SQL = sql.join(
-  SEO_FACTORS.map((f) => sql`case when ${f.presentSql} then 20 else 0 end`),
-  sql` + `,
-);
+/**
+ * SQL expression computing the 0-100 SEO completeness score for the joined
+ * `seo` row. Built lazily (and memoized) rather than at module top-level: under
+ * the vitest/tsx CJS↔ESM interop window the `sql` tag is callable at import time
+ * but its attached helpers (`sql.join`, `sql.raw`) may not be assigned yet, so
+ * touching them at module-eval would throw `sql.join is not a function` and take
+ * down every route suite that transitively imports this file. Deferring to call
+ * time matches every other (in-function) `sql.join` usage in the repo.
+ */
+let seoScoreSqlCache: SQL | undefined;
+function seoScoreSql(): SQL {
+  return (seoScoreSqlCache ??= sql.join(
+    SEO_FACTORS.map((f) => sql`case when ${f.presentSql} then 20 else 0 end`),
+    sql` + `,
+  ));
+}
 
 /** One selected boolean column per SEO factor, aliased with its snake_case `col`. */
-const SEO_FACTOR_COLUMNS = sql.join(
-  SEO_FACTORS.map((f) => sql`${f.presentSql} as ${sql.raw(f.col)}`),
-  sql`, `,
-);
+let seoFactorColumnsCache: SQL | undefined;
+function seoFactorColumns(): SQL {
+  return (seoFactorColumnsCache ??= sql.join(
+    SEO_FACTORS.map((f) => sql`${f.presentSql} as ${sql.raw(f.col)}`),
+    sql`, `,
+  ));
+}
 
 /** Map the sort key to the underlying SQL ordering expression. */
 const SORT_EXPR: Record<ExplorerSort, SQL> = {
@@ -285,8 +299,8 @@ export async function listContentExplorer(
       a.id as author_id, a.name as author_name, a.slug as author_slug,
       a.avatar_url as author_avatar_url, a.role as author_role,
       c.id as category_id, c.name as category_name, c.slug as category_slug,
-      ${SEO_SCORE_SQL} as seo_score,
-      ${SEO_FACTOR_COLUMNS},
+      ${seoScoreSql()} as seo_score,
+      ${seoFactorColumns()},
       lv.score as validation_score,
       lv.status as validation_status,
       lv.issues as validation_issues

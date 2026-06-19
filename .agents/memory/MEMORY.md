@@ -38,3 +38,4 @@
 - [Drizzle column helper param typing](drizzle-column-param-typing.md) — never type a helper col param as `typeof someTable.id`; use `AnyPgColumn`. Symptom: only SOME identical childScope/inArray calls error TS2345 after a lib rebuild.
 - [Bulk alt skip persistence shrink trap](bulk-alt-skip-persist-shrink-trap.md) — saveSkipped is union/grow-only; shrinks (clear/review/promotion) need replaceSkipped via onSkippedReset or they silently no-op; assert loadSkipped, not just callback fired.
 - [Validation report shapes & explorer join](validation-report-shapes.md) — validation_reports mixes content-fidelity (issues.issues) + seo (issues.checks); explorer joins latest of ANY type (usually content-fidelity); handle both shapes.
+- [Module-load sql.join/sql.raw hazard](module-load-sql-helpers.md) — under vitest/tsx, drizzle `sql.join`/`sql.raw` may be unassigned at module-eval; only access them inside functions (lazy/memoized), never in a top-level const.
