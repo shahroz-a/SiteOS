@@ -1,6 +1,7 @@
 import { db } from "@workspace/db";
 import { pagesTable, pageViewsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
+import type { Executor } from "./cms-content.js";
 
 const LEADER_LIMIT = 10;
 
@@ -424,8 +425,8 @@ async function healthQuery() {
  * confirmation the storage-bounding job is firing, right where they look at view
  * data. Returns null when the job has never recorded a run.
  */
-async function maintenanceQuery() {
-  const res = await db.execute<{
+export async function maintenanceQuery(exec: Executor = db) {
+  const res = await exec.execute<{
     last_run_at: string;
     rolled_rows: number;
     days: number;
