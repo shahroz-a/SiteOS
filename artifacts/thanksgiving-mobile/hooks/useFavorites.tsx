@@ -23,6 +23,18 @@ export type Collection = {
 };
 
 /**
+ * A snapshot of an article's membership in a collection, captured the moment it
+ * is removed so the action can be undone. `orderIndex` is the post's position in
+ * the collection's custom order at removal time (or -1 if it had no custom slot),
+ * letting `restoreToCollection` put it back exactly where it was.
+ */
+export type RemovedFromCollection = {
+  postId: string;
+  collectionId: string;
+  orderIndex: number;
+};
+
+/**
  * Persisted collections payload. `membership` maps a post id to the set of
  * collection ids it belongs to, so a single saved article can live in many
  * collections at once. `order` maps a collection id to a reader-defined
@@ -74,9 +86,18 @@ type FavoritesContextValue = {
   /**
    * Remove a post from a single collection without un-saving it. The post stays
    * a favorite (under "All") and in any other collections it belongs to. Also
-   * prunes the post from that collection's custom order.
+   * prunes the post from that collection's custom order. Returns a snapshot that
+   * can be passed to `restoreToCollection` to undo the removal.
    */
-  removeFromCollection: (postId: string, collectionId: string) => void;
+  removeFromCollection: (
+    postId: string,
+    collectionId: string,
+  ) => RemovedFromCollection;
+  /**
+   * Undo a `removeFromCollection`: re-add the post to the collection and put it
+   * back at its previous position in the custom order.
+   */
+  restoreToCollection: (snapshot: RemovedFromCollection) => void;
   /** Number of saved posts assigned to the given collection. */
   collectionCount: (collectionId: string) => number;
   /**
@@ -357,7 +378,10 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   );
 
   const removeFromCollection = useCallback(
-    (postId: string, collectionId: string) => {
+    (postId: string, collectionId: string): RemovedFromCollection => {
+      // Capture the post's slot in the custom order before mutating, so an undo
+      // can restore its exact position.
+      const orderIndex = order[collectionId]?.indexOf(postId) ?? -1;
       setMembership((prev) => {
         const current = prev[postId];
         if (!current || !current.includes(collectionId)) return prev;
@@ -375,6 +399,30 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
         if (!ids || !ids.includes(postId)) return prev;
         return { ...prev, [collectionId]: ids.filter((id) => id !== postId) };
       });
+      return { postId, collectionId, orderIndex };
+    },
+    [order],
+  );
+
+  const restoreToCollection = useCallback(
+    ({ postId, collectionId, orderIndex }: RemovedFromCollection) => {
+      setMembership((prev) => {
+        const current = prev[postId] ?? [];
+        if (current.includes(collectionId)) return prev;
+        return { ...prev, [postId]: [...current, collectionId] };
+      });
+      // Re-insert the post at its previous slot in the custom order. Posts that
+      // had no explicit slot (orderIndex < 0) fall back to save order, so there
+      // is nothing to restore.
+      if (orderIndex >= 0) {
+        setOrder((prev) => {
+          const ids = prev[collectionId] ?? [];
+          if (ids.includes(postId)) return prev;
+          const next = [...ids];
+          next.splice(Math.min(orderIndex, next.length), 0, postId);
+          return { ...prev, [collectionId]: next };
+        });
+      }
     },
     [],
   );
@@ -432,6 +480,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       isInCollection,
       togglePostCollection,
       removeFromCollection,
+      restoreToCollection,
       collectionCount,
       getCollectionPosts,
       reorderCollection,
@@ -451,6 +500,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       isInCollection,
       togglePostCollection,
       removeFromCollection,
+      restoreToCollection,
       collectionCount,
       getCollectionPosts,
       reorderCollection,
