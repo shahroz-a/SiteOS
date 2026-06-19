@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, RefreshCw } from "lucide-react";
 import {
   useListCmsHeldBackArticles,
   useResolveCmsHeldBackArticle,
@@ -9,6 +10,11 @@ import {
   type HeldBackValidationIssue,
 } from "@workspace/api-client-react";
 import { ContentRenderer } from "@workspace/blog-renderer";
+import {
+  streamReextract,
+  type ReextractStage,
+  type ReextractResultEvent,
+} from "@/lib/reextract-client";
 import { Badge } from "@workspace/ui/badge";
 import { Button } from "@workspace/ui/button";
 import {
@@ -592,6 +598,93 @@ function ArticleDrawer({
   const issues = article?.issues ?? [];
   const pending = resolve.isPending;
 
+  const [reextractStage, setReextractStage] = useState<ReextractStage | null>(
+    null,
+  );
+  const [reextractError, setReextractError] = useState<string | null>(null);
+  const [reextractResult, setReextractResult] =
+    useState<ReextractResultEvent | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const reextracting = reextractStage !== null;
+
+  // Reset transient re-extract state whenever a different article is shown.
+  useEffect(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setReextractStage(null);
+    setReextractError(null);
+    setReextractResult(null);
+    setElapsedMs(0);
+  }, [article?.id]);
+
+  // Abort any in-flight stream on unmount.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Tick an elapsed timer while a re-extract runs.
+  useEffect(() => {
+    if (!reextracting) return;
+    const startedAt = Date.now();
+    setElapsedMs(0);
+    const interval = window.setInterval(() => {
+      setElapsedMs(Date.now() - startedAt);
+    }, 250);
+    return () => window.clearInterval(interval);
+  }, [reextracting]);
+
+  async function handleReextract() {
+    if (!article || reextracting) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setReextractError(null);
+    setReextractResult(null);
+    setReextractStage("loading");
+
+    try {
+      await streamReextract(
+        article.id,
+        (event) => {
+          if (event.type === "progress") {
+            setReextractStage(event.stage);
+          } else if (event.type === "result") {
+            setReextractResult(event);
+          } else if (event.type === "error") {
+            setReextractError(event.message);
+          }
+        },
+        controller.signal,
+      );
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        setReextractError(
+          err instanceof Error ? err.message : "Re-extract failed.",
+        );
+      }
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+      setReextractStage(null);
+    }
+
+    if (controller.signal.aborted) return;
+
+    setReextractResult((current) => {
+      if (current) {
+        queryClient.invalidateQueries({
+          queryKey: getListCmsHeldBackArticlesQueryKey(),
+        });
+        toast({
+          title: current.heldBack
+            ? "Re-extracted — still held back"
+            : "Re-extracted — article cleared the queue",
+          description: current.heldBack
+            ? `Validation: ${current.validationStatus} (${current.validationScore}).`
+            : "It passed validation and was published.",
+        });
+      }
+      return current;
+    });
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 sm:max-w-xl lg:max-w-3xl xl:max-w-5xl">
@@ -668,8 +761,16 @@ function ArticleDrawer({
             <SheetFooter className="flex-col gap-2 sm:flex-col">
               {canResolve ? (
                 <>
-                  <Button
+                  <ReextractPanel
+                    stage={reextractStage}
+                    elapsedMs={elapsedMs}
+                    error={reextractError}
+                    result={reextractResult}
+                    onReextract={handleReextract}
                     disabled={pending}
+                  />
+                  <Button
+                    disabled={pending || reextracting}
                     onClick={() =>
                       resolve.mutate({
                         id: article.id,
@@ -681,7 +782,7 @@ function ArticleDrawer({
                   </Button>
                   <Button
                     variant="outline"
-                    disabled={pending}
+                    disabled={pending || reextracting}
                     onClick={() =>
                       resolve.mutate({
                         id: article.id,
@@ -707,6 +808,120 @@ function ArticleDrawer({
         ) : null}
       </SheetContent>
     </Sheet>
+  );
+}
+
+const REEXTRACT_STAGES: { key: ReextractStage; label: string }[] = [
+  { key: "loading", label: "Loading article" },
+  { key: "fetching", label: "Fetching source" },
+  { key: "parsing", label: "Parsing content" },
+  { key: "validating", label: "Validating" },
+  { key: "storing", label: "Saving" },
+];
+
+function formatElapsed(ms: number): string {
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function ReextractPanel({
+  stage,
+  elapsedMs,
+  error,
+  result,
+  onReextract,
+  disabled,
+}: {
+  stage: ReextractStage | null;
+  elapsedMs: number;
+  error: string | null;
+  result: ReextractResultEvent | null;
+  onReextract: () => void;
+  disabled: boolean;
+}) {
+  const running = stage !== null;
+  const activeIndex = stage
+    ? REEXTRACT_STAGES.findIndex((s) => s.key === stage)
+    : -1;
+
+  return (
+    <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm font-medium">Re-extract from source</div>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={disabled || running}
+          onClick={onReextract}
+        >
+          {running ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Re-extracting…
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-3.5 w-3.5" /> Re-extract
+            </>
+          )}
+        </Button>
+      </div>
+
+      {running ? (
+        <div className="mt-3 space-y-2">
+          <ol className="space-y-1.5">
+            {REEXTRACT_STAGES.map((s, i) => {
+              const state =
+                i < activeIndex
+                  ? "done"
+                  : i === activeIndex
+                    ? "active"
+                    : "pending";
+              return (
+                <li
+                  key={s.key}
+                  className="flex items-center gap-2 text-sm"
+                  aria-current={state === "active" ? "step" : undefined}
+                >
+                  <span className="flex h-4 w-4 items-center justify-center">
+                    {state === "active" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground" />
+                    ) : state === "done" ? (
+                      <span className="text-foreground">✓</span>
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                    )}
+                  </span>
+                  <span
+                    className={
+                      state === "pending"
+                        ? "text-muted-foreground"
+                        : "text-foreground"
+                    }
+                  >
+                    {s.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="text-xs tabular-nums text-muted-foreground">
+            Elapsed {formatElapsed(elapsedMs)} · times out at 90s
+          </p>
+        </div>
+      ) : error ? (
+        <p className="mt-2 text-sm text-destructive">{error}</p>
+      ) : result ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {result.heldBack
+            ? `Re-extracted — still held back (validation: ${result.validationStatus}, score ${result.validationScore}).`
+            : "Re-extracted successfully — it passed validation and left the queue."}
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Re-fetches the original URL and re-runs extraction. If it now passes
+          validation it leaves the queue automatically.
+        </p>
+      )}
+    </div>
   );
 }
 

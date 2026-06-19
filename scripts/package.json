@@ -9,6 +9,7 @@
     "import": "tsx ./src/import.ts",
     "crawl": "tsx ./src/crawl.ts",
     "revalidate": "tsx ./src/revalidate.ts",
+    "reextract": "tsx ./src/reextract.ts",
     "discover": "tsx ./src/crawl.ts --discover",
     "export:payload": "tsx ./src/export-payload.ts",
     "import:payload": "tsx ./src/import-payload.ts",

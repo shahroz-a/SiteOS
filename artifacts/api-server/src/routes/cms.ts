@@ -31,6 +31,7 @@ import {
 import { rescoreStoredValidation } from "@workspace/content-validation";
 import { requireAuth, requirePermission } from "../middlewares/rbac";
 import { recordAudit } from "../lib/audit";
+import { runReextract, type ReextractEvent } from "../lib/reextract";
 
 const router: IRouter = Router();
 
@@ -426,6 +427,93 @@ router.get(
         richText: page.richText ?? null,
       }),
     );
+  },
+);
+
+// Re-extract a held-back article from its source URL and stream live progress.
+//
+// This re-runs the crawler's fetch → parse → validate → store pipeline for one
+// page so an editor can give a transiently-broken extraction a fresh try from
+// the review drawer. Because the work runs as a child process emitting staged
+// progress, the response is a streamed NDJSON body (one JSON object per line)
+// rather than a single JSON payload — so it is intentionally NOT part of the
+// OpenAPI/orval contract (like the sitemap/feed routes). The client reads the
+// stream and shows each stage; a slow/unreachable source is killed after a hard
+// timeout and reported as a terminal `{type:"error",code:"timeout"}` event.
+router.post(
+  "/cms/held-back-articles/:id/reextract",
+  requireAuth,
+  requirePermission("review.approve"),
+  async (req: Request, res: Response) => {
+    const { id } = ResolveCmsHeldBackArticleParams.parse(req.params);
+
+    // Only a draft post is part of the review queue; refuse anything else with a
+    // normal JSON error before we switch the response into streaming mode.
+    const [existing] = await db
+      .select({ id: pagesTable.id })
+      .from(pagesTable)
+      .where(
+        and(
+          eq(pagesTable.id, id),
+          eq(pagesTable.status, "draft"),
+          eq(pagesTable.pageType, "post"),
+        ),
+      );
+
+    if (!existing) {
+      res.status(404).json({ error: "Article not found in the review queue" });
+      return;
+    }
+
+    res.status(200);
+    res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+
+    let ended = false;
+    const send = (event: ReextractEvent) => {
+      if (ended) return;
+      res.write(`${JSON.stringify(event)}\n`);
+    };
+
+    let result: ReextractEvent | null = null;
+    const cancel = runReextract(id, {
+      onEvent: (event) => {
+        if (event.type === "result") result = event;
+        send(event);
+      },
+      onClose: ({ timedOut }) => {
+        if (timedOut) {
+          send({
+            type: "error",
+            code: "timeout",
+            message:
+              "The source took too long to respond and was stopped. Try again later.",
+          });
+        }
+        if (result) {
+          void recordAudit(req, {
+            action: "article.reextract",
+            entityType: "page",
+            entityId: id,
+            actorRole: req.cmsRole ?? null,
+            after: {
+              validationStatus: result.validationStatus ?? null,
+              status: result.pageStatus ?? null,
+            },
+          });
+        }
+        ended = true;
+        res.end();
+      },
+    });
+
+    // If the editor closes the drawer / navigates away, stop the child process.
+    req.on("close", () => {
+      ended = true;
+      cancel();
+    });
   },
 );
 

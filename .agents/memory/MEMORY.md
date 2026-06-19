@@ -27,3 +27,4 @@
 - [Search DB setup not migration-tracked](search-db-setup-not-migration-tracked.md) — pg_trgm + trigram GIN indexes are raw-executeSql DDL, not in any migration; a dev rollback wipes them; re-verify presence, prod gets them only via re-publish.
 - [componentTree type vs blockType](componenttree-type-vs-blocktype.md) — crawler nodes key the discriminator `type`, importer/shared lib use `blockType`; re-flatten crashes (NULL block_type) unless `componentTreeChildren` normalizes.
 - [Annotating rendered preview DOM](annotate-rendered-dom-react.md) — annotations on dangerouslySetInnerHTML children survive React re-renders; classes added to React-rendered nodes get wiped on next render — annotate the raw-HTML pane, not the React pane.
+- [api-server spawns scripts CLIs](server-spawns-scripts-cli.md) — leaf can't import scripts; spawn child (dev tsx, prod node bundle). tsx is at scripts/node_modules/.bin/tsx, NOT repo root. NDJSON progress on stderr, result on stdout.
