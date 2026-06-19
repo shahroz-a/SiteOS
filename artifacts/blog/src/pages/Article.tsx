@@ -5,6 +5,8 @@ import {
   useGetPostBySlug,
   useListPosts,
   useRecordPageView,
+  useResolveRedirect,
+  getResolveRedirectQueryKey,
   type PostDetail,
 } from "@workspace/api-client-react";
 import { Header } from "@/components/Header";
@@ -145,47 +147,134 @@ function RelatedArticles({ post }: { post: PostDetail }) {
   );
 }
 
+/**
+ * The full article rendering — hero, breadcrumbs, author, TOC, body, FAQ. Shared
+ * by the public `/:slug` route AND the authenticated `/preview/:token` route so
+ * a draft is rendered through the EXACT production renderer (no drift). When
+ * `isPreview` is set a banner is shown and related-posts are hidden (a draft has
+ * no public siblings to relate to).
+ */
+export function ArticleView({
+  post,
+  isPreview = false,
+}: {
+  post: PostDetail;
+  isPreview?: boolean;
+}) {
+  // The cleaned raw HTML is the body we actually render, so derive the TOC from
+  // it (heading ids are injected during the same pass) to guarantee anchors
+  // resolve. Fall back to the componentTree only when there's no HTML body.
+  const tocItems = useMemo(() => {
+    if (post.contentHtml && post.contentHtml.trim().length > 0) {
+      return prepareArticleHtml(post.contentHtml).toc;
+    }
+    return tocFromComponentTree(asComponentTree(post.componentTree));
+  }, [post.contentHtml, post.componentTree]);
+
+  const jsonLd = useMemo(
+    () => (post.jsonld ?? []).map((b) => b.data),
+    [post.jsonld],
+  );
+
+  useSeo({
+    title: `${post.seo?.metaTitle ?? post.title} | Headout Blog`,
+    description: post.seo?.metaDescription ?? post.excerpt,
+    canonicalUrl: post.seo?.canonicalUrl ?? post.canonicalUrl,
+    ogTitle: post.seo?.ogTitle ?? post.title,
+    ogDescription: post.seo?.ogDescription ?? post.excerpt,
+    ogImage: post.seo?.ogImage ?? post.featuredImageUrl,
+    ogType: "article",
+    jsonLd: isPreview ? [] : jsonLd,
+  });
+
+  // A preview must never be indexed: inject a noindex robots meta while mounted
+  // and remove it on unmount so the public article view is unaffected.
+  useEffect(() => {
+    if (!isPreview) return;
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex,nofollow";
+    document.head.appendChild(meta);
+    return () => {
+      document.head.removeChild(meta);
+    };
+  }, [isPreview]);
+
+  return (
+    <>
+      {isPreview ? (
+        <div className="w-full bg-amber-500 text-amber-950 text-center text-sm font-medium py-2 px-4">
+          Preview — this is an unpublished draft. Don't share beyond your team.
+        </div>
+      ) : null}
+      <ArticleHero post={post} />
+      <Breadcrumbs post={post} />
+
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-16">
+        {/* Author & share */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 border-b border-border/40 pb-8">
+          {post.author ? (
+            <Link
+              href={authorPath(post.author.slug)}
+              className="flex items-center gap-4 group hover:opacity-80 transition-opacity"
+            >
+              <Avatar className="w-12 h-12 border-2 border-primary/10">
+                {post.author.avatarUrl ? (
+                  <AvatarImage
+                    src={post.author.avatarUrl}
+                    alt={post.author.name}
+                  />
+                ) : null}
+                <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="text-sm text-muted-foreground">Written by</div>
+                <div className="font-medium text-foreground group-hover:text-primary transition-colors">
+                  {post.author.name}
+                </div>
+              </div>
+            </Link>
+          ) : (
+            <span />
+          )}
+
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            {readingTimeLabel(post.readingTimeMinutes) ? (
+              <span>{readingTimeLabel(post.readingTimeMinutes)}</span>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-16 relative items-start">
+          <TableOfContents items={tocItems} />
+
+          <div className="flex-1 min-w-0 max-w-3xl">
+            <ContentRenderer post={post} />
+            <FaqAccordion items={post.faq} />
+          </div>
+        </div>
+
+        <NewsletterCTA />
+        {isPreview ? null : <RelatedArticles post={post} />}
+      </main>
+    </>
+  );
+}
+
 export default function Article() {
   const [, params] = useRoute("/:slug");
   const slug = params?.slug ?? "";
   const { data: post, isLoading, isError } = useGetPostBySlug(slug);
 
   // Fire-and-forget, privacy-respecting page-view capture once the article
-  // resolves. Errors are swallowed so analytics never disrupts reading.
+  // resolves. Errors are swallowed so analytics never disrupts reading. Only the
+  // public route records views — preview rendering goes through ArticleView.
   const { mutate: recordView } = useRecordPageView();
   useEffect(() => {
     if (post?.slug) {
       recordView({ data: { slug: post.slug } });
     }
   }, [post?.slug, recordView]);
-
-  // The cleaned raw HTML is the body we actually render, so derive the TOC from
-  // it (heading ids are injected during the same pass) to guarantee anchors
-  // resolve. Fall back to the componentTree only when there's no HTML body.
-  const tocItems = useMemo(() => {
-    if (post?.contentHtml && post.contentHtml.trim().length > 0) {
-      return prepareArticleHtml(post.contentHtml).toc;
-    }
-    return tocFromComponentTree(asComponentTree(post?.componentTree));
-  }, [post?.contentHtml, post?.componentTree]);
-
-  const jsonLd = useMemo(
-    () => (post?.jsonld ?? []).map((b) => b.data),
-    [post?.jsonld],
-  );
-
-  useSeo({
-    title: post
-      ? `${post.seo?.metaTitle ?? post.title} | Headout Blog`
-      : "Headout Blog",
-    description: post?.seo?.metaDescription ?? post?.excerpt,
-    canonicalUrl: post?.seo?.canonicalUrl ?? post?.canonicalUrl,
-    ogTitle: post?.seo?.ogTitle ?? post?.title,
-    ogDescription: post?.seo?.ogDescription ?? post?.excerpt,
-    ogImage: post?.seo?.ogImage ?? post?.featuredImageUrl,
-    ogType: "article",
-    jsonLd,
-  });
 
   return (
     <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20">
@@ -194,70 +283,52 @@ export default function Article() {
       {isLoading ? (
         <LoadingState label="Loading article…" />
       ) : isError || !post ? (
-        <ErrorState
-          title="Article not found"
-          message="The article you're looking for doesn't exist or may have moved."
-        />
+        <RedirectOrNotFound slug={slug} />
       ) : (
-        <>
-          <ArticleHero post={post} />
-          <Breadcrumbs post={post} />
-
-          <main className="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-16">
-            {/* Author & share */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 border-b border-border/40 pb-8">
-              {post.author ? (
-                <Link
-                  href={authorPath(post.author.slug)}
-                  className="flex items-center gap-4 group hover:opacity-80 transition-opacity"
-                >
-                  <Avatar className="w-12 h-12 border-2 border-primary/10">
-                    {post.author.avatarUrl ? (
-                      <AvatarImage
-                        src={post.author.avatarUrl}
-                        alt={post.author.name}
-                      />
-                    ) : null}
-                    <AvatarFallback>
-                      {post.author.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="text-sm text-muted-foreground">
-                      Written by
-                    </div>
-                    <div className="font-medium text-foreground group-hover:text-primary transition-colors">
-                      {post.author.name}
-                    </div>
-                  </div>
-                </Link>
-              ) : (
-                <span />
-              )}
-
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                {readingTimeLabel(post.readingTimeMinutes) ? (
-                  <span>{readingTimeLabel(post.readingTimeMinutes)}</span>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="flex flex-col lg:flex-row gap-16 relative items-start">
-              <TableOfContents items={tocItems} />
-
-              <div className="flex-1 min-w-0 max-w-3xl">
-                <ContentRenderer post={post} />
-                <FaqAccordion items={post.faq} />
-              </div>
-            </div>
-
-            <NewsletterCTA />
-            <RelatedArticles post={post} />
-          </main>
-        </>
+        <ArticleView post={post} />
       )}
 
       <Footer />
     </div>
+  );
+}
+
+/**
+ * The static blog has no real server-side 301 — the production serve only does
+ * `/* -> /index.html`. So when an article slug 404s, ask the API whether the
+ * current path has an active redirect and, if so, forward the browser. Old
+ * inbound links (and renamed-slug links) keep working without a redeploy.
+ */
+function RedirectOrNotFound({ slug }: { slug: string }) {
+  const path = useMemo(() => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    return `${base}/${slug}`;
+  }, [slug]);
+
+  const { data, isLoading } = useResolveRedirect(
+    { path },
+    {
+      query: {
+        enabled: slug.length > 0,
+        queryKey: getResolveRedirectQueryKey({ path }),
+      },
+    },
+  );
+
+  useEffect(() => {
+    if (data?.found && data.toPath) {
+      window.location.replace(data.toPath);
+    }
+  }, [data]);
+
+  if (isLoading || data?.found) {
+    return <LoadingState label="Redirecting…" />;
+  }
+
+  return (
+    <ErrorState
+      title="Article not found"
+      message="The article you're looking for doesn't exist or may have moved."
+    />
   );
 }

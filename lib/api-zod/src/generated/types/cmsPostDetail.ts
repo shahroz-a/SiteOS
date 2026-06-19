@@ -12,6 +12,7 @@ import type { CmsGallery } from './cmsGallery';
 import type { CmsLink } from './cmsLink';
 import type { CmsPostDetailComponentTree } from './cmsPostDetailComponentTree';
 import type { CmsPostDetailRichText } from './cmsPostDetailRichText';
+import type { CmsRedirect } from './cmsRedirect';
 import type { CmsSeoMeta } from './cmsSeoMeta';
 import type { FaqItem } from './faqItem';
 import type { ImageItem } from './imageItem';
@@ -30,6 +31,11 @@ export interface CmsPostDetail {
   /** @nullable */
   excerpt?: string | null;
   canonicalUrl: string;
+  /**
+     * The page's original (imported/first) URL — never auto-changed.
+     * @nullable
+     */
+  originalUrl?: string | null;
   pathname: string;
   /** @nullable */
   parentPath?: string | null;
@@ -44,6 +50,8 @@ export interface CmsPostDetail {
   language: string;
   /** @nullable */
   publishedAt?: Date | null;
+  /** @nullable */
+  scheduledFor?: Date | null;
   /** @nullable */
   modifiedAt?: Date | null;
   /** @nullable */
@@ -67,4 +75,6 @@ export interface CmsPostDetail {
   externalLinks: CmsLink[];
   /** @nullable */
   latestVersion?: number | null;
+  /** Redirect rows whose target is this page's current pathname. */
+  redirects: CmsRedirect[];
 }

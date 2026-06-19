@@ -74,6 +74,7 @@ export const pagesTable = pgTable(
 
     // Publishing dates
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
     modifiedAt: timestamp("modified_at", { withTimezone: true }),
 
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -101,6 +102,7 @@ export const pagesTable = pgTable(
       t.canonicalUrl.op("gin_trgm_ops"),
     ),
     index("pages_excerpt_trgm").using("gin", t.excerpt.op("gin_trgm_ops")),
+    index("pages_scheduled_for_idx").on(t.scheduledFor),
   ],
 );
 

@@ -11,6 +11,8 @@ export type PageStatus = typeof PageStatus[keyof typeof PageStatus];
 
 export const PageStatus = {
   draft: 'draft',
+  review: 'review',
+  scheduled: 'scheduled',
   published: 'published',
   archived: 'archived',
 } as const;

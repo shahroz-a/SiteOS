@@ -19,6 +19,7 @@ import {
   authorsTable,
   categoriesTable,
   tagsTable,
+  redirectsTable,
   type Page,
 } from "@workspace/db";
 import { componentTreeChildren, flattenBlocks } from "@workspace/content";
@@ -259,15 +260,33 @@ export function cloneForDuplicate(
 // Serialized detail shape (matches CmsPostDetail in the OpenAPI contract).
 // ---------------------------------------------------------------------------
 
+export type CmsPageStatus =
+  | "draft"
+  | "review"
+  | "scheduled"
+  | "published"
+  | "archived";
+
+export interface CmsRedirectOut {
+  id: string;
+  fromPath: string;
+  toPath: string;
+  statusCode: number;
+  isActive: boolean;
+  reason: string | null;
+  createdAt: string | null;
+}
+
 export interface CmsPostDetail {
   id: string;
   slug: string;
-  status: "draft" | "published" | "archived";
+  status: CmsPageStatus;
   pageType: string;
   title: string;
   subtitle: string | null;
   excerpt: string | null;
   canonicalUrl: string;
+  originalUrl: string | null;
   pathname: string;
   parentPath: string | null;
   featuredImageUrl: string | null;
@@ -276,6 +295,7 @@ export interface CmsPostDetail {
   wordCount: number | null;
   language: string;
   publishedAt: string | null;
+  scheduledFor: string | null;
   modifiedAt: string | null;
   updatedAt: string | null;
   contentHtml: string | null;
@@ -294,6 +314,7 @@ export interface CmsPostDetail {
   internalLinks: CmsLinkOut[];
   externalLinks: CmsLinkOut[];
   latestVersion: number | null;
+  redirects: CmsRedirectOut[];
 }
 
 interface CmsImageOut {
@@ -365,7 +386,7 @@ export interface CmsPostSummaryOut {
   id: string;
   slug: string;
   title: string;
-  status: "draft" | "published" | "archived";
+  status: CmsPageStatus;
   pageType: string;
   excerpt: string | null;
   pathname: string;
@@ -391,7 +412,7 @@ export interface CmsPostListResult {
 export async function listCmsPosts(
   opts: {
     q?: string;
-    status?: "draft" | "published" | "archived";
+    status?: CmsPageStatus;
     page: number;
     limit: number;
   },
@@ -668,6 +689,13 @@ export async function serializeCmsPostDetail(
     .orderBy(desc(pageVersionsTable.versionNumber))
     .limit(1);
 
+  // Redirects whose target is this page's current pathname (old URLs → here).
+  const redirects = await exec
+    .select()
+    .from(redirectsTable)
+    .where(eq(redirectsTable.toPath, page.pathname))
+    .orderBy(asc(redirectsTable.fromPath));
+
   const galleryImages = galleries.length
     ? allImages.filter((img) => img.galleryId != null)
     : [];
@@ -682,6 +710,7 @@ export async function serializeCmsPostDetail(
     subtitle: page.subtitle,
     excerpt: page.excerpt,
     canonicalUrl: page.canonicalUrl,
+    originalUrl: page.originalUrl,
     pathname: page.pathname,
     parentPath: page.parentPath,
     featuredImageUrl: page.featuredImageUrl,
@@ -690,6 +719,7 @@ export async function serializeCmsPostDetail(
     wordCount: page.wordCount,
     language: page.language,
     publishedAt: page.publishedAt ? page.publishedAt.toISOString() : null,
+    scheduledFor: page.scheduledFor ? page.scheduledFor.toISOString() : null,
     modifiedAt: page.modifiedAt ? page.modifiedAt.toISOString() : null,
     updatedAt: page.updatedAt ? page.updatedAt.toISOString() : null,
     contentHtml: page.cleanedHtml,
@@ -771,6 +801,15 @@ export async function serializeCmsPostDetail(
       position: l.position,
     })),
     latestVersion: latest?.versionNumber ?? null,
+    redirects: redirects.map((r) => ({
+      id: r.id,
+      fromPath: r.fromPath,
+      toPath: r.toPath,
+      statusCode: r.statusCode,
+      isActive: r.isActive,
+      reason: null,
+      createdAt: r.createdAt ? r.createdAt.toISOString() : null,
+    })),
   };
 }
 

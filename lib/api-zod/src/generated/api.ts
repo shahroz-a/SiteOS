@@ -763,7 +763,7 @@ export const ListCmsMediaResponse = zod.object({
   "id": zod.string().uuid(),
   "slug": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'published', 'archived']),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
   "pathname": zod.string(),
   "alt": zod.string().nullable(),
   "altStatus": zod.enum(['ok', 'missing', 'poor']).describe('Accessibility classification of an image\'s alt text. `ok` = descriptive alt present; `missing` = no alt text at all; `poor` = alt text is too short, a generic placeholder, or just a filename.')
@@ -1156,7 +1156,7 @@ export const ListCmsPostQueryParams = zod.object({
   "page": zod.coerce.number().min(1).default(listCmsPostQueryPageDefault).describe('1-based page number'),
   "limit": zod.coerce.number().min(1).max(listCmsPostQueryLimitMax).default(listCmsPostQueryLimitDefault).describe('Number of items per page'),
   "q": zod.string().optional().describe('Case-insensitive search over title and slug.'),
-  "status": zod.enum(['draft', 'published', 'archived']).optional().describe('Restrict to a single page status.')
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']).optional().describe('Restrict to a single page status.')
 })
 
 export const ListCmsPostHeader = zod.object({
@@ -1168,7 +1168,7 @@ export const ListCmsPostResponse = zod.object({
   "id": zod.string().uuid(),
   "slug": zod.string(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'published', 'archived']),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
   "pageType": zod.string(),
   "excerpt": zod.string().nullish(),
   "pathname": zod.string(),
@@ -1219,7 +1219,7 @@ export const CreateCmsPostBody = zod.object({
   "slug": zod.string().optional().describe('Optional; derived from the title when omitted on create.'),
   "subtitle": zod.string().nullish(),
   "excerpt": zod.string().nullish(),
-  "status": zod.enum(['draft', 'published', 'archived']).optional(),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']).optional(),
   "language": zod.string().default(createCmsPostBodyLanguageDefault),
   "canonicalUrl": zod.string().nullish(),
   "pathname": zod.string().nullish(),
@@ -1236,6 +1236,7 @@ export const CreateCmsPostBody = zod.object({
   "readingTimeMinutes": zod.number().nullish(),
   "wordCount": zod.number().nullish(),
   "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
   "seo": zod.union([zod.object({
   "metaTitle": zod.string().nullish(),
   "metaDescription": zod.string().nullish(),
@@ -1346,12 +1347,13 @@ export const GetCmsPostHeader = zod.object({
 export const GetCmsPostResponse = zod.object({
   "id": zod.string().uuid(),
   "slug": zod.string(),
-  "status": zod.enum(['draft', 'published', 'archived']),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
   "pageType": zod.string(),
   "title": zod.string(),
   "subtitle": zod.string().nullish(),
   "excerpt": zod.string().nullish(),
   "canonicalUrl": zod.string(),
+  "originalUrl": zod.string().nullish().describe('The page\'s original (imported\/first) URL — never auto-changed.'),
   "pathname": zod.string(),
   "parentPath": zod.string().nullish(),
   "featuredImageUrl": zod.string().nullish(),
@@ -1360,6 +1362,7 @@ export const GetCmsPostResponse = zod.object({
   "wordCount": zod.number().nullish(),
   "language": zod.string(),
   "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
   "modifiedAt": zod.coerce.date().nullish(),
   "updatedAt": zod.coerce.date().nullish(),
   "contentHtml": zod.string().nullish(),
@@ -1465,7 +1468,16 @@ export const GetCmsPostResponse = zod.object({
   "domain": zod.string().nullish(),
   "position": zod.number()
 })),
-  "latestVersion": zod.number().nullish()
+  "latestVersion": zod.number().nullish(),
+  "redirects": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "reason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().nullish()
+})).describe('Redirect rows whose target is this page\'s current pathname.')
 })
 
 
@@ -1495,7 +1507,7 @@ export const UpdateCmsPostBody = zod.object({
   "slug": zod.string().optional().describe('Optional; derived from the title when omitted on create.'),
   "subtitle": zod.string().nullish(),
   "excerpt": zod.string().nullish(),
-  "status": zod.enum(['draft', 'published', 'archived']).optional(),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']).optional(),
   "language": zod.string().default(updateCmsPostBodyLanguageDefault),
   "canonicalUrl": zod.string().nullish(),
   "pathname": zod.string().nullish(),
@@ -1512,6 +1524,7 @@ export const UpdateCmsPostBody = zod.object({
   "readingTimeMinutes": zod.number().nullish(),
   "wordCount": zod.number().nullish(),
   "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
   "seo": zod.union([zod.object({
   "metaTitle": zod.string().nullish(),
   "metaDescription": zod.string().nullish(),
@@ -1594,12 +1607,13 @@ export const UpdateCmsPostBody = zod.object({
 export const UpdateCmsPostResponse = zod.object({
   "id": zod.string().uuid(),
   "slug": zod.string(),
-  "status": zod.enum(['draft', 'published', 'archived']),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
   "pageType": zod.string(),
   "title": zod.string(),
   "subtitle": zod.string().nullish(),
   "excerpt": zod.string().nullish(),
   "canonicalUrl": zod.string(),
+  "originalUrl": zod.string().nullish().describe('The page\'s original (imported\/first) URL — never auto-changed.'),
   "pathname": zod.string(),
   "parentPath": zod.string().nullish(),
   "featuredImageUrl": zod.string().nullish(),
@@ -1608,6 +1622,7 @@ export const UpdateCmsPostResponse = zod.object({
   "wordCount": zod.number().nullish(),
   "language": zod.string(),
   "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
   "modifiedAt": zod.coerce.date().nullish(),
   "updatedAt": zod.coerce.date().nullish(),
   "contentHtml": zod.string().nullish(),
@@ -1713,7 +1728,16 @@ export const UpdateCmsPostResponse = zod.object({
   "domain": zod.string().nullish(),
   "position": zod.number()
 })),
-  "latestVersion": zod.number().nullish()
+  "latestVersion": zod.number().nullish(),
+  "redirects": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "reason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().nullish()
+})).describe('Redirect rows whose target is this page\'s current pathname.')
 })
 
 
@@ -1793,7 +1817,7 @@ export const ListCmsPostVersionsResponse = zod.object({
   "changeSummary": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "title": zod.string(),
-  "status": zod.enum(['draft', 'published', 'archived']),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
   "author": zod.union([zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),
@@ -1828,12 +1852,13 @@ export const GetCmsPostVersionResponse = zod.object({
   "snapshot": zod.object({
   "id": zod.string().uuid(),
   "slug": zod.string(),
-  "status": zod.enum(['draft', 'published', 'archived']),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
   "pageType": zod.string(),
   "title": zod.string(),
   "subtitle": zod.string().nullish(),
   "excerpt": zod.string().nullish(),
   "canonicalUrl": zod.string(),
+  "originalUrl": zod.string().nullish().describe('The page\'s original (imported\/first) URL — never auto-changed.'),
   "pathname": zod.string(),
   "parentPath": zod.string().nullish(),
   "featuredImageUrl": zod.string().nullish(),
@@ -1842,6 +1867,7 @@ export const GetCmsPostVersionResponse = zod.object({
   "wordCount": zod.number().nullish(),
   "language": zod.string(),
   "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
   "modifiedAt": zod.coerce.date().nullish(),
   "updatedAt": zod.coerce.date().nullish(),
   "contentHtml": zod.string().nullish(),
@@ -1947,7 +1973,16 @@ export const GetCmsPostVersionResponse = zod.object({
   "domain": zod.string().nullish(),
   "position": zod.number()
 })),
-  "latestVersion": zod.number().nullish()
+  "latestVersion": zod.number().nullish(),
+  "redirects": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "reason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().nullish()
+})).describe('Redirect rows whose target is this page\'s current pathname.')
 })
 })
 
@@ -2001,12 +2036,13 @@ export const RestoreCmsPostVersionHeader = zod.object({
 export const RestoreCmsPostVersionResponse = zod.object({
   "id": zod.string().uuid(),
   "slug": zod.string(),
-  "status": zod.enum(['draft', 'published', 'archived']),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
   "pageType": zod.string(),
   "title": zod.string(),
   "subtitle": zod.string().nullish(),
   "excerpt": zod.string().nullish(),
   "canonicalUrl": zod.string(),
+  "originalUrl": zod.string().nullish().describe('The page\'s original (imported\/first) URL — never auto-changed.'),
   "pathname": zod.string(),
   "parentPath": zod.string().nullish(),
   "featuredImageUrl": zod.string().nullish(),
@@ -2015,6 +2051,7 @@ export const RestoreCmsPostVersionResponse = zod.object({
   "wordCount": zod.number().nullish(),
   "language": zod.string(),
   "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
   "modifiedAt": zod.coerce.date().nullish(),
   "updatedAt": zod.coerce.date().nullish(),
   "contentHtml": zod.string().nullish(),
@@ -2120,7 +2157,454 @@ export const RestoreCmsPostVersionResponse = zod.object({
   "domain": zod.string().nullish(),
   "position": zod.number()
 })),
-  "latestVersion": zod.number().nullish()
+  "latestVersion": zod.number().nullish(),
+  "redirects": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "reason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().nullish()
+})).describe('Redirect rows whose target is this page\'s current pathname.')
+})
+
+
+/**
+ * @summary Move an article through its publish lifecycle (requires content.publish for published/scheduled, review.approve for review)
+ */
+export const TransitionCmsPostParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const TransitionCmsPostHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const TransitionCmsPostBody = zod.object({
+  "to": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
+  "scheduledFor": zod.coerce.date().nullish(),
+  "note": zod.string().nullish().describe('Optional human note recorded on the audit log\/version.')
+}).describe('Move an article through its editorial lifecycle. `scheduledFor` is required when `to` is `scheduled` and ignored otherwise.')
+
+export const TransitionCmsPostResponse = zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
+  "pageType": zod.string(),
+  "title": zod.string(),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "canonicalUrl": zod.string(),
+  "originalUrl": zod.string().nullish().describe('The page\'s original (imported\/first) URL — never auto-changed.'),
+  "pathname": zod.string(),
+  "parentPath": zod.string().nullish(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "language": zod.string(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional(),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "tags": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "faq": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number()
+})),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "galleries": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "title": zod.string().nullish(),
+  "layout": zod.string().nullish(),
+  "position": zod.number(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+}))
+})),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "focusKeyword": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "ogType": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "needsReview": zod.boolean()
+}),zod.null()]).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+})),
+  "internalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "externalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "latestVersion": zod.number().nullish(),
+  "redirects": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "reason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().nullish()
+})).describe('Redirect rows whose target is this page\'s current pathname.')
+})
+
+
+/**
+ * @summary Mint an expiring shareable preview link for a draft (requires content.view)
+ */
+export const CreateCmsPreviewLinkParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const CreateCmsPreviewLinkHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const createCmsPreviewLinkBodyExpiresInHoursDefault = 72;
+export const createCmsPreviewLinkBodyExpiresInHoursMax = 720;
+
+
+
+export const CreateCmsPreviewLinkBody = zod.object({
+  "expiresInHours": zod.number().min(1).max(createCmsPreviewLinkBodyExpiresInHoursMax).default(createCmsPreviewLinkBodyExpiresInHoursDefault)
+})
+
+
+/**
+ * @summary Change an article's slug/pathname and auto-create a redirect (requires url.manage)
+ */
+export const ChangeCmsPostUrlParams = zod.object({
+  "id": zod.string().uuid().describe('The internal resource id (UUID). CMS routes address rows by id, not slug.')
+})
+
+export const ChangeCmsPostUrlHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+
+export const changeCmsPostUrlBodyCreateRedirectDefault = true;
+
+export const ChangeCmsPostUrlBody = zod.object({
+  "slug": zod.string().min(1),
+  "confirm": zod.boolean().describe('Must be true to apply; guards against accidental URL changes.'),
+  "createRedirect": zod.boolean().default(changeCmsPostUrlBodyCreateRedirectDefault)
+}).describe('Change an article\'s public slug\/pathname. The old path is preserved as a 301 redirect so existing links keep working. Requires explicit confirmation.')
+
+export const ChangeCmsPostUrlResponse = zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "status": zod.enum(['draft', 'review', 'scheduled', 'published', 'archived']),
+  "pageType": zod.string(),
+  "title": zod.string(),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "canonicalUrl": zod.string(),
+  "originalUrl": zod.string().nullish().describe('The page\'s original (imported\/first) URL — never auto-changed.'),
+  "pathname": zod.string(),
+  "parentPath": zod.string().nullish(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "language": zod.string(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "scheduledFor": zod.coerce.date().nullish(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional(),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "tags": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "faq": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number()
+})),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "galleries": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "title": zod.string().nullish(),
+  "layout": zod.string().nullish(),
+  "position": zod.number(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+}))
+})),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "focusKeyword": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "ogType": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "needsReview": zod.boolean()
+}),zod.null()]).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+})),
+  "internalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "externalLinks": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "href": zod.string(),
+  "anchorText": zod.string().nullish(),
+  "rel": zod.string().nullish(),
+  "domain": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "latestVersion": zod.number().nullish(),
+  "redirects": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromPath": zod.string(),
+  "toPath": zod.string(),
+  "statusCode": zod.number(),
+  "isActive": zod.boolean(),
+  "reason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().nullish()
+})).describe('Redirect rows whose target is this page\'s current pathname.')
+})
+
+
+/**
+ * @summary Render a single article (any status) via a valid, unexpired preview token
+ */
+export const GetPostByPreviewTokenParams = zod.object({
+  "token": zod.string()
+})
+
+export const GetPostByPreviewTokenResponse = zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "subtitle": zod.string().nullish(),
+  "excerpt": zod.string().nullish(),
+  "canonicalUrl": zod.string(),
+  "pathname": zod.string(),
+  "parentPath": zod.string().nullish(),
+  "featuredImageUrl": zod.string().nullish(),
+  "featuredImageAlt": zod.string().nullish(),
+  "readingTimeMinutes": zod.number().nullish(),
+  "wordCount": zod.number().nullish(),
+  "language": zod.string(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "modifiedAt": zod.coerce.date().nullish(),
+  "contentHtml": zod.string().nullish(),
+  "richText": zod.record(zod.string(), zod.unknown()).nullish(),
+  "componentTree": zod.union([zod.record(zod.string(), zod.unknown()),zod.array(zod.unknown()),zod.null()]).optional().describe('Opaque, Payload-compatible component tree consumed by the renderer. Stored verbatim from ingestion; the crawler emits a top-level array of block nodes while the importer emits a single root object, so this accepts an object, an array, or null.'),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "categories": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "tags": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "breadcrumbs": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "faq": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "answer": zod.string(),
+  "position": zod.number()
+})),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "url": zod.string(),
+  "originalUrl": zod.string(),
+  "alt": zod.string().nullish(),
+  "caption": zod.string().nullish(),
+  "credit": zod.string().nullish(),
+  "width": zod.number().nullish(),
+  "height": zod.number().nullish(),
+  "role": zod.string().nullish(),
+  "position": zod.number()
+})),
+  "seo": zod.union([zod.object({
+  "metaTitle": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "canonicalUrl": zod.string().nullish(),
+  "robots": zod.string().nullish(),
+  "ogTitle": zod.string().nullish(),
+  "ogDescription": zod.string().nullish(),
+  "ogImage": zod.string().nullish(),
+  "twitterCard": zod.string().nullish(),
+  "twitterTitle": zod.string().nullish(),
+  "twitterDescription": zod.string().nullish(),
+  "twitterImage": zod.string().nullish(),
+  "keywords": zod.array(zod.string()).nullish()
+}),zod.null()]).optional(),
+  "jsonld": zod.array(zod.object({
+  "type": zod.string().nullish(),
+  "data": zod.record(zod.string(), zod.unknown())
+}))
+})
+
+
+/**
+ * @summary Resolve a (possibly old) path to its active redirect target, if any
+ */
+export const ResolveRedirectQueryParams = zod.object({
+  "path": zod.string()
+})
+
+export const ResolveRedirectResponse = zod.object({
+  "found": zod.boolean(),
+  "toPath": zod.string().nullish(),
+  "statusCode": zod.number().nullish()
 })
 
 

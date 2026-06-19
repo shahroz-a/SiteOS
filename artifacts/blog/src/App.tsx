@@ -7,6 +7,7 @@ import Article from "@/pages/Article";
 import Category from "@/pages/Category";
 import Author from "@/pages/Author";
 import Search from "@/pages/Search";
+import Preview from "@/pages/Preview";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -23,6 +24,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Index} />
       <Route path="/search" component={Search} />
+      <Route path="/preview/:token" component={Preview} />
       <Route path="/category/:slug" component={Category} />
       <Route path="/author/:slug" component={Author} />
       <Route path="/:slug" component={Article} />

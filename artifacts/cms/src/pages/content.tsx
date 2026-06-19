@@ -47,6 +47,8 @@ import { useCmsAuth } from "@/lib/cms-auth-context";
 const STATUS_VARIANT: Record<PageStatus, "default" | "secondary" | "outline"> = {
   published: "default",
   draft: "secondary",
+  review: "secondary",
+  scheduled: "secondary",
   archived: "outline",
 };
 

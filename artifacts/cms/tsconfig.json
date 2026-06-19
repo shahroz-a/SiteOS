@@ -21,6 +21,9 @@
       "path": "../../lib/api-client-react"
     },
     {
+      "path": "../../lib/blog-renderer"
+    },
+    {
       "path": "../../lib/cms-auth"
     },
     {

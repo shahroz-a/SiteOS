@@ -90,6 +90,8 @@ export type PageStatus = typeof PageStatus[keyof typeof PageStatus];
 
 export const PageStatus = {
   draft: 'draft',
+  review: 'review',
+  scheduled: 'scheduled',
   published: 'published',
   archived: 'archived',
 } as const;
@@ -138,6 +140,18 @@ export interface JsonLdItem {
   data: JsonLdItemData;
 }
 
+export interface CmsRedirect {
+  id: string;
+  fromPath: string;
+  toPath: string;
+  statusCode: number;
+  isActive: boolean;
+  /** @nullable */
+  reason?: string | null;
+  /** @nullable */
+  createdAt?: string | null;
+}
+
 export interface CmsPostDetail {
   id: string;
   slug: string;
@@ -149,6 +163,11 @@ export interface CmsPostDetail {
   /** @nullable */
   excerpt?: string | null;
   canonicalUrl: string;
+  /**
+     * The page's original (imported/first) URL — never auto-changed.
+     * @nullable
+     */
+  originalUrl?: string | null;
   pathname: string;
   /** @nullable */
   parentPath?: string | null;
@@ -163,6 +182,8 @@ export interface CmsPostDetail {
   language: string;
   /** @nullable */
   publishedAt?: string | null;
+  /** @nullable */
+  scheduledFor?: string | null;
   /** @nullable */
   modifiedAt?: string | null;
   /** @nullable */
@@ -186,6 +207,8 @@ export interface CmsPostDetail {
   externalLinks: CmsLink[];
   /** @nullable */
   latestVersion?: number | null;
+  /** Redirect rows whose target is this page's current pathname. */
+  redirects: CmsRedirect[];
 }
 
 export interface CmsImageInput {
@@ -332,6 +355,8 @@ export interface CmsPostInput {
   wordCount?: number | null;
   /** @nullable */
   publishedAt?: string | null;
+  /** @nullable */
+  scheduledFor?: string | null;
   seo?: CmsSeoInput | null;
   faq?: CmsFaqInput[];
   breadcrumbs?: CmsBreadcrumbInput[];
@@ -470,6 +495,54 @@ export interface CmsTag {
   description: string | null;
   archived: boolean;
   postCount: number;
+}
+
+/**
+ * Move an article through its editorial lifecycle. `scheduledFor` is required when `to` is `scheduled` and ignored otherwise.
+ */
+export interface CmsTransitionInput {
+  to: PageStatus;
+  /** @nullable */
+  scheduledFor?: string | null;
+  /**
+     * Optional human note recorded on the audit log/version.
+     * @nullable
+     */
+  note?: string | null;
+}
+
+export interface CmsPreviewLinkInput {
+  /**
+     * @minimum 1
+     * @maximum 720
+     */
+  expiresInHours?: number;
+}
+
+export interface CmsPreviewLink {
+  token: string;
+  /** Path (under the blog base) that renders the draft preview. */
+  url: string;
+  expiresAt: string;
+}
+
+/**
+ * Change an article's public slug/pathname. The old path is preserved as a 301 redirect so existing links keep working. Requires explicit confirmation.
+ */
+export interface CmsUrlChangeInput {
+  /** @minLength 1 */
+  slug: string;
+  /** Must be true to apply; guards against accidental URL changes. */
+  confirm: boolean;
+  createRedirect?: boolean;
+}
+
+export interface RedirectResolution {
+  found: boolean;
+  /** @nullable */
+  toPath?: string | null;
+  /** @nullable */
+  statusCode?: number | null;
 }
 
 export interface HealthStatus {
@@ -2009,6 +2082,10 @@ q?: string;
  * Restrict to a single page status.
  */
 status?: PageStatus;
+};
+
+export type ResolveRedirectParams = {
+path: string;
 };
 
 export type ExportCmsContentParams = {

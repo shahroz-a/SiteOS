@@ -42,11 +42,15 @@ import type {
   CmsPostDetail,
   CmsPostInput,
   CmsPostListResponse,
+  CmsPreviewLink,
+  CmsPreviewLinkInput,
   CmsScaffoldInput,
   CmsSearchResponse,
   CmsTag,
   CmsTagInput,
+  CmsTransitionInput,
   CmsUnauthorizedResponse,
+  CmsUrlChangeInput,
   CmsUser,
   ContentExportBundle,
   ContentExportFile,
@@ -79,10 +83,12 @@ import type {
   PostDetail,
   PostListResponse,
   RecordPageViewRequest,
+  RedirectResolution,
   ReparseHeldBackArticleRequest,
   ReparseHeldBackArticleResponse,
   ResolveHeldBackArticleRequest,
   ResolveHeldBackArticleResponse,
+  ResolveRedirectParams,
   SavedView,
   SavedViewInput,
   SavedViewListResponse,
@@ -4041,6 +4047,383 @@ export const useRestoreCmsPostVersion = <TError = ErrorType<CmsBadRequestRespons
       > => {
       return useMutation(getRestoreCmsPostVersionMutationOptions(options));
     }
+
+export const getTransitionCmsPostUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/transition`
+}
+
+/**
+ * @summary Move an article through its publish lifecycle (requires content.publish for published/scheduled, review.approve for review)
+ */
+export const transitionCmsPost = async (id: string,
+    cmsTransitionInput: CmsTransitionInput, options?: RequestInit): Promise<CmsPostDetail> => {
+
+  return customFetch<CmsPostDetail>(getTransitionCmsPostUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsTransitionInput,)
+  }
+);}
+
+
+
+
+export const getTransitionCmsPostMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionCmsPost>>, TError,{id: string;data: BodyType<CmsTransitionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transitionCmsPost>>, TError,{id: string;data: BodyType<CmsTransitionInput>}, TContext> => {
+
+const mutationKey = ['transitionCmsPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transitionCmsPost>>, {id: string;data: BodyType<CmsTransitionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  transitionCmsPost(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TransitionCmsPostMutationResult = NonNullable<Awaited<ReturnType<typeof transitionCmsPost>>>
+    export type TransitionCmsPostMutationBody = BodyType<CmsTransitionInput>
+    export type TransitionCmsPostMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Move an article through its publish lifecycle (requires content.publish for published/scheduled, review.approve for review)
+ */
+export const useTransitionCmsPost = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionCmsPost>>, TError,{id: string;data: BodyType<CmsTransitionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transitionCmsPost>>,
+        TError,
+        {id: string;data: BodyType<CmsTransitionInput>},
+        TContext
+      > => {
+      return useMutation(getTransitionCmsPostMutationOptions(options));
+    }
+
+export const getCreateCmsPreviewLinkUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/preview-link`
+}
+
+/**
+ * @summary Mint an expiring shareable preview link for a draft (requires content.view)
+ */
+export const createCmsPreviewLink = async (id: string,
+    cmsPreviewLinkInput?: CmsPreviewLinkInput, options?: RequestInit): Promise<CmsPreviewLink> => {
+
+  return customFetch<CmsPreviewLink>(getCreateCmsPreviewLinkUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsPreviewLinkInput,)
+  }
+);}
+
+
+
+
+export const getCreateCmsPreviewLinkMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsPreviewLink>>, TError,{id: string;data?: BodyType<CmsPreviewLinkInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCmsPreviewLink>>, TError,{id: string;data?: BodyType<CmsPreviewLinkInput>}, TContext> => {
+
+const mutationKey = ['createCmsPreviewLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCmsPreviewLink>>, {id: string;data?: BodyType<CmsPreviewLinkInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createCmsPreviewLink(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCmsPreviewLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createCmsPreviewLink>>>
+    export type CreateCmsPreviewLinkMutationBody = BodyType<CmsPreviewLinkInput> | undefined
+    export type CreateCmsPreviewLinkMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Mint an expiring shareable preview link for a draft (requires content.view)
+ */
+export const useCreateCmsPreviewLink = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCmsPreviewLink>>, TError,{id: string;data?: BodyType<CmsPreviewLinkInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCmsPreviewLink>>,
+        TError,
+        {id: string;data?: BodyType<CmsPreviewLinkInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCmsPreviewLinkMutationOptions(options));
+    }
+
+export const getChangeCmsPostUrlUrl = (id: string,) => {
+
+
+
+
+  return `/api/cms/posts/${id}/url`
+}
+
+/**
+ * @summary Change an article's slug/pathname and auto-create a redirect (requires url.manage)
+ */
+export const changeCmsPostUrl = async (id: string,
+    cmsUrlChangeInput: CmsUrlChangeInput, options?: RequestInit): Promise<CmsPostDetail> => {
+
+  return customFetch<CmsPostDetail>(getChangeCmsPostUrlUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      cmsUrlChangeInput,)
+  }
+);}
+
+
+
+
+export const getChangeCmsPostUrlMutationOptions = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeCmsPostUrl>>, TError,{id: string;data: BodyType<CmsUrlChangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof changeCmsPostUrl>>, TError,{id: string;data: BodyType<CmsUrlChangeInput>}, TContext> => {
+
+const mutationKey = ['changeCmsPostUrl'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof changeCmsPostUrl>>, {id: string;data: BodyType<CmsUrlChangeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  changeCmsPostUrl(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChangeCmsPostUrlMutationResult = NonNullable<Awaited<ReturnType<typeof changeCmsPostUrl>>>
+    export type ChangeCmsPostUrlMutationBody = BodyType<CmsUrlChangeInput>
+    export type ChangeCmsPostUrlMutationError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>
+
+    /**
+ * @summary Change an article's slug/pathname and auto-create a redirect (requires url.manage)
+ */
+export const useChangeCmsPostUrl = <TError = ErrorType<CmsBadRequestResponse | CmsUnauthorizedResponse | CmsForbiddenResponse | CmsNotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof changeCmsPostUrl>>, TError,{id: string;data: BodyType<CmsUrlChangeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof changeCmsPostUrl>>,
+        TError,
+        {id: string;data: BodyType<CmsUrlChangeInput>},
+        TContext
+      > => {
+      return useMutation(getChangeCmsPostUrlMutationOptions(options));
+    }
+
+export const getGetPostByPreviewTokenUrl = (token: string,) => {
+
+
+
+
+  return `/api/preview/${token}`
+}
+
+/**
+ * @summary Render a single article (any status) via a valid, unexpired preview token
+ */
+export const getPostByPreviewToken = async (token: string, options?: RequestInit): Promise<PostDetail> => {
+
+  return customFetch<PostDetail>(getGetPostByPreviewTokenUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPostByPreviewTokenQueryKey = (token: string,) => {
+    return [
+    `/api/preview/${token}`
+    ] as const;
+    }
+
+
+export const getGetPostByPreviewTokenQueryOptions = <TData = Awaited<ReturnType<typeof getPostByPreviewToken>>, TError = ErrorType<Error>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPostByPreviewToken>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPostByPreviewTokenQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPostByPreviewToken>>> = ({ signal }) => getPostByPreviewToken(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(token), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPostByPreviewToken>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPostByPreviewTokenQueryResult = NonNullable<Awaited<ReturnType<typeof getPostByPreviewToken>>>
+export type GetPostByPreviewTokenQueryError = ErrorType<Error>
+
+
+/**
+ * @summary Render a single article (any status) via a valid, unexpired preview token
+ */
+
+export function useGetPostByPreviewToken<TData = Awaited<ReturnType<typeof getPostByPreviewToken>>, TError = ErrorType<Error>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPostByPreviewToken>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPostByPreviewTokenQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getResolveRedirectUrl = (params: ResolveRedirectParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/redirects/resolve?${stringifiedParams}` : `/api/redirects/resolve`
+}
+
+/**
+ * @summary Resolve a (possibly old) path to its active redirect target, if any
+ */
+export const resolveRedirect = async (params: ResolveRedirectParams, options?: RequestInit): Promise<RedirectResolution> => {
+
+  return customFetch<RedirectResolution>(getResolveRedirectUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getResolveRedirectQueryKey = (params?: ResolveRedirectParams,) => {
+    return [
+    `/api/redirects/resolve`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getResolveRedirectQueryOptions = <TData = Awaited<ReturnType<typeof resolveRedirect>>, TError = ErrorType<unknown>>(params: ResolveRedirectParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof resolveRedirect>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getResolveRedirectQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof resolveRedirect>>> = ({ signal }) => resolveRedirect(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof resolveRedirect>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ResolveRedirectQueryResult = NonNullable<Awaited<ReturnType<typeof resolveRedirect>>>
+export type ResolveRedirectQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Resolve a (possibly old) path to its active redirect target, if any
+ */
+
+export function useResolveRedirect<TData = Awaited<ReturnType<typeof resolveRedirect>>, TError = ErrorType<unknown>>(
+ params: ResolveRedirectParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof resolveRedirect>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getResolveRedirectQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListCmsAuthorsUrl = () => {
 

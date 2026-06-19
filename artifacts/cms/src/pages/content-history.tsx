@@ -51,6 +51,8 @@ const STATUS_VARIANTS: Record<PageStatus, "default" | "secondary" | "outline"> =
   {
     published: "default",
     draft: "secondary",
+    review: "secondary",
+    scheduled: "secondary",
     archived: "outline",
   };
 

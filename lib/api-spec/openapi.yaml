@@ -1637,6 +1637,143 @@ paths:
         "404":
           $ref: "#/components/responses/CmsNotFound"
 
+  /cms/posts/{id}/transition:
+    post:
+      tags: [cms]
+      operationId: transitionCmsPost
+      summary: Move an article through its publish lifecycle (requires content.publish for published/scheduled, review.approve for review)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsTransitionInput"
+      responses:
+        "200":
+          description: The article after the transition.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostDetail"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/posts/{id}/preview-link:
+    post:
+      tags: [cms]
+      operationId: createCmsPreviewLink
+      summary: Mint an expiring shareable preview link for a draft (requires content.view)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsPreviewLinkInput"
+      responses:
+        "201":
+          description: The minted preview link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPreviewLink"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /cms/posts/{id}/url:
+    patch:
+      tags: [cms]
+      operationId: changeCmsPostUrl
+      summary: Change an article's slug/pathname and auto-create a redirect (requires url.manage)
+      parameters:
+        - $ref: "#/components/parameters/CmsIdParam"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CmsUrlChangeInput"
+      responses:
+        "200":
+          description: The article after the URL change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostDetail"
+        "400":
+          $ref: "#/components/responses/CmsBadRequest"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
+        "404":
+          $ref: "#/components/responses/CmsNotFound"
+
+  /preview/{token}:
+    get:
+      tags: [posts]
+      operationId: getPostByPreviewToken
+      summary: Render a single article (any status) via a valid, unexpired preview token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The previewed article.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDetail"
+        "404":
+          description: Token missing, expired, revoked, or page not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /redirects/resolve:
+    get:
+      tags: [posts]
+      operationId: resolveRedirect
+      summary: Resolve a (possibly old) path to its active redirect target, if any
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resolution result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedirectResolution"
+
   /cms/authors:
     get:
       tags: [cms]
@@ -2589,6 +2726,9 @@ components:
           type: ["string", "null"]
         canonicalUrl:
           type: string
+        originalUrl:
+          type: ["string", "null"]
+          description: The page's original (imported/first) URL — never auto-changed.
         pathname:
           type: string
         parentPath:
@@ -2604,6 +2744,9 @@ components:
         language:
           type: string
         publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        scheduledFor:
           type: ["string", "null"]
           format: date-time
         modifiedAt:
@@ -2674,6 +2817,11 @@ components:
             $ref: "#/components/schemas/CmsLink"
         latestVersion:
           type: ["integer", "null"]
+        redirects:
+          type: array
+          description: Redirect rows whose target is this page's current pathname.
+          items:
+            $ref: "#/components/schemas/CmsRedirect"
       required:
         - id
         - slug
@@ -2692,11 +2840,14 @@ components:
         - jsonld
         - internalLinks
         - externalLinks
+        - redirects
 
     PageStatus:
       type: string
       enum:
         - draft
+        - review
+        - scheduled
         - published
         - archived
 
@@ -2901,6 +3052,9 @@ components:
         wordCount:
           type: ["integer", "null"]
         publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        scheduledFor:
           type: ["string", "null"]
           format: date-time
         seo:
@@ -3146,6 +3300,106 @@ components:
         - description
         - archived
         - postCount
+
+    CmsRedirect:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fromPath:
+          type: string
+        toPath:
+          type: string
+        statusCode:
+          type: integer
+        isActive:
+          type: boolean
+        reason:
+          type: ["string", "null"]
+        createdAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - fromPath
+        - toPath
+        - statusCode
+        - isActive
+
+    CmsTransitionInput:
+      type: object
+      description: >-
+        Move an article through its editorial lifecycle. `scheduledFor` is
+        required when `to` is `scheduled` and ignored otherwise.
+      properties:
+        to:
+          $ref: "#/components/schemas/PageStatus"
+        scheduledFor:
+          type: ["string", "null"]
+          format: date-time
+        note:
+          type: ["string", "null"]
+          description: Optional human note recorded on the audit log/version.
+      required:
+        - to
+
+    CmsPreviewLinkInput:
+      type: object
+      properties:
+        expiresInHours:
+          type: integer
+          minimum: 1
+          maximum: 720
+          default: 72
+
+    CmsPreviewLink:
+      type: object
+      properties:
+        token:
+          type: string
+        url:
+          type: string
+          description: Path (under the blog base) that renders the draft preview.
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - token
+        - url
+        - expiresAt
+
+    CmsUrlChangeInput:
+      type: object
+      description: >-
+        Change an article's public slug/pathname. The old path is preserved as a
+        301 redirect so existing links keep working. Requires explicit
+        confirmation.
+      properties:
+        slug:
+          type: string
+          minLength: 1
+        confirm:
+          type: boolean
+          description: Must be true to apply; guards against accidental URL changes.
+        createRedirect:
+          type: boolean
+          default: true
+      required:
+        - slug
+        - confirm
+
+    RedirectResolution:
+      type: object
+      properties:
+        found:
+          type: boolean
+        toPath:
+          type: ["string", "null"]
+        statusCode:
+          type: ["integer", "null"]
+      required:
+        - found
 
     HealthStatus:
       type: object

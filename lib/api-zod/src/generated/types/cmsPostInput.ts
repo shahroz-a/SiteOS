@@ -57,6 +57,8 @@ export interface CmsPostInput {
   wordCount?: number | null;
   /** @nullable */
   publishedAt?: Date | null;
+  /** @nullable */
+  scheduledFor?: Date | null;
   seo?: CmsSeoInput | null;
   faq?: CmsFaqInput[];
   breadcrumbs?: CmsBreadcrumbInput[];

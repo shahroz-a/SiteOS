@@ -476,7 +476,12 @@ export function makeDbMock(tables: Tables) {
     auditLogsTable: tableProxy("audit_logs"),
     validationReportsTable: tableProxy("validation_reports"),
     savedViewsTable: tableProxy("saved_views"),
+    galleriesTable: tableProxy("galleries"),
+    externalLinksTable: tableProxy("external_links"),
+    internalLinksTable: tableProxy("internal_links"),
+    pageVersionsTable: tableProxy("page_versions"),
     redirectsTable: tableProxy("redirects"),
+    previewTokensTable: tableProxy("preview_tokens"),
   };
 }
 

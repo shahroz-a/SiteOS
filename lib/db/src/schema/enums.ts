@@ -2,6 +2,8 @@ import { pgEnum } from "drizzle-orm/pg-core";
 
 export const pageStatusEnum = pgEnum("page_status", [
   "draft",
+  "review",
+  "scheduled",
   "published",
   "archived",
 ]);

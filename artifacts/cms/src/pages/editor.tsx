@@ -48,6 +48,7 @@ import {
   detailToInput,
   type EditorBlock,
 } from "@/editor/model";
+import { PublishPanel } from "@/editor/publish-panel";
 
 const AUTOSAVE_DELAY = 1500;
 
@@ -203,6 +204,9 @@ function EditorBody({ detail, canEdit }: EditorBodyProps) {
           <Button size="sm" disabled={!canEdit || saveState === "saving"} onClick={save}>
             Save
           </Button>
+        </div>
+        <div className="ml-1 border-l border-border/60 pl-2">
+          <PublishPanel detail={detail} />
         </div>
       </header>
 
