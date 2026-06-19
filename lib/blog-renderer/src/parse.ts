@@ -280,6 +280,83 @@ export function balanceItineraryDays(html: string): string {
   return out;
 }
 
+/**
+ * Remove a balanced `<div>…</div>` subtree whenever its opening tag matches
+ * `tagRe` (typically a class match). Stays no-DOM: it walks div open/close
+ * tokens and, on entering a matching div, skips everything up to that div's own
+ * matching `</div>`, correctly accounting for nested divs. Non-matching content
+ * is preserved byte-for-byte.
+ */
+function removeBalancedDivsWithTag(html: string, tagRe: RegExp): string {
+  const tokenRe = /<div\b[^>]*>|<\/div>/gi;
+  let out = "";
+  let last = 0;
+  let removing = false;
+  let depth = 0;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(html))) {
+    const tok = m[0];
+    const isClose = tok[1] === "/";
+    if (!removing) {
+      if (!isClose && tagRe.test(tok)) {
+        out += html.slice(last, m.index);
+        removing = true;
+        depth = 1;
+        last = tokenRe.lastIndex;
+      }
+    } else if (isClose) {
+      depth--;
+      if (depth === 0) {
+        removing = false;
+        last = tokenRe.lastIndex;
+      }
+    } else {
+      depth++;
+    }
+  }
+  out += html.slice(last);
+  return out;
+}
+
+/**
+ * Strip migrated WordPress "Sassy Social Share" (`heateor_sss_*`) share/follow
+ * widgets from article HTML.
+ *
+ * The plugin renders its icons as CSS background-image sprites hosted on the old
+ * WordPress origin; in the migrated corpus those sprites never load, so the
+ * widget renders as a broken vertical stack of bare coloured boxes on every
+ * article. It is chrome, not content — the blog provides its own share UI — so
+ * remove it outright. Stays no-DOM/isomorphic (SSR byte-parity): first remove
+ * any balanced container div carrying a `heateor_sss` class (handles the normal
+ * `…_sharing_container` wrapper plus its nested `…_sharing_ul`/title divs), then
+ * sweep up any loose anchors/spans and the plugin's `heateorSssClear` spacer
+ * that weren't wrapped in a container.
+ */
+export function stripSocialShare(html: string): string {
+  if (!html || !/heateor[_]?sss/i.test(html)) return html;
+  let out = removeBalancedDivsWithTag(html, /<div\b[^>]*heateor[_]?sss/i);
+  out = out.replace(/<a\b[^>]*heateor[_]?sss[^>]*>[\s\S]*?<\/a>/gi, "");
+  out = out.replace(/<span\b[^>]*heateor[_]?sss[^>]*>[\s\S]*?<\/span>/gi, "");
+  out = out.replace(/<div\b[^>]*heateorSssClear[^>]*>\s*<\/div>/gi, "");
+  return out;
+}
+
+/**
+ * Repair malformed `hhttp(s)://` URL schemes baked into migrated content.
+ *
+ * Some migrated WordPress image sources carry a duplicated leading character
+ * (e.g. `data-src="hhttps://cdn-imgix.headout.com/..."`). The browser treats
+ * `hhttps:` as an unknown scheme, which throws `ERR_UNKNOWN_URL_SCHEME` and
+ * leaves a broken image. `hhttp`/`hhttps` is never a valid scheme, so this is an
+ * unambiguous, isomorphic string repair.
+ */
+export function fixMalformedUrlScheme(html: string): string {
+  if (!html) return html;
+  return html
+    .replace(/hhttps:\/\//gi, "https://")
+    .replace(/hhttp:\/\//gi, "http://");
+}
+
 function stripTags(html: string): string {
   return html.replace(/<[^>]+>/g, "");
 }
@@ -333,6 +410,8 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
     .replace(/<style\b[\s\S]*?<\/style>/gi, "")
     .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, "");
 
+  html = stripSocialShare(html);
+  html = fixMalformedUrlScheme(html);
   html = balanceItineraryDays(html);
   html = html.replace(/<img\b[^>]*>/gi, (m) => repairImg(m));
   html = html.replace(ON_ATTR_RE, "");

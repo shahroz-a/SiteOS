@@ -25,6 +25,7 @@ import { PostCard } from "@/components/PostCard";
 import { LoadingState, ErrorState } from "@/components/StateViews";
 import { Avatar, AvatarImage, AvatarFallback } from "@workspace/ui/avatar";
 import { useSeo } from "@/hooks/use-seo";
+import { ShareBar } from "@/components/ShareBar";
 import {
   authorPath,
   categoryPath,
@@ -41,32 +42,27 @@ function ArticleHero({ post }: { post: PostDetail }) {
           <img
             src={post.featuredImageUrl}
             alt={post.featuredImageAlt ?? post.title}
-            className="w-full h-full object-cover opacity-35"
+            className="w-full h-full object-cover opacity-40"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-foreground/75 via-foreground/65 to-foreground/85" />
+          <div className="absolute inset-0 bg-gradient-to-b from-foreground/80 via-foreground/60 to-foreground/95" />
         </div>
       ) : null}
 
-      <div className="relative max-w-4xl mx-auto px-6 lg:px-12 py-20 md:py-28 text-center">
+      <div className="relative max-w-4xl mx-auto px-6 lg:px-12 py-24 md:py-32 text-center">
         {post.primaryCategory ? (
           <Link
             href={categoryPath(post.primaryCategory.slug)}
-            className="inline-block text-xs md:text-sm font-semibold uppercase tracking-widest text-primary hover:opacity-80 transition-opacity mb-5"
+            className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-primary/20 text-primary-foreground text-xs md:text-sm font-semibold uppercase tracking-widest backdrop-blur-sm hover:bg-primary/30 transition-colors mb-8 border border-primary/30"
           >
             {post.primaryCategory.name}
           </Link>
         ) : null}
-        <h1 className="font-serif text-3xl md:text-5xl lg:text-6xl leading-tight text-background mb-6">
+        <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl leading-[1.1] tracking-tight text-background mb-8">
           {post.title}
         </h1>
         {post.subtitle ? (
-          <p className="text-lg md:text-xl text-background/80 max-w-2xl mx-auto mb-6">
+          <p className="text-lg md:text-2xl text-background/80 max-w-3xl mx-auto mb-8 font-light leading-relaxed">
             {post.subtitle}
-          </p>
-        ) : null}
-        {date ? (
-          <p className="text-sm md:text-base text-background/70">
-            Last Updated: {date}
           </p>
         ) : null}
       </div>
@@ -87,22 +83,22 @@ function Breadcrumbs({ post }: { post: PostDetail }) {
   trail.push({ label: post.title });
 
   return (
-    <div className="w-full bg-background border-b border-border/40">
+    <div className="w-full bg-background border-b border-border/40 sticky top-16 md:top-20 z-40 backdrop-blur-md bg-background/80">
       <nav
         aria-label="Breadcrumb"
-        className="max-w-7xl mx-auto px-6 lg:px-12 py-4 flex items-center flex-wrap gap-x-2 gap-y-1 text-sm"
+        className="max-w-7xl mx-auto px-6 lg:px-12 py-3 flex items-center flex-wrap gap-x-2 gap-y-1 text-sm overflow-hidden"
       >
         {trail.map((crumb, idx) => {
           const isLast = idx === trail.length - 1;
           return (
-            <span key={idx} className="flex items-center gap-x-2">
+            <span key={idx} className="flex items-center gap-x-2 shrink-0">
               {crumb.href && !isLast ? (
-                <Link href={crumb.href} className="text-primary hover:underline">
+                <Link href={crumb.href} className="text-muted-foreground hover:text-primary transition-colors">
                   {crumb.label}
                 </Link>
               ) : (
                 <span
-                  className={isLast ? "text-muted-foreground" : "text-primary"}
+                  className={isLast ? "text-foreground font-medium truncate max-w-[200px] md:max-w-[400px]" : "text-primary"}
                   {...(isLast ? { "aria-current": "page" as const } : {})}
                 >
                   {crumb.label}
@@ -110,7 +106,7 @@ function Breadcrumbs({ post }: { post: PostDetail }) {
               )}
               {!isLast && (
                 <ChevronRight
-                  className="w-3.5 h-3.5 shrink-0 text-muted-foreground"
+                  className="w-3.5 h-3.5 shrink-0 text-muted-foreground/50"
                   aria-hidden="true"
                 />
               )}
@@ -135,11 +131,11 @@ function RelatedArticles({ post }: { post: PostDetail }) {
   if (related.length === 0) return null;
 
   return (
-    <section className="my-20 pt-16 border-t border-border/40">
-      <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-8">
-        More reads
+    <section className="my-24 pt-16 border-t border-border/40">
+      <h2 className="font-serif text-3xl md:text-4xl text-foreground mb-12 tracking-tight">
+        Keep exploring
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {related.map((p) => (
           <PostCard key={p.id} post={p} />
         ))}
@@ -148,13 +144,6 @@ function RelatedArticles({ post }: { post: PostDetail }) {
   );
 }
 
-/**
- * The full article rendering — hero, breadcrumbs, author, TOC, body, FAQ. Shared
- * by the public `/:slug` route AND the authenticated `/preview/:token` route so
- * a draft is rendered through the EXACT production renderer (no drift). When
- * `isPreview` is set a banner is shown and related-posts are hidden (a draft has
- * no public siblings to relate to).
- */
 export function ArticleView({
   post,
   isPreview = false,
@@ -162,9 +151,6 @@ export function ArticleView({
   post: PostDetail;
   isPreview?: boolean;
 }) {
-  // The cleaned raw HTML is the body we actually render, so derive the TOC from
-  // it (heading ids are injected during the same pass) to guarantee anchors
-  // resolve. Fall back to the componentTree only when there's no HTML body.
   const tocItems = useMemo(() => {
     if (post.contentHtml && post.contentHtml.trim().length > 0) {
       return prepareArticleHtml(post.contentHtml).toc;
@@ -188,8 +174,6 @@ export function ArticleView({
     jsonLd: isPreview ? [] : jsonLd,
   });
 
-  // A preview must never be indexed: inject a noindex robots meta while mounted
-  // and remove it on unmount so the public article view is unaffected.
   useEffect(() => {
     if (!isPreview) return;
     const meta = document.createElement("meta");
@@ -201,60 +185,65 @@ export function ArticleView({
     };
   }, [isPreview]);
 
+  const date = formatDate(post.publishedAt ?? post.modifiedAt);
+
   return (
     <>
       {isPreview ? (
-        <div className="w-full bg-amber-500 text-amber-950 text-center text-sm font-medium py-2 px-4">
+        <div className="w-full bg-amber-500 text-amber-950 text-center text-sm font-medium py-2 px-4 sticky top-0 z-[60]">
           Preview — this is an unpublished draft. Don't share beyond your team.
         </div>
       ) : null}
       <ArticleHero post={post} />
       <Breadcrumbs post={post} />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-16">
-        {/* Author & share */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 border-b border-border/40 pb-8">
-          {post.author ? (
-            <Link
-              href={authorPath(post.author.slug)}
-              className="flex items-center gap-4 group hover:opacity-80 transition-opacity"
-            >
-              <Avatar className="w-12 h-12 border-2 border-primary/10">
-                {post.author.avatarUrl ? (
-                  <AvatarImage
-                    src={post.author.avatarUrl}
-                    alt={post.author.name}
-                  />
-                ) : null}
-                <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="text-sm text-muted-foreground">Written by</div>
-                <div className="font-medium text-foreground group-hover:text-primary transition-colors">
-                  {post.author.name}
-                </div>
-              </div>
-            </Link>
-          ) : (
-            <span />
-          )}
-
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            {readingTimeLabel(post.readingTimeMinutes) ? (
-              <span>{readingTimeLabel(post.readingTimeMinutes)}</span>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16 pb-8 border-b border-border/40">
+          <div className="flex items-center gap-5">
+            {post.author ? (
+              <Link
+                href={authorPath(post.author.slug)}
+                className="group shrink-0"
+              >
+                <Avatar className="w-14 h-14 border border-border group-hover:border-primary transition-colors">
+                  {post.author.avatarUrl ? (
+                    <AvatarImage
+                      src={post.author.avatarUrl}
+                      alt={post.author.name}
+                      className="object-cover"
+                    />
+                  ) : null}
+                  <AvatarFallback className="bg-muted text-muted-foreground group-hover:text-primary transition-colors">
+                    {post.author.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
             ) : null}
+            <div>
+              {post.author ? (
+                <Link
+                  href={authorPath(post.author.slug)}
+                  className="font-medium text-foreground hover:text-primary transition-colors text-base"
+                >
+                  {post.author.name}
+                </Link>
+              ) : null}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                {date ? <span>{date}</span> : null}
+                {date && readingTimeLabel(post.readingTimeMinutes) ? <span>&middot;</span> : null}
+                {readingTimeLabel(post.readingTimeMinutes) ? (
+                  <span>{readingTimeLabel(post.readingTimeMinutes)}</span>
+                ) : null}
+              </div>
+            </div>
           </div>
+
+          <ShareBar url={post.canonicalUrl} title={post.title} />
         </div>
 
         <div
           className={cn(
-            // items-start only from lg up: on mobile (flex-col) the default
-            // `stretch` makes the body column fill the viewport width. Forcing
-            // flex-start on the column cross-axis let the body size to its
-            // max-width (max-w-3xl) instead, overflowing narrow screens.
             "flex flex-col lg:flex-row gap-16 relative lg:items-start",
-            // No headings → no TOC column; center the body instead of leaving a
-            // large empty gap on the right.
             tocItems.length === 0 && "lg:justify-center",
           )}
         >
@@ -278,9 +267,6 @@ export default function Article() {
   const slug = params?.slug ?? "";
   const { data: post, isLoading, isError } = useGetPostBySlug(slug);
 
-  // Fire-and-forget, privacy-respecting page-view capture once the article
-  // resolves. Errors are swallowed so analytics never disrupts reading. Only the
-  // public route records views — preview rendering goes through ArticleView.
   const { mutate: recordView } = useRecordPageView();
   useEffect(() => {
     if (post?.slug) {
@@ -305,12 +291,6 @@ export default function Article() {
   );
 }
 
-/**
- * The static blog has no real server-side 301 — the production serve only does
- * `/* -> /index.html`. So when an article slug 404s, ask the API whether the
- * current path has an active redirect and, if so, forward the browser. Old
- * inbound links (and renamed-slug links) keep working without a redeploy.
- */
 function RedirectOrNotFound({ slug }: { slug: string }) {
   const path = useMemo(() => {
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");

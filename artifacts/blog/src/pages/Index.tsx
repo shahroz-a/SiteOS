@@ -32,23 +32,18 @@ export default function Index() {
       <Header />
 
       <main className="flex-1 w-full">
-        {/* Masthead */}
-        <section className="border-b border-border/40 bg-card">
-          <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 md:py-20 text-center">
-            <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-4">
-              The Headout Blog
-            </p>
-            <h1 className="font-serif text-4xl md:text-6xl leading-tight text-foreground mb-6">
-              Stories to spark your next adventure
+        <section className="bg-background pt-16 pb-12 md:pt-24 md:pb-20 border-b border-border/40">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[1.05] tracking-tight text-foreground max-w-4xl">
+              Find your next<br className="hidden md:block"/> <span className="text-primary italic font-light">great adventure.</span>
             </h1>
-            <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
-              Curated travel guides, family getaways and holiday ideas from
-              writers who've been there.
+            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mt-8 leading-relaxed font-light">
+              Curated travel guides, local secrets and weekend getaways from the people who've been there.
             </p>
           </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 md:py-24">
           {isLoading ? (
             <LoadingState label="Loading articles…" />
           ) : isError ? (
@@ -61,28 +56,32 @@ export default function Index() {
           ) : (
             <>
               {featured ? (
-                <div className="mb-16 pb-16 border-b border-border/40">
+                <div className="mb-20 pb-20 border-b border-border/40">
                   <PostCard post={featured} variant="featured" />
                 </div>
               ) : null}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
                 {rest.map((post) => (
                   <PostCard key={post.id} post={post} />
                 ))}
               </div>
 
-              {data ? (
-                <Pagination
-                  page={data.pagination.page}
-                  totalPages={data.pagination.totalPages}
-                  hrefFor={(p) => (p === 1 ? "/" : `/?page=${p}`)}
-                />
+              {data && data.pagination.totalPages > 1 ? (
+                <div className="mt-20">
+                  <Pagination
+                    page={data.pagination.page}
+                    totalPages={data.pagination.totalPages}
+                    hrefFor={(p) => (p === 1 ? "/" : `/?page=${p}`)}
+                  />
+                </div>
               ) : null}
             </>
           )}
 
-          <NewsletterCTA />
+          <div className="mt-24">
+            <NewsletterCTA />
+          </div>
         </div>
       </main>
 

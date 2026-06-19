@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@workspace/ui/button";
 import { Input } from "@workspace/ui/input";
-import { Mail } from "lucide-react";
+import { Send } from "lucide-react";
 
 export function NewsletterCTA() {
   const [email, setEmail] = useState("");
@@ -17,19 +17,18 @@ export function NewsletterCTA() {
   };
 
   return (
-    <section className="bg-primary/5 rounded-3xl p-8 md:p-16 border border-primary/10 my-20 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-50" />
+    <section className="bg-primary rounded-3xl p-8 md:p-16 border border-primary/20 relative overflow-hidden">
+      {/* Decorative blobs */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-80 h-80 bg-black/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
 
       <div className="max-w-2xl mx-auto text-center relative z-10">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-6">
-          <Mail className="w-5 h-5" />
-        </div>
-        <p className="text-primary font-medium tracking-wide uppercase text-sm mb-4">
-          Join the journey
-        </p>
-        <h2 className="text-3xl md:text-4xl font-serif text-foreground mb-8 leading-tight">
-          Get travel inspiration in your inbox
+        <h2 className="text-3xl md:text-5xl font-serif text-primary-foreground mb-6 leading-[1.1] tracking-tight">
+          Let the adventure come to you
         </h2>
+        <p className="text-primary-foreground/80 text-lg mb-10 font-light">
+          Join our newsletter for curated travel inspiration, exclusive city guides, and holiday ideas.
+        </p>
 
         <form
           onSubmit={handleSubmit}
@@ -37,21 +36,25 @@ export function NewsletterCTA() {
         >
           <Input
             type="email"
-            placeholder="Enter your email"
+            placeholder="Email address"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="bg-card h-12 rounded-full px-6 border-primary/20 focus-visible:ring-primary"
+            className="bg-white/10 text-primary-foreground placeholder:text-primary-foreground/50 border-white/20 h-14 rounded-xl px-6 focus-visible:ring-white/50 backdrop-blur-sm transition-all"
           />
           <Button
             type="submit"
-            className="h-12 rounded-full px-8 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+            className="h-14 rounded-xl px-8 bg-white hover:bg-white/90 text-primary font-medium hover-elevate transition-all"
           >
-            {status === "success" ? "Subscribed!" : "Subscribe"}
+            {status === "success" ? "Subscribed!" : (
+              <span className="flex items-center gap-2">
+                Subscribe <Send className="w-4 h-4" />
+              </span>
+            )}
           </Button>
         </form>
-        <p className="text-sm text-muted-foreground mt-4">
-          No spam, just the good stuff. Unsubscribe anytime.
+        <p className="text-xs text-primary-foreground/60 mt-6">
+          No spam. Unsubscribe at any time.
         </p>
       </div>
     </section>

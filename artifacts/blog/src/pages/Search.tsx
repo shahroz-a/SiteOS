@@ -50,9 +50,9 @@ export default function Search() {
       <Header />
 
       <main className="flex-1 w-full">
-        <section className="border-b border-border/40 bg-card">
-          <div className="max-w-3xl mx-auto px-6 lg:px-12 py-16 md:py-20 text-center">
-            <h1 className="font-serif text-4xl md:text-5xl leading-tight text-foreground mb-8">
+        <section className="bg-background pt-16 pb-12 md:pt-24 md:pb-20 border-b border-border/40">
+          <div className="max-w-3xl mx-auto px-6 lg:px-12 text-center">
+            <h1 className="font-serif text-4xl md:text-6xl leading-[1.1] tracking-tight text-foreground mb-10">
               Search the blog
             </h1>
             <form onSubmit={submit} className="relative max-w-xl mx-auto" role="search">
@@ -64,13 +64,13 @@ export default function Search() {
                 placeholder="Search articles, destinations, tips…"
                 aria-label="Search articles"
                 autoFocus
-                className="h-14 w-full rounded-full border border-border/60 bg-background pl-14 pr-6 text-base outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-all"
+                className="h-14 md:h-16 w-full rounded-full border border-border/80 bg-card pl-14 pr-6 text-base md:text-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary/50 transition-all shadow-sm"
               />
             </form>
           </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 md:py-24">
           {q.trim().length === 0 ? (
             <EmptyState
               title="Start typing to search"
@@ -87,25 +87,27 @@ export default function Search() {
             />
           ) : (
             <>
-              <p className="text-sm text-muted-foreground mb-8">
+              <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground mb-10 border-b border-border/40 pb-6">
                 {data?.pagination.total} result
                 {data?.pagination.total === 1 ? "" : "s"} for{" "}
-                <span className="text-foreground font-medium">"{q}"</span>
+                <span className="text-foreground">"{q}"</span>
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
                 {items.map((post) => (
                   <PostCard key={post.id} post={post} />
                 ))}
               </div>
 
-              {data ? (
-                <Pagination
-                  page={data.pagination.page}
-                  totalPages={data.pagination.totalPages}
-                  hrefFor={(p) =>
-                    `${searchPath(q)}${p > 1 ? `&page=${p}` : ""}`
-                  }
-                />
+              {data && data.pagination.totalPages > 1 ? (
+                <div className="mt-20">
+                  <Pagination
+                    page={data.pagination.page}
+                    totalPages={data.pagination.totalPages}
+                    hrefFor={(p) =>
+                      `${searchPath(q)}${p > 1 ? `&page=${p}` : ""}`
+                    }
+                  />
+                </div>
               ) : null}
             </>
           )}

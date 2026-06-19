@@ -37,31 +37,34 @@ export default function Author() {
       <Header />
 
       <main className="flex-1 w-full">
-        <section className="border-b border-border/40 bg-card">
-          <div className="max-w-3xl mx-auto px-6 lg:px-12 py-16 md:py-20 text-center flex flex-col items-center">
-            <Avatar className="w-20 h-20 border-2 border-primary/10 mb-5">
+        <section className="bg-background pt-16 pb-12 md:pt-24 md:pb-20 border-b border-border/40">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
+            <Avatar className="w-24 h-24 md:w-32 md:h-32 border border-border">
               {author?.avatarUrl ? (
-                <AvatarImage src={author.avatarUrl} alt={author.name} />
+                <AvatarImage src={author.avatarUrl} alt={author.name} className="object-cover" />
               ) : null}
-              <AvatarFallback>{(author?.name ?? slug).charAt(0)}</AvatarFallback>
+              <AvatarFallback className="text-2xl bg-muted text-muted-foreground">{(author?.name ?? slug).charAt(0)}</AvatarFallback>
             </Avatar>
-            {author?.role ? (
-              <p className="text-primary font-semibold tracking-widest uppercase text-xs mb-3">
-                {author.role}
-              </p>
-            ) : null}
-            <h1 className="font-serif text-4xl md:text-5xl leading-tight text-foreground mb-4">
-              {author?.name ?? slug}
-            </h1>
-            {author?.bio ? (
-              <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
-                {author.bio}
-              </p>
-            ) : null}
+            
+            <div className="flex-1 text-center md:text-left">
+              {author?.role ? (
+                <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-4">
+                  {author.role}
+                </p>
+              ) : null}
+              <h1 className="font-serif text-4xl md:text-6xl leading-[1.1] tracking-tight text-foreground mb-6">
+                {author?.name ?? slug}
+              </h1>
+              {author?.bio ? (
+                <p className="text-lg md:text-xl text-muted-foreground max-w-2xl font-light leading-relaxed">
+                  {author.bio}
+                </p>
+              ) : null}
+            </div>
           </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 md:py-24">
           {isLoading ? (
             <LoadingState label="Loading articles…" />
           ) : postsError || authorError ? (
@@ -73,20 +76,22 @@ export default function Author() {
             />
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
                 {items.map((post) => (
                   <PostCard key={post.id} post={post} />
                 ))}
               </div>
 
-              {data ? (
-                <Pagination
-                  page={data.pagination.page}
-                  totalPages={data.pagination.totalPages}
-                  hrefFor={(p) =>
-                    p === 1 ? authorPath(slug) : `${authorPath(slug)}?page=${p}`
-                  }
-                />
+              {data && data.pagination.totalPages > 1 ? (
+                <div className="mt-20">
+                  <Pagination
+                    page={data.pagination.page}
+                    totalPages={data.pagination.totalPages}
+                    hrefFor={(p) =>
+                      p === 1 ? authorPath(slug) : `${authorPath(slug)}?page=${p}`
+                    }
+                  />
+                </div>
               ) : null}
             </>
           )}

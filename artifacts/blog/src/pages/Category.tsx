@@ -41,23 +41,23 @@ export default function Category() {
       <Header />
 
       <main className="flex-1 w-full">
-        <section className="border-b border-border/40 bg-card">
-          <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 md:py-20 text-center">
-            <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-4">
+        <section className="bg-background pt-16 pb-12 md:pt-24 md:pb-20 border-b border-border/40">
+          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+            <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-6">
               Category
             </p>
-            <h1 className="font-serif text-4xl md:text-5xl leading-tight text-foreground mb-4">
+            <h1 className="font-serif text-5xl md:text-7xl leading-[1.05] tracking-tight text-foreground max-w-4xl mb-8">
               {category?.name ?? slug}
             </h1>
             {category?.description ? (
-              <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
+              <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed font-light">
                 {category.description}
               </p>
             ) : null}
           </div>
         </section>
 
-        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-16 md:py-24">
           {isLoading ? (
             <LoadingState label="Loading articles…" />
           ) : postsError || catError ? (
@@ -69,22 +69,24 @@ export default function Category() {
             />
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
                 {items.map((post) => (
                   <PostCard key={post.id} post={post} />
                 ))}
               </div>
 
-              {data ? (
-                <Pagination
-                  page={data.pagination.page}
-                  totalPages={data.pagination.totalPages}
-                  hrefFor={(p) =>
-                    p === 1
-                      ? categoryPath(slug)
-                      : `${categoryPath(slug)}?page=${p}`
-                  }
-                />
+              {data && data.pagination.totalPages > 1 ? (
+                <div className="mt-20">
+                  <Pagination
+                    page={data.pagination.page}
+                    totalPages={data.pagination.totalPages}
+                    hrefFor={(p) =>
+                      p === 1
+                        ? categoryPath(slug)
+                        : `${categoryPath(slug)}?page=${p}`
+                    }
+                  />
+                </div>
               ) : null}
             </>
           )}

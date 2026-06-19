@@ -29,3 +29,31 @@ attribute whose name starts with `on`). The blog does this with a small
 DOMParser-based helper (regex fallback for non-DOM env). This is NOT full HTML
 sanitization — if the corpus is ever treated as genuinely untrusted, move to a
 vetted allowlist sanitizer (DOMPurify) at the ingest/API boundary instead.
+
+## The corpus carries several distinct WordPress artifacts — clean them in ONE place
+
+`on*` handlers are not the only baked-in cruft. Known migrated-WP artifacts seen
+in `contentHtml`:
+
+- **mod_pagespeed `on*` handlers** (above).
+- **"Sassy Social Share" widgets** — `heateor_sss_*` containers/anchors/spans
+  (vertical + bottom sharing bars, ChatGPT/Google-News/FB/etc. icon sprites).
+  Render as dead/broken icon boxes on every article.
+- **Duplicated-leading-char URL schemes** — e.g. `data-src="hhttps://cdn-imgix…"`
+  / `src="hhttp://…"`. The browser treats `hhttps:` as an unknown scheme →
+  `ERR_UNKNOWN_URL_SCHEME` + a broken image. `hhttp`/`hhttps` is never valid, so
+  the repair (drop the extra leading `h`) is unambiguous.
+
+**Rule:** the single cleanup boundary is `prepareArticleHtml` in
+`lib/blog-renderer/src/parse.ts` — a pure, isomorphic (no-DOM) string pipeline so
+prerender (server) and hydrated (client) markup stay byte-identical. It chains
+the per-artifact helpers (`stripSocialShare`, `fixMalformedUrlScheme`, lazy-img
+repair, `on*` strip, heading-id/TOC). **Any NEW path that injects corpus
+`contentHtml` must route through `prepareArticleHtml`**, not reimplement a subset
+— otherwise it reintroduces one of these artifacts.
+
+**Why:** each artifact produced a real, visible defect (the `pagespeed` crash,
+broken social boxes, broken images + console errors) — and the goal is a
+polished article body with no console errors. Adding the next artifact's fix as a
+new helper inside `prepareArticleHtml` (with a unit test in `parse.test.ts`) keeps
+every consumer fixed at once.
