@@ -562,6 +562,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/blog-renderer':
+        specifier: workspace:*
+        version: link:../../lib/blog-renderer
       '@workspace/cms-auth':
         specifier: workspace:*
         version: link:../../lib/cms-auth

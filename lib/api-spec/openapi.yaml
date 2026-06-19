@@ -536,6 +536,42 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
   /cms/posts:
+    get:
+      tags: [cms]
+      operationId: listCmsPost
+      summary: List/search articles of any status (requires content.view)
+      description: >-
+        Paginated list of articles across every status (draft, published,
+        archived) for the CMS content list and the internal-linking assistant.
+        Optional full-text `q` matches title/slug; `status` narrows to one state.
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: q
+          in: query
+          required: false
+          description: Case-insensitive search over title and slug.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Restrict to a single page status.
+          schema:
+            $ref: "#/components/schemas/PageStatus"
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: A paginated list of articles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsPostListResponse"
+        "401":
+          $ref: "#/components/responses/CmsUnauthorized"
+        "403":
+          $ref: "#/components/responses/CmsForbidden"
     post:
       tags: [cms]
       operationId: createCmsPost
@@ -2113,6 +2149,65 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PostSummary"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      required:
+        - items
+        - pagination
+
+    CmsPostSummary:
+      type: object
+      description: >-
+        Lightweight article row for the CMS content list and internal-linking
+        assistant. Includes status so the editor can warn when linking to a
+        draft/archived target.
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/PageStatus"
+        pageType:
+          type: string
+        excerpt:
+          type: ["string", "null"]
+        pathname:
+          type: string
+        featuredImageUrl:
+          type: ["string", "null"]
+        author:
+          oneOf:
+            - $ref: "#/components/schemas/AuthorSummary"
+            - type: "null"
+        primaryCategory:
+          oneOf:
+            - $ref: "#/components/schemas/CategorySummary"
+            - type: "null"
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - slug
+        - title
+        - status
+        - pageType
+        - pathname
+
+    CmsPostListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CmsPostSummary"
         pagination:
           $ref: "#/components/schemas/Pagination"
       required:

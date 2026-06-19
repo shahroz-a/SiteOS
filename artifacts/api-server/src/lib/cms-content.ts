@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, ne, or, sql, type SQL } from "drizzle-orm";
 import {
   db,
   pagesTable,
@@ -356,6 +356,129 @@ function mapImageOut(img: typeof imagesTable.$inferSelect): CmsImageOut {
     role: img.role,
     position: img.position,
   };
+}
+
+export interface CmsPostSummaryOut {
+  id: string;
+  slug: string;
+  title: string;
+  status: "draft" | "published" | "archived";
+  pageType: string;
+  excerpt: string | null;
+  pathname: string;
+  featuredImageUrl: string | null;
+  author: { id: string; name: string; slug: string; avatarUrl: string | null; role: string | null } | null;
+  primaryCategory: { id: string; name: string; slug: string } | null;
+  publishedAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface CmsPostListResult {
+  items: CmsPostSummaryOut[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+/**
+ * Paginated CMS article list across every status (no published filter). Backs
+ * the content list AND the internal-linking assistant — the latter relies on
+ * `status` to warn when linking to a draft/archived target. Restricted to
+ * `pageType = "post"` (the article surface the editor manages). Projects only
+ * summary columns — never `select *` of the lossless `originalHtml` blob.
+ */
+export async function listCmsPosts(
+  opts: {
+    q?: string;
+    status?: "draft" | "published" | "archived";
+    page: number;
+    limit: number;
+  },
+  exec: Executor = db,
+): Promise<CmsPostListResult> {
+  const conditions: SQL[] = [eq(pagesTable.pageType, "post")];
+  if (opts.status) conditions.push(eq(pagesTable.status, opts.status));
+  const q = opts.q?.trim();
+  if (q) {
+    const pattern = `%${q.replace(/[%_]/g, (m) => `\\${m}`)}%`;
+    const search = or(
+      ilike(pagesTable.title, pattern),
+      ilike(pagesTable.slug, pattern),
+    );
+    if (search) conditions.push(search);
+  }
+  const where = and(...conditions);
+
+  const [{ count } = { count: 0 }] = await exec
+    .select({ count: sql<number>`count(*)::int` })
+    .from(pagesTable)
+    .where(where);
+  const total = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / opts.limit));
+  const offset = (opts.page - 1) * opts.limit;
+
+  const rows = await exec
+    .select({
+      id: pagesTable.id,
+      slug: pagesTable.slug,
+      title: pagesTable.title,
+      status: pagesTable.status,
+      pageType: pagesTable.pageType,
+      excerpt: pagesTable.excerpt,
+      pathname: pagesTable.pathname,
+      featuredImageUrl: pagesTable.featuredImageUrl,
+      publishedAt: pagesTable.publishedAt,
+      updatedAt: pagesTable.updatedAt,
+      authorId: authorsTable.id,
+      authorName: authorsTable.name,
+      authorSlug: authorsTable.slug,
+      authorAvatarUrl: authorsTable.avatarUrl,
+      authorRole: authorsTable.role,
+      categoryId: categoriesTable.id,
+      categoryName: categoriesTable.name,
+      categorySlug: categoriesTable.slug,
+    })
+    .from(pagesTable)
+    .leftJoin(authorsTable, eq(pagesTable.authorId, authorsTable.id))
+    .leftJoin(
+      categoriesTable,
+      eq(pagesTable.primaryCategoryId, categoriesTable.id),
+    )
+    .where(where)
+    .orderBy(desc(pagesTable.updatedAt))
+    .limit(opts.limit)
+    .offset(offset);
+
+  const items: CmsPostSummaryOut[] = rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    status: r.status,
+    pageType: r.pageType,
+    excerpt: r.excerpt,
+    pathname: r.pathname,
+    featuredImageUrl: r.featuredImageUrl,
+    author:
+      r.authorId != null
+        ? {
+            id: r.authorId,
+            name: r.authorName ?? "",
+            slug: r.authorSlug ?? "",
+            avatarUrl: r.authorAvatarUrl ?? null,
+            role: r.authorRole ?? null,
+          }
+        : null,
+    primaryCategory:
+      r.categoryId != null
+        ? {
+            id: r.categoryId,
+            name: r.categoryName ?? "",
+            slug: r.categorySlug ?? "",
+          }
+        : null,
+    publishedAt: r.publishedAt ? r.publishedAt.toISOString() : null,
+    updatedAt: r.updatedAt ? r.updatedAt.toISOString() : null,
+  }));
+
+  return { items, pagination: { page: opts.page, limit: opts.limit, total, totalPages } };
 }
 
 /**

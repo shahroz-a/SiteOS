@@ -49,6 +49,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "@workspace/api-client-react": "workspace:*",
+    "@workspace/blog-renderer": "workspace:*",
     "@workspace/cms-auth": "workspace:*",
     "@workspace/content-io": "workspace:*",
     "@workspace/replit-auth-web": "workspace:*",

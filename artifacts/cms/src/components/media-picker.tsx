@@ -10,11 +10,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
+} from "@workspace/ui/dialog";
+import { Input } from "@workspace/ui/input";
+import { Button } from "@workspace/ui/button";
+import { Spinner } from "@workspace/ui/spinner";
+import { Empty, EmptyDescription, EmptyTitle } from "@workspace/ui/empty";
 import { MediaGrid } from "@/components/media-grid";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 

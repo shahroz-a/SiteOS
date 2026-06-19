@@ -46,6 +46,35 @@ export interface CTNode {
     title_?: string;
     images?: Array<{ src: string; alt?: string }>;
     richText?: LexNode | { tag?: string; children?: LexNode[] };
+    // Editor-authored block fields (added by the CMS block editor). Optional so
+    // crawler/importer nodes that never set them still satisfy the type.
+    subtitle?: string;
+    eyebrow?: string;
+    imageUrl?: string;
+    imageAlt?: string;
+    /** Sanitized rich-text HTML emitted by the CMS rich-text editor. */
+    html?: string;
+    cite?: string;
+    /** Plain-cell table authored in the editor (vs. the Lexical `richText` table). */
+    rows?: string[][];
+    hasHeader?: boolean;
+    /** Generic child rows reused by accordion / faq / related blocks. */
+    entries?: Array<{
+      title?: string;
+      body?: string;
+      question?: string;
+      answer?: string;
+      href?: string;
+      imageUrl?: string;
+      eyebrow?: string;
+    }>;
+    body?: string;
+    buttonLabel?: string;
+    buttonHref?: string;
+    placeholder?: string;
+    url?: string;
+    provider?: string;
+    layout?: string;
   };
   children?: CTNode[];
 }

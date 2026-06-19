@@ -579,6 +579,33 @@ export interface PostListResponse {
   pagination: Pagination;
 }
 
+/**
+ * Lightweight article row for the CMS content list and internal-linking assistant. Includes status so the editor can warn when linking to a draft/archived target.
+ */
+export interface CmsPostSummary {
+  id: string;
+  slug: string;
+  title: string;
+  status: PageStatus;
+  pageType: string;
+  /** @nullable */
+  excerpt?: string | null;
+  pathname: string;
+  /** @nullable */
+  featuredImageUrl?: string | null;
+  author?: AuthorSummary | null;
+  primaryCategory?: CategorySummary | null;
+  /** @nullable */
+  publishedAt?: string | null;
+  /** @nullable */
+  updatedAt?: string | null;
+}
+
+export interface CmsPostListResponse {
+  items: CmsPostSummary[];
+  pagination: Pagination;
+}
+
 export interface AuthUser {
   id: string;
   /** @nullable */
@@ -1078,6 +1105,28 @@ page?: PageParamParameter;
  * @maximum 100
  */
 limit?: LimitParamParameter;
+};
+
+export type ListCmsPostParams = {
+/**
+ * 1-based page number
+ * @minimum 1
+ */
+page?: PageParamParameter;
+/**
+ * Number of items per page
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParamParameter;
+/**
+ * Case-insensitive search over title and slug.
+ */
+q?: string;
+/**
+ * Restrict to a single page status.
+ */
+status?: PageStatus;
 };
 
 export type ExportCmsContentParams = {

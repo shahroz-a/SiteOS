@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { MediaItem } from "@workspace/api-client-react";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { AspectRatio } from "@workspace/ui/aspect-ratio";
+import { Badge } from "@workspace/ui/badge";
+import { cn } from "@workspace/ui";
 import { ALT_STATUS_META, fileNameFromUrl } from "@/lib/media-utils";
 import { ImageOff } from "lucide-react";
 

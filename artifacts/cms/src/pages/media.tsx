@@ -3,17 +3,17 @@ import {
   useListCmsMedia,
   type MediaItem,
 } from "@workspace/api-client-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
-import { Empty, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
+import { Input } from "@workspace/ui/input";
+import { Button } from "@workspace/ui/button";
+import { Switch } from "@workspace/ui/switch";
+import { Label } from "@workspace/ui/label";
+import { Spinner } from "@workspace/ui/spinner";
+import { Empty, EmptyTitle, EmptyDescription } from "@workspace/ui/empty";
 import { MediaGrid } from "@/components/media-grid";
 import { MediaDetailsSheet } from "@/components/media-details-sheet";
 import { MediaPicker } from "@/components/media-picker";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@workspace/ui";
 import { ImagePlus } from "lucide-react";
 
 const PAGE_SIZE = 24;

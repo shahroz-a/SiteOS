@@ -11,6 +11,8 @@ import {
   DeleteCmsPostResponse,
   DuplicateCmsPostParams,
   DuplicateCmsPostBody,
+  ListCmsPostQueryParams,
+  ListCmsPostResponse,
 } from "@workspace/api-zod";
 import { hasPermission, DEFAULT_ROLE, type Permission } from "@workspace/cms-auth";
 import { requireAuth, requirePermission } from "../middlewares/rbac";
@@ -22,9 +24,33 @@ import {
   scaffoldPost,
   duplicatePost,
   serializeCmsPostDetail,
+  listCmsPosts,
 } from "../lib/cms-content";
 
 const router: IRouter = Router();
+
+// List/search articles of any status. Requires content.view. Backs the content
+// list and the internal-linking assistant (which needs draft/archived status).
+router.get(
+  "/cms/posts",
+  requireAuth,
+  requirePermission("content.view"),
+  async (req: Request, res: Response) => {
+    const parsed = ListCmsPostQueryParams.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid query", details: parsed.error.issues });
+      return;
+    }
+    const { page, limit, q, status } = parsed.data;
+    const result = await listCmsPosts({
+      page: page ?? 1,
+      limit: limit ?? 12,
+      q: q ?? undefined,
+      status: status ?? undefined,
+    });
+    res.json(ListCmsPostResponse.parse(result));
+  },
+);
 
 // Create a new article with all nested content. Requires content.create.
 router.post(

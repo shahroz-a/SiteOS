@@ -7,6 +7,8 @@ import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import HomePage from "@/pages/home";
 import UsersPage from "@/pages/users";
+import ContentPage from "@/pages/content";
+import EditorPage from "@/pages/editor";
 import AuditLogPage from "@/pages/audit-log";
 import ImportExportPage from "@/pages/import-export";
 import MediaPage from "@/pages/media";
@@ -42,6 +44,18 @@ function AuthenticatedApp() {
     <AppShell>
       <Switch>
         <Route path="/" component={HomePage} />
+        <Route path="/content">
+          <RequirePermission permission="content.view">
+            <ContentPage />
+          </RequirePermission>
+        </Route>
+        <Route path="/content/:id">
+          {(params) => (
+            <RequirePermission permission="content.view">
+              <EditorPage params={params} />
+            </RequirePermission>
+          )}
+        </Route>
         <Route path="/import-export">
           <RequirePermission permission="content.view">
             <ImportExportPage />

@@ -588,6 +588,62 @@ export const ListCmsHeldBackArticlesResponse = zod.object({
 
 
 /**
+ * Paginated list of articles across every status (draft, published, archived) for the CMS content list and the internal-linking assistant. Optional full-text `q` matches title/slug; `status` narrows to one state.
+ * @summary List/search articles of any status (requires content.view)
+ */
+export const listCmsPostQueryPageDefault = 1;
+
+export const listCmsPostQueryLimitDefault = 12;
+export const listCmsPostQueryLimitMax = 100;
+
+
+
+export const ListCmsPostQueryParams = zod.object({
+  "page": zod.coerce.number().min(1).default(listCmsPostQueryPageDefault).describe('1-based page number'),
+  "limit": zod.coerce.number().min(1).max(listCmsPostQueryLimitMax).default(listCmsPostQueryLimitDefault).describe('Number of items per page'),
+  "q": zod.string().optional().describe('Case-insensitive search over title and slug.'),
+  "status": zod.enum(['draft', 'published', 'archived']).optional().describe('Restrict to a single page status.')
+})
+
+export const ListCmsPostHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const ListCmsPostResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'published', 'archived']),
+  "pageType": zod.string(),
+  "excerpt": zod.string().nullish(),
+  "pathname": zod.string(),
+  "featuredImageUrl": zod.string().nullish(),
+  "author": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "role": zod.string().nullish()
+}),zod.null()]).optional(),
+  "primaryCategory": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]).optional(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "updatedAt": zod.coerce.date().nullish()
+}).describe('Lightweight article row for the CMS content list and internal-linking assistant. Includes status so the editor can warn when linking to a draft\/archived target.')),
+  "pagination": zod.object({
+  "page": zod.number(),
+  "limit": zod.number(),
+  "total": zod.number(),
+  "totalPages": zod.number()
+})
+})
+
+
+/**
  * @summary Create an article (page) with all nested content (requires content.create)
  */
 export const CreateCmsPostHeader = zod.object({

@@ -7,12 +7,12 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+} from "@workspace/ui/sheet";
+import { Badge } from "@workspace/ui/badge";
+import { Button } from "@workspace/ui/button";
+import { Separator } from "@workspace/ui/separator";
+import { cn } from "@workspace/ui";
+import { useToast } from "@workspace/ui";
 import {
   ALT_STATUS_META,
   formatDimensions,

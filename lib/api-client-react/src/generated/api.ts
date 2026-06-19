@@ -35,6 +35,7 @@ import type {
   CmsNotFoundResponse,
   CmsPostDetail,
   CmsPostInput,
+  CmsPostListResponse,
   CmsScaffoldInput,
   CmsTagInput,
   CmsUnauthorizedResponse,
@@ -52,6 +53,7 @@ import type {
   HeldBackArticleListResponse,
   ListCmsAuditLogsParams,
   ListCmsMediaParams,
+  ListCmsPostParams,
   ListPostsParams,
   LogoutSuccess,
   MediaListResponse,
@@ -1714,6 +1716,91 @@ export function useListCmsHeldBackArticles<TData = Awaited<ReturnType<typeof lis
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCmsHeldBackArticlesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListCmsPostUrl = (params?: ListCmsPostParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/cms/posts?${stringifiedParams}` : `/api/cms/posts`
+}
+
+/**
+ * Paginated list of articles across every status (draft, published, archived) for the CMS content list and the internal-linking assistant. Optional full-text `q` matches title/slug; `status` narrows to one state.
+ * @summary List/search articles of any status (requires content.view)
+ */
+export const listCmsPost = async (params?: ListCmsPostParams, options?: RequestInit): Promise<CmsPostListResponse> => {
+
+  return customFetch<CmsPostListResponse>(getListCmsPostUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCmsPostQueryKey = (params?: ListCmsPostParams,) => {
+    return [
+    `/api/cms/posts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCmsPostQueryOptions = <TData = Awaited<ReturnType<typeof listCmsPost>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(params?: ListCmsPostParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCmsPostQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCmsPost>>> = ({ signal }) => listCmsPost(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCmsPost>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCmsPostQueryResult = NonNullable<Awaited<ReturnType<typeof listCmsPost>>>
+export type ListCmsPostQueryError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>
+
+
+/**
+ * @summary List/search articles of any status (requires content.view)
+ */
+
+export function useListCmsPost<TData = Awaited<ReturnType<typeof listCmsPost>>, TError = ErrorType<CmsUnauthorizedResponse | CmsForbiddenResponse>>(
+ params?: ListCmsPostParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCmsPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCmsPostQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
