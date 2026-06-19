@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useRoute } from "wouter";
 import { ChevronRight } from "lucide-react";
 import {
   useGetPostBySlug,
   useListPosts,
+  useRecordPageView,
   type PostDetail,
 } from "@workspace/api-client-react";
 import { Header } from "@/components/Header";
@@ -148,6 +149,15 @@ export default function Article() {
   const [, params] = useRoute("/:slug");
   const slug = params?.slug ?? "";
   const { data: post, isLoading, isError } = useGetPostBySlug(slug);
+
+  // Fire-and-forget, privacy-respecting page-view capture once the article
+  // resolves. Errors are swallowed so analytics never disrupts reading.
+  const { mutate: recordView } = useRecordPageView();
+  useEffect(() => {
+    if (post?.slug) {
+      recordView({ data: { slug: post.slug } });
+    }
+  }, [post?.slug, recordView]);
 
   // The cleaned raw HTML is the body we actually render, so derive the TOC from
   // it (heading ids are injected during the same pass) to guarantee anchors

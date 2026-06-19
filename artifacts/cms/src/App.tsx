@@ -6,6 +6,7 @@ import { Spinner } from "@workspace/ui/spinner";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import HomePage from "@/pages/home";
+import AnalyticsPage from "@/pages/analytics";
 import SearchPage from "@/pages/search";
 import UsersPage from "@/pages/users";
 import ContentPage from "@/pages/content";
@@ -49,6 +50,11 @@ function AuthenticatedApp() {
     <AppShell>
       <Switch>
         <Route path="/" component={HomePage} />
+        <Route path="/analytics">
+          <RequirePermission permission="content.view">
+            <AnalyticsPage />
+          </RequirePermission>
+        </Route>
         <Route path="/content">
           <RequirePermission permission="content.view">
             <ContentPage />

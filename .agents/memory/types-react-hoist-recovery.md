@@ -16,10 +16,18 @@ workspace dep) can flip the hoisted copy to `19.1.17`, which then makes a WEB
 artifact fail typecheck (e.g. mockup-sandbox `spinner.tsx`: TS2322 "two different
 types named ...Ref/Slot"). The correct hoist for full-green is `19.2.14`.
 
-**Fix:** `rm -rf node_modules && pnpm install` re-derives hoisting from scratch
-and lands `19.2.14`, with web resolving its own 19.2.14 and mobile its scoped
-19.1.x → full `pnpm run typecheck` green. Verify with
+**Fix (fast path first):** a plain `pnpm install` (NO flags — not `--force`, not
+`--frozen-lockfile`) recomputes the hoist against the existing lockfile and lands
+`19.2.14` in ~7s ("Already up to date"), making full `pnpm run typecheck` green.
+Try this FIRST. `rm -rf node_modules && pnpm install` also works but is far
+slower; reserve it for when the fast path doesn't restore the hoist. Verify with
 `cat node_modules/.pnpm/node_modules/@types/react/package.json | rg version`.
+
+**Do NOT use `pnpm install --force` to fix the hoist.** `--force` rebuilds
+node_modules from scratch and reliably runs LONGER than the bash tool's 120s cap,
+so it gets killed mid-link — which itself re-corrupts the hoist to 19.1.17 (the
+exact failure mode). Each killed `--force` makes it worse, not better. Plain
+`pnpm install` is both faster and sufficient.
 
 **Why:** an incremental install reuses `.modules.yaml` resolution state and can
 keep a wrong hoist; a clean reinstall recomputes it.

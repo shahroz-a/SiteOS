@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './analyticsHealth';
+export * from './analyticsLeader';
+export * from './analyticsSeo';
+export * from './analyticsTimePoint';
+export * from './analyticsViews';
 export * from './auditLogEntry';
 export * from './auditLogEntryAfter';
 export * from './auditLogEntryBefore';
@@ -21,6 +26,7 @@ export * from './beginBrowserLoginParams';
 export * from './breadcrumb';
 export * from './category';
 export * from './categorySummary';
+export * from './cmsAnalytics';
 export * from './cmsArchiveInput';
 export * from './cmsAuthor';
 export * from './cmsAuthorInput';
@@ -127,6 +133,7 @@ export * from './postDetailComponentTree';
 export * from './postDetailRichText';
 export * from './postListResponse';
 export * from './postSummary';
+export * from './recordPageViewRequest';
 export * from './resolveHeldBackArticleRequest';
 export * from './resolveHeldBackArticleRequestAction';
 export * from './resolveHeldBackArticleResponse';

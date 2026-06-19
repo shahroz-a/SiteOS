@@ -1371,6 +1371,81 @@ export interface VersionDiff {
   changes: VersionFieldChange[];
 }
 
+export interface RecordPageViewRequest {
+  /**
+     * The public slug of the page being viewed.
+     * @minLength 1
+     */
+  slug: string;
+}
+
+/**
+ * A single point in a time series.
+ */
+export interface AnalyticsTimePoint {
+  /** Bucket label (YYYY-MM-DD for daily, YYYY-MM for monthly). */
+  period: string;
+  value: number;
+}
+
+/**
+ * Page-view totals and a daily time series.
+ */
+export interface AnalyticsViews {
+  total: number;
+  last7Days: number;
+  last30Days: number;
+  /** Views per day for the last 30 days (gap-filled). */
+  daily: AnalyticsTimePoint[];
+}
+
+/**
+ * A leaderboard row ranked by page views.
+ */
+export interface AnalyticsLeader {
+  slug: string;
+  name: string;
+  views: number;
+}
+
+/**
+ * SEO completeness across published-eligible posts.
+ */
+export interface AnalyticsSeo {
+  /** Mean SEO completeness score (0-100) across all posts. */
+  averageScore: number;
+  /** Posts scoring 80 or above. */
+  fullyOptimized: number;
+  /** Posts scoring below 50. */
+  needsWork: number;
+  total: number;
+}
+
+/**
+ * Content-health counters.
+ */
+export interface AnalyticsHealth {
+  brokenLinks: number;
+  validationFailures: number;
+  drafts: number;
+  scheduled: number;
+}
+
+export interface CmsAnalytics {
+  generatedAt: string;
+  views: AnalyticsViews;
+  topPages: AnalyticsLeader[];
+  topAuthors: AnalyticsLeader[];
+  topCategories: AnalyticsLeader[];
+  topTags: AnalyticsLeader[];
+  seo: AnalyticsSeo;
+  /** Posts published per month for the last 12 months. */
+  publishingVelocity: AnalyticsTimePoint[];
+  /** Cumulative post count at each month end for the last 12 months. */
+  contentGrowth: AnalyticsTimePoint[];
+  health: AnalyticsHealth;
+}
+
 /**
  * Invalid request body.
  */

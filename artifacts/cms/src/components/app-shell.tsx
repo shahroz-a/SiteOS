@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
   ArrowLeftRight,
+  BarChart3,
   FileText,
   FileWarning,
   FolderTree,
@@ -41,6 +42,12 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/", icon: Home },
+  {
+    label: "Analytics",
+    href: "/analytics",
+    icon: BarChart3,
+    permission: "content.view",
+  },
   {
     label: "Content",
     href: "/content",

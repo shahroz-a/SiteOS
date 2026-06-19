@@ -10,3 +10,4 @@ export * from "./crawl";
 export * from "./auth";
 export * from "./audit";
 export * from "./saved-views";
+export * from "./analytics";

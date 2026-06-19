@@ -297,6 +297,80 @@ export const ListTagsResponse = zod.array(ListTagsResponseItem)
 
 
 /**
+ * Lightweight, privacy-respecting page-view capture from the public blog. Stores only the page slug, a coarse referrer host and a timestamp — no IP, user agent, cookie or per-visitor identifier. Unauthenticated.
+ * @summary Record a public page view
+ */
+
+
+
+export const RecordPageViewBody = zod.object({
+  "slug": zod.string().min(1).describe('The public slug of the page being viewed.')
+})
+
+
+/**
+ * Server-side aggregates of content performance: page views and time series, top pages/authors/categories/tags by views, SEO completeness, publishing velocity, content growth, and content-health counts (broken links, validation failures, drafts, scheduled). Requires content.view.
+ * @summary Content analytics aggregates for the CMS
+ */
+export const GetCmsAnalyticsHeader = zod.object({
+  "Authorization": zod.string().optional().describe('Opaque session token — `Bearer <sid>`.')
+})
+
+export const GetCmsAnalyticsResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "views": zod.object({
+  "total": zod.number(),
+  "last7Days": zod.number(),
+  "last30Days": zod.number(),
+  "daily": zod.array(zod.object({
+  "period": zod.string().describe('Bucket label (YYYY-MM-DD for daily, YYYY-MM for monthly).'),
+  "value": zod.number()
+}).describe('A single point in a time series.')).describe('Views per day for the last 30 days (gap-filled).')
+}).describe('Page-view totals and a daily time series.'),
+  "topPages": zod.array(zod.object({
+  "slug": zod.string(),
+  "name": zod.string(),
+  "views": zod.number()
+}).describe('A leaderboard row ranked by page views.')),
+  "topAuthors": zod.array(zod.object({
+  "slug": zod.string(),
+  "name": zod.string(),
+  "views": zod.number()
+}).describe('A leaderboard row ranked by page views.')),
+  "topCategories": zod.array(zod.object({
+  "slug": zod.string(),
+  "name": zod.string(),
+  "views": zod.number()
+}).describe('A leaderboard row ranked by page views.')),
+  "topTags": zod.array(zod.object({
+  "slug": zod.string(),
+  "name": zod.string(),
+  "views": zod.number()
+}).describe('A leaderboard row ranked by page views.')),
+  "seo": zod.object({
+  "averageScore": zod.number().describe('Mean SEO completeness score (0-100) across all posts.'),
+  "fullyOptimized": zod.number().describe('Posts scoring 80 or above.'),
+  "needsWork": zod.number().describe('Posts scoring below 50.'),
+  "total": zod.number()
+}).describe('SEO completeness across published-eligible posts.'),
+  "publishingVelocity": zod.array(zod.object({
+  "period": zod.string().describe('Bucket label (YYYY-MM-DD for daily, YYYY-MM for monthly).'),
+  "value": zod.number()
+}).describe('A single point in a time series.')).describe('Posts published per month for the last 12 months.'),
+  "contentGrowth": zod.array(zod.object({
+  "period": zod.string().describe('Bucket label (YYYY-MM-DD for daily, YYYY-MM for monthly).'),
+  "value": zod.number()
+}).describe('A single point in a time series.')).describe('Cumulative post count at each month end for the last 12 months.'),
+  "health": zod.object({
+  "brokenLinks": zod.number(),
+  "validationFailures": zod.number(),
+  "drafts": zod.number(),
+  "scheduled": zod.number()
+}).describe('Content-health counters.')
+})
+
+
+/**
  * Full-text-ish search across post titles, excerpts and content.
  * @summary Search posts
  */

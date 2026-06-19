@@ -25,6 +25,7 @@ import type {
   Author,
   BeginBrowserLoginParams,
   Category,
+  CmsAnalytics,
   CmsArchiveInput,
   CmsAuthor,
   CmsAuthorInput,
@@ -71,6 +72,7 @@ import type {
   PayloadMappingResponse,
   PostDetail,
   PostListResponse,
+  RecordPageViewRequest,
   ResolveHeldBackArticleRequest,
   ResolveHeldBackArticleResponse,
   SavedView,
@@ -869,6 +871,156 @@ export function useListTags<TData = Awaited<ReturnType<typeof listTags>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListTagsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRecordPageViewUrl = () => {
+
+
+
+
+  return `/api/events/page-view`
+}
+
+/**
+ * Lightweight, privacy-respecting page-view capture from the public blog. Stores only the page slug, a coarse referrer host and a timestamp — no IP, user agent, cookie or per-visitor identifier. Unauthenticated.
+ * @summary Record a public page view
+ */
+export const recordPageView = async (recordPageViewRequest: RecordPageViewRequest, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getRecordPageViewUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      recordPageViewRequest,)
+  }
+);}
+
+
+
+
+export const getRecordPageViewMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPageView>>, TError,{data: BodyType<RecordPageViewRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordPageView>>, TError,{data: BodyType<RecordPageViewRequest>}, TContext> => {
+
+const mutationKey = ['recordPageView'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordPageView>>, {data: BodyType<RecordPageViewRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordPageView(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordPageViewMutationResult = NonNullable<Awaited<ReturnType<typeof recordPageView>>>
+    export type RecordPageViewMutationBody = BodyType<RecordPageViewRequest>
+    export type RecordPageViewMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Record a public page view
+ */
+export const useRecordPageView = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPageView>>, TError,{data: BodyType<RecordPageViewRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordPageView>>,
+        TError,
+        {data: BodyType<RecordPageViewRequest>},
+        TContext
+      > => {
+      return useMutation(getRecordPageViewMutationOptions(options));
+    }
+
+export const getGetCmsAnalyticsUrl = () => {
+
+
+
+
+  return `/api/cms/analytics`
+}
+
+/**
+ * Server-side aggregates of content performance: page views and time series, top pages/authors/categories/tags by views, SEO completeness, publishing velocity, content growth, and content-health counts (broken links, validation failures, drafts, scheduled). Requires content.view.
+ * @summary Content analytics aggregates for the CMS
+ */
+export const getCmsAnalytics = async ( options?: RequestInit): Promise<CmsAnalytics> => {
+
+  return customFetch<CmsAnalytics>(getGetCmsAnalyticsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCmsAnalyticsQueryKey = () => {
+    return [
+    `/api/cms/analytics`
+    ] as const;
+    }
+
+
+export const getGetCmsAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getCmsAnalytics>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCmsAnalyticsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCmsAnalytics>>> = ({ signal }) => getCmsAnalytics({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCmsAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCmsAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getCmsAnalytics>>>
+export type GetCmsAnalyticsQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Content analytics aggregates for the CMS
+ */
+
+export function useGetCmsAnalytics<TData = Awaited<ReturnType<typeof getCmsAnalytics>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCmsAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCmsAnalyticsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -263,6 +263,59 @@ paths:
                 items:
                   $ref: "#/components/schemas/Tag"
 
+  /events/page-view:
+    post:
+      operationId: recordPageView
+      tags: [analytics]
+      summary: Record a public page view
+      description: >-
+        Lightweight, privacy-respecting page-view capture from the public blog.
+        Stores only the page slug, a coarse referrer host and a timestamp — no
+        IP, user agent, cookie or per-visitor identifier. Unauthenticated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordPageViewRequest"
+      responses:
+        "204":
+          description: View recorded (or silently ignored for an unknown slug).
+
+  /cms/analytics:
+    get:
+      operationId: getCmsAnalytics
+      tags: [analytics]
+      summary: Content analytics aggregates for the CMS
+      description: >-
+        Server-side aggregates of content performance: page views and time
+        series, top pages/authors/categories/tags by views, SEO completeness,
+        publishing velocity, content growth, and content-health counts
+        (broken links, validation failures, drafts, scheduled). Requires
+        content.view.
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: The analytics snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CmsAnalytics"
+        "401":
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Insufficient permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /search:
     get:
       operationId: searchPosts
@@ -4313,3 +4366,151 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/VersionFieldChange"
+
+    RecordPageViewRequest:
+      type: object
+      required:
+        - slug
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          description: The public slug of the page being viewed.
+
+    AnalyticsTimePoint:
+      type: object
+      description: A single point in a time series.
+      required:
+        - period
+        - value
+      properties:
+        period:
+          type: string
+          description: Bucket label (YYYY-MM-DD for daily, YYYY-MM for monthly).
+        value:
+          type: integer
+
+    AnalyticsViews:
+      type: object
+      description: Page-view totals and a daily time series.
+      required:
+        - total
+        - last7Days
+        - last30Days
+        - daily
+      properties:
+        total:
+          type: integer
+        last7Days:
+          type: integer
+        last30Days:
+          type: integer
+        daily:
+          type: array
+          description: Views per day for the last 30 days (gap-filled).
+          items:
+            $ref: '#/components/schemas/AnalyticsTimePoint'
+
+    AnalyticsLeader:
+      type: object
+      description: A leaderboard row ranked by page views.
+      required:
+        - slug
+        - name
+        - views
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        views:
+          type: integer
+
+    AnalyticsSeo:
+      type: object
+      description: SEO completeness across published-eligible posts.
+      required:
+        - averageScore
+        - fullyOptimized
+        - needsWork
+        - total
+      properties:
+        averageScore:
+          type: integer
+          description: Mean SEO completeness score (0-100) across all posts.
+        fullyOptimized:
+          type: integer
+          description: Posts scoring 80 or above.
+        needsWork:
+          type: integer
+          description: Posts scoring below 50.
+        total:
+          type: integer
+
+    AnalyticsHealth:
+      type: object
+      description: Content-health counters.
+      required:
+        - brokenLinks
+        - validationFailures
+        - drafts
+        - scheduled
+      properties:
+        brokenLinks:
+          type: integer
+        validationFailures:
+          type: integer
+        drafts:
+          type: integer
+        scheduled:
+          type: integer
+
+    CmsAnalytics:
+      type: object
+      required:
+        - generatedAt
+        - views
+        - topPages
+        - topAuthors
+        - topCategories
+        - topTags
+        - seo
+        - publishingVelocity
+        - contentGrowth
+        - health
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        views:
+          $ref: '#/components/schemas/AnalyticsViews'
+        topPages:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsLeader'
+        topAuthors:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsLeader'
+        topCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsLeader'
+        topTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsLeader'
+        seo:
+          $ref: '#/components/schemas/AnalyticsSeo'
+        publishingVelocity:
+          type: array
+          description: Posts published per month for the last 12 months.
+          items:
+            $ref: '#/components/schemas/AnalyticsTimePoint'
+        contentGrowth:
+          type: array
+          description: Cumulative post count at each month end for the last 12 months.
+          items:
+            $ref: '#/components/schemas/AnalyticsTimePoint'
+        health:
+          $ref: '#/components/schemas/AnalyticsHealth'
