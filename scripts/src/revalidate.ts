@@ -15,33 +15,8 @@
  */
 import { desc, inArray } from "drizzle-orm";
 import { db, pagesTable, validationReportsTable } from "@workspace/db";
-import type { CountSet } from "./crawler/validate";
-import { scoreValidation } from "./crawler/validate";
+import { rescoreStoredValidation } from "./crawler/validate";
 import { runReports } from "./crawler/pipeline";
-
-const ZERO_COUNTS: CountSet = {
-  headings: 0,
-  paragraphs: 0,
-  images: 0,
-  links: 0,
-  tables: 0,
-  lists: 0,
-  components: 0,
-};
-
-function toCountSet(raw: unknown): CountSet {
-  const r = (raw ?? {}) as Record<string, unknown>;
-  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-  return {
-    headings: num(r.headings),
-    paragraphs: num(r.paragraphs),
-    images: num(r.images),
-    links: num(r.links),
-    tables: num(r.tables),
-    lists: num(r.lists),
-    components: num(r.components),
-  };
-}
 
 async function chunked<T>(items: T[], size: number, fn: (batch: T[]) => Promise<void>): Promise<void> {
   for (let i = 0; i < items.length; i += size) {
@@ -82,18 +57,10 @@ export async function revalidateAll(log: (m: string) => void = console.log): Pro
   const byStatus: Record<string, number> = { pass: 0, warn: 0, fail: 0 };
 
   for (const page of pages) {
-    const stored = latestIssuesByPage.get(page.id) as
-      | { source?: unknown; parsed?: unknown }
-      | undefined;
-    const source = stored?.source ? toCountSet(stored.source) : ZERO_COUNTS;
-    const parsed = stored?.parsed ? toCountSet(stored.parsed) : ZERO_COUNTS;
-
-    const result = scoreValidation({
-      source,
-      parsed,
-      title: page.title ?? "",
+    const result = rescoreStoredValidation(latestIssuesByPage.get(page.id), {
       pageType: page.pageType,
-      url: page.url ?? "",
+      url: page.url,
+      title: page.title,
     });
     byStatus[result.status] = (byStatus[result.status] ?? 0) + 1;
 

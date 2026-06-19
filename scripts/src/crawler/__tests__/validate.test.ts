@@ -3,6 +3,7 @@ import { assemblePage } from "../assemble";
 import {
   isArticlePage,
   isArticleUrl,
+  rescoreStoredValidation,
   scoreValidation,
   validateExtraction,
   type CountSet,
@@ -346,5 +347,60 @@ describe("validateExtraction (fixture integration)", () => {
       lists: 2,
       components: 13,
     });
+  });
+});
+
+describe("rescoreStoredValidation (resilience to stale verdicts)", () => {
+  // A row written by an OLDER validator that wrongly failed a non-article page.
+  // The current validator auto-passes non-article pages, so re-scoring its
+  // captured tallies must override the stale "fail" — otherwise it would keep
+  // counting against launch readiness until a manual revalidate refreshed it.
+  it("re-scores a stale non-article 'fail' row to pass", () => {
+    const staleNonArticleFail = {
+      source: { paragraphs: 50, headings: 5 },
+      parsed: { paragraphs: 0, components: 0 },
+    };
+    const r = rescoreStoredValidation(staleNonArticleFail, {
+      pageType: "category",
+      url: "https://www.headout.com/blog/category/things-to-do/",
+      title: "Things to do",
+    });
+    expect(r.status).toBe("pass");
+  });
+
+  it("still fails a genuinely broken article (empty tree despite source prose)", () => {
+    const r = rescoreStoredValidation(
+      { source: { paragraphs: 20 }, parsed: { components: 0 } },
+      { pageType: "post", url: ARTICLE_URL, title: "A real article" },
+    );
+    expect(r.status).toBe("fail");
+  });
+
+  it("treats a missing issues blob as zero counts (no crash, passes non-article)", () => {
+    const r = rescoreStoredValidation(null, {
+      pageType: "author",
+      url: "https://www.headout.com/blog/author/jane/",
+      title: null,
+    });
+    expect(r.status).toBe("pass");
+    expect(r.source).toEqual({
+      headings: 0,
+      paragraphs: 0,
+      images: 0,
+      links: 0,
+      tables: 0,
+      lists: 0,
+      components: 0,
+    });
+  });
+
+  it("coerces non-numeric stored tallies to zero", () => {
+    const r = rescoreStoredValidation(
+      { source: { paragraphs: "lots", headings: null }, parsed: { components: NaN } },
+      { pageType: "post", url: ARTICLE_URL, title: "Article" },
+    );
+    // paragraphs coerced to 0 → no "empty tree despite source content" fail.
+    expect(r.status).toBe("pass");
+    expect(r.source.paragraphs).toBe(0);
   });
 });

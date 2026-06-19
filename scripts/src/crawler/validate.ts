@@ -172,6 +172,57 @@ export function scoreValidation(input: ScoreInput): ValidationResult {
   return { status, score, issues, source, parsed };
 }
 
+/** An all-zero count set — the safe default when a stored row has no tallies. */
+export const ZERO_COUNTS: CountSet = {
+  headings: 0,
+  paragraphs: 0,
+  images: 0,
+  links: 0,
+  tables: 0,
+  lists: 0,
+  components: 0,
+};
+
+/** Coerce an untrusted stored JSON blob into a {@link CountSet} (non-numbers → 0). */
+export function toCountSet(raw: unknown): CountSet {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return {
+    headings: num(r.headings),
+    paragraphs: num(r.paragraphs),
+    images: num(r.images),
+    links: num(r.links),
+    tables: num(r.tables),
+    lists: num(r.lists),
+    components: num(r.components),
+  };
+}
+
+/**
+ * Re-derive the CURRENT validation verdict for a stored validation row WITHOUT
+ * re-crawling. Reuses the source/parsed tallies captured on the row's `issues`
+ * blob (shape `{ source, parsed }`) and re-scores them against the live
+ * {@link scoreValidation} rules using the page's current type/url/title. This is
+ * the single source of truth shared by the offline re-validation job and the
+ * report generator, so a stale row written by an older validator (e.g. one that
+ * wrongly failed non-article pages) can never be trusted at face value.
+ */
+export function rescoreStoredValidation(
+  storedIssues: unknown,
+  page: { pageType: PageType; url: string | null; title: string | null },
+): ValidationResult {
+  const stored = (storedIssues ?? {}) as { source?: unknown; parsed?: unknown };
+  const source = stored.source ? toCountSet(stored.source) : ZERO_COUNTS;
+  const parsed = stored.parsed ? toCountSet(stored.parsed) : ZERO_COUNTS;
+  return scoreValidation({
+    source,
+    parsed,
+    title: page.title ?? "",
+    pageType: page.pageType,
+    url: page.url ?? "",
+  });
+}
+
 /**
  * Compare the source DOM counts against the normalized output for a freshly
  * extracted page. Delegates the scoring rules to {@link scoreValidation} so the

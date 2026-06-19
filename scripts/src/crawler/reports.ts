@@ -17,6 +17,7 @@ import {
   blocksTable,
 } from "@workspace/db";
 import { DEFAULT_CONFIG } from "./config";
+import { rescoreStoredValidation, type ValidationResult } from "./validate";
 import type { QueueStats } from "./queue";
 
 async function writeReport(dir: string, name: string, data: unknown): Promise<string> {
@@ -93,6 +94,9 @@ export async function generateReports(
       status: validationReportsTable.status,
       score: validationReportsTable.score,
       issues: validationReportsTable.issues,
+      pageType: pagesTable.pageType,
+      url: pagesTable.canonicalUrl,
+      title: pagesTable.title,
     })
     .from(validationReportsTable)
     .innerJoin(pagesTable, eq(validationReportsTable.pageId, pagesTable.id))
@@ -102,16 +106,33 @@ export async function generateReports(
     if (v.pageId && !latestValidationByPage.has(v.pageId)) latestValidationByPage.set(v.pageId, v);
   }
   const validations = [...latestValidationByPage.values()];
+  // Trust the CURRENT validator, not the stored verdict. A page's latest row may
+  // have been written by an older validator (e.g. one that wrongly failed
+  // non-article pages). Re-scoring its captured tallies against the live rules
+  // means a superseded/stale row can never surface as a failure or block launch
+  // readiness on its own — no manual re-validate required.
+  const currentStatusByPage = new Map<string, ValidationResult["status"]>();
+  for (const v of validations) {
+    if (!v.pageId) continue;
+    currentStatusByPage.set(
+      v.pageId,
+      rescoreStoredValidation(v.issues, { pageType: v.pageType, url: v.url, title: v.title }).status,
+    );
+  }
+  const currentStatus = (v: (typeof validations)[number]) =>
+    (v.pageId ? currentStatusByPage.get(v.pageId) : undefined) ?? v.status;
   const byStatus = validations.reduce<Record<string, number>>((acc, v) => {
-    acc[v.status] = (acc[v.status] ?? 0) + 1;
+    const s = currentStatus(v);
+    acc[s] = (acc[s] ?? 0) + 1;
     return acc;
   }, {});
+  const failures = validations.filter((v) => currentStatus(v) === "fail");
   written.push(
     await writeReport(outDir, "validation-report.json", {
       generatedAt: new Date().toISOString(),
       total: validations.length,
       byStatus,
-      failures: validations.filter((v) => v.status === "fail"),
+      failures,
     }),
   );
 
@@ -260,7 +281,9 @@ export async function generateReports(
   );
 
   // --- Migration readiness report ---
-  const failedValidations = validations.filter((v) => v.status === "fail").length;
+  // Use the re-scored current verdict (see above) so a stale old-logic row can
+  // no longer flip readiness to false on its own.
+  const failedValidations = failures.length;
   const pagesMissingCanonical = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(pagesTable)
