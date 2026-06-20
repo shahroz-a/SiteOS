@@ -9,6 +9,7 @@ export {
   asComponentTree,
   asRichText,
   prepareArticleHtml,
+  renderReviewSpecCard,
   sanitizeContentHtml,
   tocFromComponentTree,
   slugify,

@@ -550,6 +550,211 @@ export function stripWidgetShortcodes(html: string): string {
   return out;
 }
 
+/* ------------------------------------------------------------------ */
+/* Review "spec card" (migrated Thrive review header)                   */
+/* ------------------------------------------------------------------ */
+
+/** A bare `[star …]` marker anywhere in a string. */
+const STAR_MARKER_RE = /\[star\b[^\]]*\]/i;
+
+/**
+ * A review header's title line — "<Show> Review by: <critic>". Matched against
+ * a line's plain text to lift it out as the card title rather than a spec row.
+ */
+const REVIEW_TITLE_RE = /\breview(?:ed)?\s+by\b/i;
+
+/**
+ * Curated spec labels emitted by the migrated Thrive review-header template,
+ * used to split the header's inline `<br>`-separated lines into label/value
+ * rows. Order matters: a multi-word label MUST precede any single-word label it
+ * contains ("Show Runtime" before "Runtime") so the longest label wins when a
+ * single line packs several pairs ("Theatre: … Show Runtime: …"). "Review by"
+ * is intentionally absent — it is the card title, handled separately.
+ */
+const REVIEW_SPEC_LABELS = [
+  "Show Runtime",
+  "Runtime",
+  "Theatre",
+  "Theater",
+  "Directed by",
+  "Director",
+  "Choreographer",
+  "Choreography",
+  "Starring",
+  "Music",
+  "Lyrics",
+  "Genre",
+  "Venue",
+  "Location",
+  "Book",
+  "Rating",
+];
+
+/** Global label matcher (`Label:`), longest-first per `REVIEW_SPEC_LABELS`. */
+function reviewLabelMatcher(): RegExp {
+  return new RegExp(`\\b(${REVIEW_SPEC_LABELS.join("|")})\\b\\s*:\\s*`, "gi");
+}
+
+/** Escape text for safe insertion as HTML text content. */
+function escapeHtmlText(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Plain text of a raw header segment, with any `[star …]` marker removed. */
+function segmentText(seg: string): string {
+  return decodeEntities(stripTags(seg).replace(/\[star\b[^\]]*\]/gi, ""))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+interface ReviewSpecRow {
+  label: string;
+  valueHtml: string;
+}
+
+/**
+ * Build the structured "review spec card" markup from a header paragraph's
+ * inner HTML, or return `null` when nothing card-worthy can be extracted.
+ *
+ * The migrated header is a single `<p>` whose lines are separated by `<br>`
+ * (the `<br>`s are often nested inside `<strong>`/`<span>` colour wrappers).
+ * Each line is one of: the title ("<Show> Review by: <critic>"), a bare badge
+ * ("Critic's Pic"), one-or-more "Label: value" spec pairs ("Rating: ★",
+ * "Theatre: … Show Runtime: …"), or a trailing CTA link. We classify each line
+ * and re-emit them as a title + badges + a `<dl>` label/value grid + CTA so the
+ * loose inline facts read as one intentional card.
+ *
+ * The rating value preserves the raw `[star …]` marker so the later
+ * `stripWidgetShortcodes` pass converts it to the `.star-rating` badge — which
+ * is why `renderReviewSpecCard` must run BEFORE `stripWidgetShortcodes`.
+ * No-DOM/isomorphic (SSR byte-parity).
+ */
+function buildReviewCard(inner: string): string | null {
+  const segments = inner.split(/<br\s*\/?>/i);
+  let title: string | null = null;
+  const badges: string[] = [];
+  const rows: ReviewSpecRow[] = [];
+  const ctas: string[] = [];
+
+  for (const seg of segments) {
+    const hasStar = STAR_MARKER_RE.test(seg);
+    const starMarker = hasStar ? (seg.match(/\[star\b[^\]]*\]/i)?.[0] ?? "") : "";
+    const anchor = seg.match(/<a\b[^>]*>[\s\S]*?<\/a>/i)?.[0] ?? null;
+    const text = segmentText(seg);
+
+    if (!text && !hasStar && !anchor) continue;
+
+    if (text && REVIEW_TITLE_RE.test(text)) {
+      if (title === null) title = text;
+      continue;
+    }
+
+    const labelRe = reviewLabelMatcher();
+    const matches = [...text.matchAll(labelRe)];
+    if (matches.length > 0) {
+      for (let i = 0; i < matches.length; i++) {
+        const mm = matches[i];
+        const label = mm[1];
+        const valueStart = (mm.index ?? 0) + mm[0].length;
+        const valueEnd = matches[i + 1]?.index ?? text.length;
+        const value = text
+          .slice(valueStart, valueEnd)
+          .replace(/\s+/g, " ")
+          .trim();
+        const isRating = /^rating$/i.test(label);
+        if (isRating && starMarker) {
+          rows.push({ label, valueHtml: starMarker });
+        } else if (value) {
+          rows.push({ label, valueHtml: escapeHtmlText(value) });
+        }
+      }
+      continue;
+    }
+
+    // No labels on this line: a lone rating, a CTA link, or a plain badge.
+    if (hasStar && starMarker) {
+      rows.push({ label: "Rating", valueHtml: starMarker });
+      continue;
+    }
+    if (anchor && segmentText(seg.replace(anchor, "")) === "") {
+      ctas.push(anchor);
+      continue;
+    }
+    if (text) badges.push(text);
+  }
+
+  if (!title && badges.length === 0 && rows.length === 0 && ctas.length === 0) {
+    return null;
+  }
+
+  let out = '<div class="review-spec-card">';
+  if (title) {
+    out += `<p class="review-spec-card__title">${escapeHtmlText(title)}</p>`;
+  }
+  if (badges.length > 0) {
+    out +=
+      '<p class="review-spec-card__badges">' +
+      badges
+        .map(
+          (b) =>
+            `<span class="review-spec-card__badge">${escapeHtmlText(b)}</span>`,
+        )
+        .join("") +
+      "</p>";
+  }
+  if (rows.length > 0) {
+    out += '<dl class="review-spec-card__grid">';
+    for (const r of rows) {
+      out +=
+        '<div class="review-spec-card__row">' +
+        `<dt class="review-spec-card__label">${escapeHtmlText(r.label)}</dt>` +
+        `<dd class="review-spec-card__value">${r.valueHtml}</dd>` +
+        "</div>";
+    }
+    out += "</dl>";
+  }
+  if (ctas.length > 0) {
+    out += `<p class="review-spec-card__cta">${ctas.join("")}</p>`;
+  }
+  out += "</div>";
+  return out;
+}
+
+/**
+ * Promote the migrated Thrive "review header" — a loose `<p>` of inline facts
+ * ("<Show> Review by:", "Critic's Pic", "Rating: [star …]", "Theatre:",
+ * "Show Runtime:", a tickets link) emitted as plain `<strong>`/`<br>` prose —
+ * into a single styled `.review-spec-card` (title + badges + label/value grid +
+ * CTA) so the review header reads as an intentional component.
+ *
+ * Targets only the FIRST `<p>` that carries a `[star …]` marker AND at least
+ * one recognized review label or the "Review by" title cue, so a stray star
+ * widget in ordinary prose is left alone (it still renders as a `.star-rating`
+ * badge via `stripWidgetShortcodes`). Must run BEFORE `stripWidgetShortcodes`
+ * so the rating's raw `[star …]` marker (preserved into the card) is converted
+ * there. No-DOM/isomorphic (SSR byte-parity).
+ */
+export function renderReviewSpecCard(html: string): string {
+  if (!html || !STAR_MARKER_RE.test(html)) return html;
+  const pRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = pRe.exec(html))) {
+    const inner = m[1];
+    if (!STAR_MARKER_RE.test(inner)) continue;
+    const text = decodeEntities(stripTags(inner));
+    const isReviewHeader =
+      REVIEW_TITLE_RE.test(text) || reviewLabelMatcher().test(text);
+    if (!isReviewHeader) continue;
+    const card = buildReviewCard(inner);
+    if (!card) continue;
+    return html.slice(0, m.index) + card + html.slice(m.index + m[0].length);
+  }
+  return html;
+}
+
 /**
  * Fold the standalone "section number" that the migrated Thrive listicle
  * widgets render *separately* from their heading back into the heading text, so
@@ -775,6 +980,7 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
     .replace(/\[tcb-script\b[\s\S]*?\[\/tcb-script\]/gi, "");
 
   html = stripScriptShortcodes(html);
+  html = renderReviewSpecCard(html);
   html = stripWidgetShortcodes(html);
   html = stripSocialShare(html);
   html = stripSummaryWidget(html);

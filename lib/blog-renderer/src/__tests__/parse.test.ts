@@ -5,6 +5,7 @@ import {
   fixMalformedUrlScheme,
   mergeNumberedHeadings,
   prepareArticleHtml,
+  renderReviewSpecCard,
   rewriteInternalLinks,
   sanitizeContentHtml,
   stripEmptyTimelineDecorations,
@@ -536,6 +537,84 @@ describe("stripWidgetShortcodes", () => {
     expect(html).not.toContain("[star");
     expect(html).toContain("Find Best Seats");
     expect(html).toContain("<p>Intro</p>");
+  });
+});
+
+describe("renderReviewSpecCard", () => {
+  // The migrated Thrive review header, as it appears in the corpus (e.g. slug
+  // review-natasha-pierre-great-comet-1812): a single <p> of inline facts with
+  // <br>s nested inside <strong>/<span> colour wrappers.
+  const header =
+    '<p><strong><span style="color: #000000;">The Great Comet Review by: Jordan Diggory</span><br></strong>' +
+    '<strong style="color: #000000;">Critic\u2019s Pic<br></strong>' +
+    '<strong><span style="color: #000000;">Rating:</span>&nbsp;</strong>[star rating=\u201d8\u201d max=\u201d10\u201d]<br>' +
+    "Theatre:&nbsp;Imperial Theatre &nbsp; &nbsp; &nbsp; Show Runtime:&nbsp;2 hrs. and 30 min.<br>" +
+    '<a href="https://www.headout.com/broadway-musicals/x-e-4192/?stage=content" target="_blank" rel="noopener noreferrer">Natasha, Pierre &amp; The Great Comet of 1812 Tickets</a></p>';
+
+  it("wraps the loose review facts into a single spec card", () => {
+    const out = renderReviewSpecCard(header);
+    expect(out).toContain('<div class="review-spec-card">');
+    expect(out).toContain('<dl class="review-spec-card__grid">');
+    // Title lifted out of the grid.
+    expect(out).toContain(
+      '<p class="review-spec-card__title">The Great Comet Review by: Jordan Diggory</p>',
+    );
+    // "Critic's Pic" becomes a badge, not a row.
+    expect(out).toContain(
+      '<span class="review-spec-card__badge">Critic\u2019s Pic</span>',
+    );
+  });
+
+  it("splits a multi-pair line into separate label/value rows", () => {
+    const out = renderReviewSpecCard(header);
+    expect(out).toContain(
+      '<dt class="review-spec-card__label">Theatre</dt><dd class="review-spec-card__value">Imperial Theatre</dd>',
+    );
+    expect(out).toContain(
+      '<dt class="review-spec-card__label">Show Runtime</dt><dd class="review-spec-card__value">2 hrs. and 30 min.</dd>',
+    );
+  });
+
+  it("preserves the [star] marker as the Rating value and the CTA link", () => {
+    const out = renderReviewSpecCard(header);
+    expect(out).toContain('<dt class="review-spec-card__label">Rating</dt>');
+    // Raw marker survives so stripWidgetShortcodes can convert it downstream.
+    expect(out).toMatch(/Rating<\/dt><dd[^>]*>\[star rating/);
+    expect(out).toContain('<p class="review-spec-card__cta">');
+    expect(out).toContain("Great Comet of 1812 Tickets</a>");
+  });
+
+  it("renders a polished, star-badged card end-to-end via prepareArticleHtml", () => {
+    const { html } = prepareArticleHtml(
+      header + "<h2>Natasha, Pierre &amp; the Great Comet Review</h2><p>Body.</p>",
+    );
+    expect(html).toContain('<div class="review-spec-card">');
+    // The rating shortcode is converted to the .star-rating badge, no marker left.
+    expect(html).not.toContain("[star");
+    expect(html).toContain('class="star-rating"');
+    expect(html).toContain(">8/10</span>");
+    // The body after the header is untouched and still gets a heading id.
+    expect(html).toContain("<h2");
+    expect(html).toContain("Body.");
+  });
+
+  it("only cards the first review header and leaves later <p> facts alone", () => {
+    const second =
+      header +
+      "<p>Show runtime: 2 hrs. and 30 min.</p><p>Theatre: Imperial Theatre</p>";
+    const out = renderReviewSpecCard(second);
+    expect(out.match(/review-spec-card"/g)?.length).toBe(1);
+    expect(out).toContain("<p>Show runtime: 2 hrs. and 30 min.</p>");
+  });
+
+  it("leaves a stray star widget in ordinary prose untouched", () => {
+    const raw = '<p>We rated it [star rating="8" max="10"] overall.</p>';
+    expect(renderReviewSpecCard(raw)).toBe(raw);
+  });
+
+  it("is a no-op when no star marker is present", () => {
+    const raw = "<p>Theatre: Imperial Theatre<br>Show Runtime: 2 hrs.</p>";
+    expect(renderReviewSpecCard(raw)).toBe(raw);
   });
 });
 

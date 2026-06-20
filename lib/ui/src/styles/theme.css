@@ -589,6 +589,72 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Review spec card — the migrated Thrive review header (loose inline      */
+  /* "Review by / Critic's Pic / Rating / Theatre / Show Runtime" facts) is  */
+  /* promoted by renderReviewSpecCard into this single label/value card so   */
+  /* the review header reads as an intentional component, not stacked prose. */
+  .blog-prose .review-spec-card {
+    margin: 2rem 0;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background: hsl(var(--muted) / 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .blog-prose .review-spec-card__title {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.05rem;
+    line-height: 1.3;
+    color: hsl(var(--foreground));
+  }
+  .blog-prose .review-spec-card__badges {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .blog-prose .review-spec-card__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15em 0.7em;
+    border-radius: 999px;
+    background: hsl(var(--primary) / 0.1);
+    border: 1px solid hsl(var(--primary) / 0.2);
+    color: hsl(var(--primary));
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .blog-prose .review-spec-card__grid {
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.5rem 1.25rem;
+    align-items: baseline;
+  }
+  .blog-prose .review-spec-card__row {
+    display: contents;
+  }
+  .blog-prose .review-spec-card__label {
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .blog-prose .review-spec-card__value {
+    margin: 0;
+    color: hsl(var(--foreground));
+  }
+  .blog-prose .review-spec-card__cta {
+    margin: 0;
+  }
+
   /* ================================================================== */
   /* Migrated WordPress embedded widgets                                 */
   /* The source articles ship rich Thrive/Headout blocks — season cards, */
