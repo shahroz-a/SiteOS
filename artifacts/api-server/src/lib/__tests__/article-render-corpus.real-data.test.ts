@@ -138,6 +138,9 @@ async function loadSampleIds(): Promise<string[]> {
     '%class="number"%', // timeline listicle number orphan → mergeNumberedHeadings
     "%hhttp%", // malformed hhttp(s) scheme → fixMalformedUrlScheme
     "%[tcb-script]%", // dead Thrive script shortcode kept as plain text → prepareArticleHtml
+    "%The Good%", // review takeaway cue → renderVerdictCallouts (positive assertion)
+    "%The Bad%", // review takeaway cue → renderVerdictCallouts (positive assertion)
+    "%Pros and Cons of%", // comparison cue → renderVerdictCallouts (positive assertion)
   ];
   for (const m of markers) {
     for (const id of await idsWithMarker(m, PER_MARKER)) ids.add(id);
@@ -358,8 +361,135 @@ function gluedListicleHeading(html: string): string | null {
   return null;
 }
 
+/* --------------------------------------------------------------------- */
+/* Positive verdict/pros-cons card assertion (the inverse of the residue   */
+/* detectors above). The residue detectors only check that BROKEN markup   */
+/* doesn't survive — they would NOT notice if `renderVerdictCallouts`      */
+/* silently stopped promoting a takeaway heading (a change to              */
+/* `prepareArticleHtml` ordering, or to the cue list). This oracle asserts  */
+/* the opposite: every page that DOES carry a takeaway cue heading         */
+/* immediately followed by its prose actually receives a well-formed        */
+/* `.verdict-callout--{variant}` card with the heading still inside it (so   */
+/* the later heading-id/TOC pass still anchors it).                         */
+/* --------------------------------------------------------------------- */
+
+type VerdictVariant = "good" | "bad" | "pros" | "cons" | "proscons" | "verdict";
+
+/**
+ * Independent copy of `lib/blog-renderer`'s verdict heading cues. It is
+ * DELIBERATELY not imported from the lib: if the lib's cue list were emptied or
+ * a cue dropped, an imported copy would agree (no expectation → no failure) and
+ * the silent regression would slip through. Re-declaring the cues here means the
+ * oracle still expects a card the lib no longer produces, so the gate fails.
+ * Keep in sync with `VERDICT_CUES` in `lib/blog-renderer/src/parse.ts`.
+ */
+const VERDICT_CUES: { re: RegExp; variant: VerdictVariant }[] = [
+  { re: /^the\s+good$/i, variant: "good" },
+  { re: /^the\s+bad$/i, variant: "bad" },
+  { re: /^pros\s*(?:and|&|&amp;)\s*cons\b/i, variant: "proscons" },
+  { re: /^pros$/i, variant: "pros" },
+  { re: /^cons$/i, variant: "cons" },
+  { re: /^(?:the\s+|our\s+|final\s+)?verdict\b/i, variant: "verdict" },
+  { re: /[-–—:]\s*verdict$/i, variant: "verdict" },
+  { re: /^bottom\s+line$/i, variant: "verdict" },
+];
+
+/** Plain text of a heading's inner HTML (tags stripped, key entities decoded). */
+function headingPlainText(innerHtml: string): string {
+  return innerHtml
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The verdict variant for a heading's plain text, or null if it isn't a cue. */
+function verdictCueVariant(text: string): VerdictVariant | null {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  for (const cue of VERDICT_CUES) {
+    if (cue.re.test(t)) return cue.variant;
+  }
+  return null;
+}
+
+/**
+ * End index (exclusive) of one balanced `<p>`/`<ul>`/`<ol>` block starting at
+ * `start`, or -1 if `start` is not such an open tag. Mirrors the lib's
+ * `contentBlockEnd` so the oracle's "is immediately followed by content" gate
+ * matches `renderVerdictCallouts` exactly — a cue heading followed by something
+ * that is NOT a balanced content block (an `<hr>`, a `<div>` wrapper, an
+ * unclosed tag) is one the lib intentionally leaves alone, so the oracle must
+ * not expect a card for it (avoids false positives on the real corpus).
+ */
+function balancedContentBlockEnd(html: string, start: number): number {
+  const open = /^<(p|ul|ol)\b/i.exec(html.slice(start, start + 6));
+  if (!open) return -1;
+  const tag = open[1].toLowerCase();
+  const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, "gi");
+  re.lastIndex = start;
+  let depth = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m[1]) {
+      depth--;
+      if (depth === 0) return re.lastIndex;
+    } else {
+      depth++;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Scan RENDERED article HTML for takeaway cue headings and assert each one that
+ * is immediately followed by its prose is wrapped in the matching
+ * `.verdict-callout--{variant}` card. Returns the missing-card failures plus the
+ * count of cards positively verified (so the gate can prove it isn't vacuous).
+ *
+ * Runs on the FINAL rendered HTML (post-`prepareArticleHtml`): the cue heading
+ * always survives promotion (the lib wraps it, never removes it), and the lib
+ * emits the wrapper `<div>` immediately before the heading with no whitespace —
+ * so a correctly promoted heading's open tag is preceded by exactly that
+ * wrapper. A heading followed by content but NOT preceded by the wrapper is a
+ * dropped promotion. A heading whose following sibling is no longer a content
+ * block (e.g. an earlier transform turned it into a `.review-spec-card`) fails
+ * the adjacency gate and is skipped, so this can't false-positive.
+ */
+function verdictCalloutCheck(
+  pathname: string,
+  html: string,
+): { failures: string[]; verified: number } {
+  const failures: string[] = [];
+  let verified = 0;
+  const headingRe = /<h([2-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = headingRe.exec(html))) {
+    const variant = verdictCueVariant(headingPlainText(m[2]));
+    if (!variant) continue;
+    const afterHeading = m.index + m[0].length;
+    const lead = /^\s*/.exec(html.slice(afterHeading))?.[0].length ?? 0;
+    if (balancedContentBlockEnd(html, afterHeading + lead) < 0) continue;
+    const wrapper = `<div class="verdict-callout verdict-callout--${variant}">`;
+    if (html.slice(0, m.index).endsWith(wrapper)) {
+      verified += 1;
+    } else {
+      const label = headingPlainText(m[2]).slice(0, 80);
+      failures.push(
+        `[verdict-callout missing] ${pathname} :: expected ` +
+          `verdict-callout--${variant} card around "${label}"`,
+      );
+    }
+  }
+  return { failures, verified };
+}
+
 /** Render one stored article and collect every broken-formatting hit. */
-function scanHtml(pathname: string, rawHtml: string): string[] {
+function scanHtml(
+  pathname: string,
+  rawHtml: string,
+): { failures: string[]; verifiedVerdicts: number } {
   const { html } = prepareArticleHtml(rawHtml);
   const failures: string[] = [];
   for (const det of DETECTORS) {
@@ -374,7 +504,9 @@ function scanHtml(pathname: string, rawHtml: string): string[] {
   if (glued) {
     failures.push(`[glued listicle number] ${pathname} :: ${glued}`);
   }
-  return failures;
+  const verdict = verdictCalloutCheck(pathname, html);
+  failures.push(...verdict.failures);
+  return { failures, verifiedVerdicts: verdict.verified };
 }
 
 /**
@@ -386,20 +518,82 @@ function scanHtml(pathname: string, rawHtml: string): string[] {
  */
 async function checkBatch(
   pageIds: string[],
-): Promise<{ scanned: number; failures: string[] }> {
+): Promise<{ scanned: number; failures: string[]; verifiedVerdicts: number }> {
   const rows = await db
     .select({ pathname: pagesTable.pathname, html: pagesTable.cleanedHtml })
     .from(pagesTable)
     .where(inArray(pagesTable.id, pageIds));
   let scanned = 0;
+  let verifiedVerdicts = 0;
   const failures: string[] = [];
   for (const r of rows) {
     if (typeof r.html !== "string" || r.html.length === 0) continue;
     scanned += 1;
-    failures.push(...scanHtml(r.pathname, r.html));
+    const res = scanHtml(r.pathname, r.html);
+    failures.push(...res.failures);
+    verifiedVerdicts += res.verifiedVerdicts;
   }
-  return { scanned, failures };
+  return { scanned, failures, verifiedVerdicts };
 }
+
+// Pure unit coverage for the positive verdict-callout oracle (runs in the
+// normal suite, NOT gated on VERIFY_REAL_DATA) so the assertion stays honest:
+// it must verify a real promotion, fire on a dropped promotion, and never
+// false-positive on cue WORDS that aren't standalone takeaway headings.
+describe("verdict-callout positive assertion (oracle)", () => {
+  it("verifies a card when prepareArticleHtml promotes a cue heading", () => {
+    const { html } = prepareArticleHtml(
+      "<h3><strong>The Good</strong></h3><p>Thrilling rides all day.</p>" +
+        "<h3><strong>The Bad</strong></h3><p>Long queues at peak.</p>",
+    );
+    const { failures, verified } = verdictCalloutCheck("/p", html);
+    expect(failures).toEqual([]);
+    expect(verified).toBe(2);
+  });
+
+  it("fails when a cue heading + content is NOT wrapped (dropped promotion)", () => {
+    // Simulates the regression this gate guards: the verdict transform stopped
+    // firing, so the cue heading reaches the reader as loose stacked text.
+    const unwrapped =
+      '<h3 id="the-good"><strong>The Good</strong></h3><p>Thrilling rides.</p>';
+    const { failures, verified } = verdictCalloutCheck("/p", unwrapped);
+    expect(verified).toBe(0);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("verdict-callout missing");
+    expect(failures[0]).toContain("verdict-callout--good");
+  });
+
+  it("flags a card promoted to the WRONG variant", () => {
+    const wrongVariant =
+      '<div class="verdict-callout verdict-callout--verdict">' +
+      '<h3 id="the-good">The Good</h3><p>Body.</p></div>';
+    const { failures, verified } = verdictCalloutCheck("/p", wrongVariant);
+    expect(verified).toBe(0);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("verdict-callout--good");
+  });
+
+  it("ignores a cue word inside an ordinary section heading", () => {
+    const { html } = prepareArticleHtml(
+      "<h2>What was the final verdict of the trial?</h2><p>Guilty.</p>" +
+        "<h2>Pros of an early start</h2><p>Beat the crowds.</p>",
+    );
+    const { failures, verified } = verdictCalloutCheck("/p", html);
+    expect(failures).toEqual([]);
+    expect(verified).toBe(0);
+  });
+
+  it("does not expect a card when the cue heading isn't followed by content", () => {
+    // The separate-div "Verdict — …" header shape the lib intentionally skips.
+    const { html } = prepareArticleHtml(
+      '<div><h2 class="add-to-summary">Verdict</h2><hr></div>' +
+        "<div><p>Body.</p></div>",
+    );
+    const { failures, verified } = verdictCalloutCheck("/p", html);
+    expect(failures).toEqual([]);
+    expect(verified).toBe(0);
+  });
+});
 
 describe.skipIf(!RUN)(
   "prepareArticleHtml — real corpus (no broken formatting reaches readers)",
@@ -445,23 +639,69 @@ describe.skipIf(!RUN)(
     it("leaves no known-broken markup in any scanned article (batched)", async () => {
       expect(batches.length, "batches to scan").toBeGreaterThan(0);
       let scanned = 0;
+      let verifiedVerdicts = 0;
       const failures: string[] = [];
       for (const batch of batches) {
         const res = await checkBatch(batch);
         scanned += res.scanned;
+        verifiedVerdicts += res.verifiedVerdicts;
         failures.push(...res.failures);
       }
       // Run summary to stdout for the deployment logs (`fetchDeploymentLogs`).
+      // `verdicts=` is the count of verdict/pros-cons cards positively verified
+      // (heading wrapped in the matching `.verdict-callout--{variant}`).
       console.log(
         `[corpus-render] mode=${FULL ? "full" : "sample"} ` +
           `batches=${batches.length} scanned=${scanned} ` +
-          `failures=${failures.length}`,
+          `verdicts=${verifiedVerdicts} failures=${failures.length}`,
       );
       expect(
         failures,
         `broken formatting reached the rendered body:\n${failures.join("\n")}`,
       ).toEqual([]);
     }, 3_600_000);
+
+    // Positive, non-vacuous coverage: load pages that carry the takeaway cue
+    // markup and assert the corpus actually PRODUCES well-formed verdict/pros-cons
+    // cards (heading preserved inside a `.verdict-callout--{variant}` wrapper).
+    // This is the inverse of the residue scan above: it fails if a future change
+    // to `prepareArticleHtml` ordering or the cue list silently stops promoting
+    // these shapes — a regression the broken-markup detectors can't see.
+    it("promotes takeaway cue headings into well-formed verdict cards", async () => {
+      const cueMarkers = ["%The Good%", "%The Bad%", "%Pros and Cons of%"];
+      const ids = new Set<string>();
+      for (const marker of cueMarkers) {
+        for (const id of await idsWithMarker(marker, 40)) ids.add(id);
+      }
+      expect(ids.size, "cue-marker pages to inspect").toBeGreaterThan(0);
+
+      const rows = await db
+        .select({ pathname: pagesTable.pathname, html: pagesTable.cleanedHtml })
+        .from(pagesTable)
+        .where(inArray(pagesTable.id, [...ids]));
+
+      let verified = 0;
+      const failures: string[] = [];
+      for (const r of rows) {
+        if (typeof r.html !== "string" || r.html.length === 0) continue;
+        const { html } = prepareArticleHtml(r.html);
+        const res = verdictCalloutCheck(r.pathname, html);
+        verified += res.verified;
+        failures.push(...res.failures);
+      }
+      expect(
+        failures,
+        `takeaway cue heading reached the reader without its card:\n${failures.join(
+          "\n",
+        )}`,
+      ).toEqual([]);
+      // The cue markup is present in the corpus, so promotion MUST fire on at
+      // least one page — a zero here means the transform stopped running.
+      expect(
+        verified,
+        "at least one takeaway cue heading was carded",
+      ).toBeGreaterThan(0);
+    }, 600_000);
 
     it("renders the fixed listicle slugs with merged 'N. ' numbering + toc", async () => {
       const rows = await db
