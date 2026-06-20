@@ -141,6 +141,8 @@ async function loadSampleIds(): Promise<string[]> {
     "%The Good%", // review takeaway cue → renderVerdictCallouts (positive assertion)
     "%The Bad%", // review takeaway cue → renderVerdictCallouts (positive assertion)
     "%Pros and Cons of%", // comparison cue → renderVerdictCallouts (positive assertion)
+    "%[star%", // star-rated review header → renderReviewSpecCard (positive assertion)
+    "%Review by%", // review-header title cue → renderReviewSpecCard (positive assertion)
   ];
   for (const m of markers) {
     for (const id of await idsWithMarker(m, PER_MARKER)) ids.add(id);
@@ -485,11 +487,112 @@ function verdictCalloutCheck(
   return { failures, verified };
 }
 
+/* --------------------------------------------------------------------- */
+/* Positive review "spec card" assertion (sibling of the verdict oracle).   */
+/* `renderReviewSpecCard` folds a migrated Thrive review header (the first   */
+/* `<p>` carrying a `[star …]` marker AND a "Review by" title / spec-label   */
+/* cue — "Theatre:", "Show Runtime:", "Rating:") into one `.review-spec-card`*/
+/* (title + badges + `<dl>` grid + CTA). The residue DETECTORS only check    */
+/* that BROKEN markup doesn't survive — they would NOT notice if this        */
+/* promotion silently stopped firing (a change to `prepareArticleHtml`       */
+/* ordering — it MUST run BEFORE `stripWidgetShortcodes` — or to             */
+/* `REVIEW_SPEC_LABELS`). This oracle asserts the opposite: every page whose */
+/* raw HTML carries a qualifying star-rated review header actually receives a */
+/* well-formed `.review-spec-card` in the rendered output.                   */
+/* --------------------------------------------------------------------- */
+
+/** A bare `[star …]` shortcode marker anywhere in a string. */
+const STAR_MARKER = /\[star\b[^\]]*\]/i;
+
+/**
+ * Independent copies of the lib's review-header cues — the "Review by" title
+ * cue and the spec labels. DELIBERATELY re-declared here, NOT imported from
+ * `lib/blog-renderer`: if the lib's `REVIEW_SPEC_LABELS` were emptied or the
+ * title cue dropped, an imported copy would agree (no expectation → no failure)
+ * and the silent regression would slip through. Re-declaring them means the
+ * oracle still expects a card the lib no longer produces, so the gate fails.
+ * Keep in sync with `REVIEW_TITLE_RE` + `REVIEW_SPEC_LABELS` in
+ * `lib/blog-renderer/src/parse.ts`.
+ */
+const REVIEW_TITLE_CUE = /\breview(?:ed)?\s+by\b/i;
+const REVIEW_SPEC_LABEL_CUES = [
+  "Show Runtime",
+  "Runtime",
+  "Theatre",
+  "Theater",
+  "Directed by",
+  "Director",
+  "Choreographer",
+  "Choreography",
+  "Starring",
+  "Music",
+  "Lyrics",
+  "Genre",
+  "Venue",
+  "Location",
+  "Book",
+  "Rating",
+];
+
+/** Matches a `Label:` spec cue anywhere in a line (any of the curated labels). */
+function reviewLabelCue(): RegExp {
+  return new RegExp(`\\b(?:${REVIEW_SPEC_LABEL_CUES.join("|")})\\b\\s*:\\s*`, "i");
+}
+
+/**
+ * Does the RAW (pre-render) HTML carry a star-rated review header that the lib
+ * is supposed to card? Mirrors `renderReviewSpecCard`'s gate: scan every `<p>`,
+ * and the first one that carries a `[star …]` marker AND (the "Review by" title
+ * cue OR a recognized `Label:` spec cue) qualifies. A stray `[star …]` in
+ * ordinary prose (no review cue) does NOT qualify, so the oracle never expects a
+ * card the lib intentionally leaves alone.
+ */
+function rawCarriesReviewHeader(rawHtml: string): boolean {
+  if (!STAR_MARKER.test(rawHtml)) return false;
+  const pRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = pRe.exec(rawHtml))) {
+    const inner = m[1];
+    if (!STAR_MARKER.test(inner)) continue;
+    const text = headingPlainText(inner);
+    if (REVIEW_TITLE_CUE.test(text) || reviewLabelCue().test(text)) return true;
+  }
+  return false;
+}
+
+/**
+ * Assert that a page whose RAW HTML carries a qualifying star-rated review
+ * header receives a well-formed `.review-spec-card` in the RENDERED output (the
+ * wrapper plus at least one of its structural parts — title / badges / `<dl>`
+ * grid / CTA, so an empty shell wouldn't count). Pages with no review header are
+ * skipped (no expectation), so this can't false-positive. Returns the missing
+ * failures plus the count of cards positively verified.
+ */
+function reviewSpecCardCheck(
+  pathname: string,
+  rawHtml: string,
+  renderedHtml: string,
+): { failures: string[]; verified: number } {
+  if (!rawCarriesReviewHeader(rawHtml)) return { failures: [], verified: 0 };
+  const hasCard = /<div class="review-spec-card">/.test(renderedHtml);
+  const hasPart = /class="review-spec-card__(?:title|badges|grid|cta)"/.test(
+    renderedHtml,
+  );
+  if (hasCard && hasPart) return { failures: [], verified: 1 };
+  return {
+    failures: [
+      `[review-spec-card missing] ${pathname} :: expected a .review-spec-card ` +
+        `(title/badges/<dl> grid/cta) for a star-rated review header`,
+    ],
+    verified: 0,
+  };
+}
+
 /** Render one stored article and collect every broken-formatting hit. */
 function scanHtml(
   pathname: string,
   rawHtml: string,
-): { failures: string[]; verifiedVerdicts: number } {
+): { failures: string[]; verifiedVerdicts: number; verifiedSpecCards: number } {
   const { html } = prepareArticleHtml(rawHtml);
   const failures: string[] = [];
   for (const det of DETECTORS) {
@@ -506,7 +609,13 @@ function scanHtml(
   }
   const verdict = verdictCalloutCheck(pathname, html);
   failures.push(...verdict.failures);
-  return { failures, verifiedVerdicts: verdict.verified };
+  const specCard = reviewSpecCardCheck(pathname, rawHtml, html);
+  failures.push(...specCard.failures);
+  return {
+    failures,
+    verifiedVerdicts: verdict.verified,
+    verifiedSpecCards: specCard.verified,
+  };
 }
 
 /**
@@ -516,15 +625,19 @@ function scanHtml(
  * batch, not the whole corpus (the same memory-safety contract as
  * `verify:cms-io:full`).
  */
-async function checkBatch(
-  pageIds: string[],
-): Promise<{ scanned: number; failures: string[]; verifiedVerdicts: number }> {
+async function checkBatch(pageIds: string[]): Promise<{
+  scanned: number;
+  failures: string[];
+  verifiedVerdicts: number;
+  verifiedSpecCards: number;
+}> {
   const rows = await db
     .select({ pathname: pagesTable.pathname, html: pagesTable.cleanedHtml })
     .from(pagesTable)
     .where(inArray(pagesTable.id, pageIds));
   let scanned = 0;
   let verifiedVerdicts = 0;
+  let verifiedSpecCards = 0;
   const failures: string[] = [];
   for (const r of rows) {
     if (typeof r.html !== "string" || r.html.length === 0) continue;
@@ -532,8 +645,9 @@ async function checkBatch(
     const res = scanHtml(r.pathname, r.html);
     failures.push(...res.failures);
     verifiedVerdicts += res.verifiedVerdicts;
+    verifiedSpecCards += res.verifiedSpecCards;
   }
-  return { scanned, failures, verifiedVerdicts };
+  return { scanned, failures, verifiedVerdicts, verifiedSpecCards };
 }
 
 // Pure unit coverage for the positive verdict-callout oracle (runs in the
@@ -595,6 +709,56 @@ describe("verdict-callout positive assertion (oracle)", () => {
   });
 });
 
+// Pure unit coverage for the positive review-spec-card oracle (runs in the
+// normal suite, NOT gated on VERIFY_REAL_DATA) so the assertion stays honest:
+// it must verify a real promotion, fire on a dropped promotion, and never
+// false-positive on a stray star marker in ordinary prose.
+describe("review-spec-card positive assertion (oracle)", () => {
+  // A migrated Thrive review header: title ("Review by"), a star rating, and
+  // two spec labels packed into one `<p>` of `<br>`-separated lines.
+  const reviewHeader =
+    "<p><strong>Hamilton Review by: Jane Critic<br>" +
+    'Rating: [star rating="9"]<br>' +
+    "Theatre: Victoria Palace<br>Show Runtime: 2h 45m</strong></p>" +
+    "<p>The body of the review.</p>";
+
+  it("verifies a card when prepareArticleHtml promotes a review header", () => {
+    const { html } = prepareArticleHtml(reviewHeader);
+    const { failures, verified } = reviewSpecCardCheck("/p", reviewHeader, html);
+    expect(failures).toEqual([]);
+    expect(verified).toBe(1);
+    // The card carries the structural parts the oracle requires.
+    expect(html).toContain('class="review-spec-card__title"');
+    expect(html).toContain('class="review-spec-card__grid"');
+  });
+
+  it("fails when a qualifying review header is NOT carded (dropped promotion)", () => {
+    // Simulates the regression this gate guards: the spec-card transform stopped
+    // firing (e.g. `prepareArticleHtml` ordering broke, or `REVIEW_SPEC_LABELS`
+    // was emptied), so the header reaches the reader as loose `<p>` prose. The
+    // RAW HTML still qualifies, but the "rendered" HTML carries no card.
+    const { failures, verified } = reviewSpecCardCheck(
+      "/p",
+      reviewHeader,
+      reviewHeader,
+    );
+    expect(verified).toBe(0);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("review-spec-card missing");
+  });
+
+  it("ignores a stray star marker in ordinary prose (no review cue)", () => {
+    const prose =
+      '<p>The hotel scored [star rating="8"] from our team.</p><p>Body.</p>';
+    const { html } = prepareArticleHtml(prose);
+    const { failures, verified } = reviewSpecCardCheck("/p", prose, html);
+    expect(failures).toEqual([]);
+    expect(verified).toBe(0);
+    // The lone rating still renders as a `.star-rating` badge, NOT a spec card.
+    expect(html).not.toContain('class="review-spec-card"');
+  });
+});
+
 describe.skipIf(!RUN)(
   "prepareArticleHtml — real corpus (no broken formatting reaches readers)",
   () => {
@@ -640,20 +804,25 @@ describe.skipIf(!RUN)(
       expect(batches.length, "batches to scan").toBeGreaterThan(0);
       let scanned = 0;
       let verifiedVerdicts = 0;
+      let verifiedSpecCards = 0;
       const failures: string[] = [];
       for (const batch of batches) {
         const res = await checkBatch(batch);
         scanned += res.scanned;
         verifiedVerdicts += res.verifiedVerdicts;
+        verifiedSpecCards += res.verifiedSpecCards;
         failures.push(...res.failures);
       }
       // Run summary to stdout for the deployment logs (`fetchDeploymentLogs`).
       // `verdicts=` is the count of verdict/pros-cons cards positively verified
-      // (heading wrapped in the matching `.verdict-callout--{variant}`).
+      // (heading wrapped in the matching `.verdict-callout--{variant}`);
+      // `speccards=` the count of star-rated review headers folded into a
+      // well-formed `.review-spec-card`.
       console.log(
         `[corpus-render] mode=${FULL ? "full" : "sample"} ` +
           `batches=${batches.length} scanned=${scanned} ` +
-          `verdicts=${verifiedVerdicts} failures=${failures.length}`,
+          `verdicts=${verifiedVerdicts} speccards=${verifiedSpecCards} ` +
+          `failures=${failures.length}`,
       );
       expect(
         failures,
@@ -700,6 +869,51 @@ describe.skipIf(!RUN)(
       expect(
         verified,
         "at least one takeaway cue heading was carded",
+      ).toBeGreaterThan(0);
+    }, 600_000);
+
+    // Positive, non-vacuous coverage for the review "spec card": load pages that
+    // carry the migrated star-rated review-header markup and assert the corpus
+    // actually PRODUCES well-formed `.review-spec-card`s. This is the inverse of
+    // the residue scan above: it fails if a future change to `prepareArticleHtml`
+    // ordering (it MUST run BEFORE `stripWidgetShortcodes`) or to
+    // `REVIEW_SPEC_LABELS` silently stops carding these headers — a regression
+    // the broken-markup detectors can't see.
+    it("promotes star-rated review headers into well-formed spec cards", async () => {
+      // The star shortcode marker is the spine of every review header; pull pages
+      // carrying it plus the "Review by" title cue (the migrated header shape).
+      const specMarkers = ["%[star%", "%Review by%"];
+      const ids = new Set<string>();
+      for (const marker of specMarkers) {
+        for (const id of await idsWithMarker(marker, 40)) ids.add(id);
+      }
+      expect(ids.size, "review-header pages to inspect").toBeGreaterThan(0);
+
+      const rows = await db
+        .select({ pathname: pagesTable.pathname, html: pagesTable.cleanedHtml })
+        .from(pagesTable)
+        .where(inArray(pagesTable.id, [...ids]));
+
+      let verified = 0;
+      const failures: string[] = [];
+      for (const r of rows) {
+        if (typeof r.html !== "string" || r.html.length === 0) continue;
+        const { html } = prepareArticleHtml(r.html);
+        const res = reviewSpecCardCheck(r.pathname, r.html, html);
+        verified += res.verified;
+        failures.push(...res.failures);
+      }
+      expect(
+        failures,
+        `star-rated review header reached the reader without its spec card:\n${failures.join(
+          "\n",
+        )}`,
+      ).toEqual([]);
+      // The review-header markup is present in the corpus, so promotion MUST fire
+      // on at least one page — a zero here means the transform stopped running.
+      expect(
+        verified,
+        "at least one star-rated review header was carded",
       ).toBeGreaterThan(0);
     }, 600_000);
 
