@@ -45,3 +45,4 @@
 - [Blog migrated-corpus presentation gotchas](blog-listicle-numbering.md) — listicle numbers come in multiple markup shapes (don't assume one; verify on real pages, not synthetic tests); global `.blog-prose svg` cap is intentional (every corpus inline svg is an icon).
 - [Full-corpus render scan vs sampled gate](corpus-render-tail-shapes.md) — FULL render scan (CORPUS_RENDER_FULL=1) catches tail-only broken shapes the sample gate misses; stripSummaryWidget only strips div-wrapped summary widgets.
 - [Postgres regex \b is backspace](postgres-regex-backspace.md) — `\b` in Postgres `~`/regexp_matches matches a literal backspace, not a word boundary (use `\y`); JS regex ported to a corpus scan silently matches nothing.
+- [CMS preview vs blog render-path divergence](cms-preview-render-path.md) — CMS preview renders the body via componentTree (not contentHtml); the rich-HTML body node MUST run prepareArticleHtml or it drops promotions the live blog shows.

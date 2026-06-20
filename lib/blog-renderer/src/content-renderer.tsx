@@ -190,6 +190,21 @@ function CTRichHtml({ html }: { html: string }) {
   return <div dangerouslySetInnerHTML={{ __html: safe }} />;
 }
 
+/**
+ * Article-body rich HTML. Runs the SAME `prepareArticleHtml` pipeline the
+ * `contentHtml` path uses (`RawHtmlContent`) — verdict/pros-cons callout
+ * promotion, migrated-cruft cleanup, heading ids — so a `richText` body node
+ * in a `componentTree` renders byte-for-byte the same as a legacy `contentHtml`
+ * body. This is what lets the CMS editor preview (which always renders through
+ * the `componentTree`) show the `.verdict-callout` cards the live blog promotes,
+ * with no preview-only logic that could drift from the blog.
+ */
+function CTArticleHtml({ html }: { html: string }) {
+  const safe = React.useMemo(() => prepareArticleHtml(html).html, [html]);
+  if (!safe.trim()) return null;
+  return <div dangerouslySetInnerHTML={{ __html: safe }} />;
+}
+
 function CTHero({ node }: { node: CTNode }) {
   const d = node.data ?? {};
   const title = d.title ?? node.text;
@@ -458,7 +473,7 @@ function renderCTNode(node: CTNode, key: number): React.ReactNode {
       return node.data?.richText
         ? renderLexBlock(node.data.richText as LexNode, key)
         : node.data?.html
-          ? <CTRichHtml key={key} html={node.data.html} />
+          ? <CTArticleHtml key={key} html={node.data.html} />
           : node.text
             ? <p key={key}>{node.text}</p>
             : null;
