@@ -540,51 +540,158 @@ function reviewLabelCue(): RegExp {
 }
 
 /**
- * Does the RAW (pre-render) HTML carry a star-rated review header that the lib
- * is supposed to card? Mirrors `renderReviewSpecCard`'s gate: scan every `<p>`,
- * and the first one that carries a `[star …]` marker AND (the "Review by" title
- * cue OR a recognized `Label:` spec cue) qualifies. A stray `[star …]` in
- * ordinary prose (no review cue) does NOT qualify, so the oracle never expects a
- * card the lib intentionally leaves alone.
+ * Return the inner HTML of the FIRST `<p>` that qualifies as a star-rated review
+ * header (mirrors `renderReviewSpecCard`'s gate: a `[star …]` marker AND the
+ * "Review by" title cue OR a recognized `Label:` spec cue), or null when no
+ * qualifying header exists. This is the exact paragraph the lib folds into a
+ * `.review-spec-card`, so the finer CTA/badge oracle classifies its lines. A
+ * stray `[star …]` in ordinary prose (no review cue) does NOT qualify, so the
+ * oracle never expects a card the lib intentionally leaves alone.
  */
-function rawCarriesReviewHeader(rawHtml: string): boolean {
-  if (!STAR_MARKER.test(rawHtml)) return false;
+function reviewHeaderInner(rawHtml: string): string | null {
+  if (!STAR_MARKER.test(rawHtml)) return null;
   const pRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
   let m: RegExpExecArray | null;
   while ((m = pRe.exec(rawHtml))) {
     const inner = m[1];
     if (!STAR_MARKER.test(inner)) continue;
     const text = headingPlainText(inner);
-    if (REVIEW_TITLE_CUE.test(text) || reviewLabelCue().test(text)) return true;
+    if (REVIEW_TITLE_CUE.test(text) || reviewLabelCue().test(text)) return inner;
   }
-  return false;
+  return null;
+}
+
+/** Plain text of one `<br>`-separated header line, with `[star …]` removed. */
+function segmentPlainText(seg: string): string {
+  return seg
+    .replace(/\[star\b[^\]]*\]/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Classify the lines of a qualifying review header `<p>` to decide whether the
+ * card MUST carry a trailing tickets CTA and/or a bare badge line. This is an
+ * INDEPENDENT re-implementation of `buildReviewCard`'s per-line classification
+ * (deliberately NOT imported from `lib/blog-renderer`): if a future change to
+ * `buildReviewCard` dropped the CTA anchor or mis-routed a bare badge into the
+ * `<dl>` grid, an imported copy would agree (no expectation → no failure) and
+ * the silent regression would slip through. Re-declaring the branch logic here
+ * means the oracle still expects the part the lib no longer emits, so the gate
+ * fails. The branch order mirrors `buildReviewCard` exactly: title → label rows
+ * → rating row → CTA (anchor whose line is just the link) → bare badge.
+ * Keep in sync with `buildReviewCard` in `lib/blog-renderer/src/parse.ts`.
+ */
+function reviewHeaderExpectations(
+  rawHtml: string,
+): { wantsCta: boolean; wantsBadges: boolean } | null {
+  const inner = reviewHeaderInner(rawHtml);
+  if (inner === null) return null;
+  let wantsCta = false;
+  let wantsBadges = false;
+  for (const seg of inner.split(/<br\s*\/?>/i)) {
+    const hasStar = STAR_MARKER.test(seg);
+    const anchor = seg.match(/<a\b[^>]*>[\s\S]*?<\/a>/i)?.[0] ?? null;
+    const text = segmentPlainText(seg);
+    if (!text && !hasStar && !anchor) continue; // empty line
+    if (text && REVIEW_TITLE_CUE.test(text)) continue; // → title
+    if (reviewLabelCue().test(text)) continue; // → <dl> grid rows
+    if (hasStar) continue; // → lone rating row
+    if (anchor && segmentPlainText(seg.replace(anchor, "")) === "") {
+      wantsCta = true; // → trailing tickets CTA
+      continue;
+    }
+    if (text) wantsBadges = true; // → bare badge line
+  }
+  return { wantsCta, wantsBadges };
 }
 
 /**
  * Assert that a page whose RAW HTML carries a qualifying star-rated review
  * header receives a well-formed `.review-spec-card` in the RENDERED output (the
  * wrapper plus at least one of its structural parts — title / badges / `<dl>`
- * grid / CTA, so an empty shell wouldn't count). Pages with no review header are
- * skipped (no expectation), so this can't false-positive. Returns the missing
- * failures plus the count of cards positively verified.
+ * grid / CTA, so an empty shell wouldn't count). On top of that whole-card
+ * check it verifies the FINER parts independently: a header line that is a
+ * trailing tickets `<a>` (CTA) must produce a `.review-spec-card__cta`, and a
+ * bare badge line must produce a `.review-spec-card__badges` — so a regression
+ * that drops the CTA anchor or mis-routes a badge (without dropping the card
+ * outright, which the current whole-card check would miss) fails the gate. Pages
+ * with no review header are skipped (no expectation), so this can't
+ * false-positive. Returns the failures plus the counts positively verified
+ * (whole card, plus CTA/badge wanted/verified for the non-vacuous assertion).
  */
 function reviewSpecCardCheck(
   pathname: string,
   rawHtml: string,
   renderedHtml: string,
-): { failures: string[]; verified: number } {
-  if (!rawCarriesReviewHeader(rawHtml)) return { failures: [], verified: 0 };
+): {
+  failures: string[];
+  verified: number;
+  wantedCta: number;
+  verifiedCta: number;
+  wantedBadges: number;
+  verifiedBadges: number;
+} {
+  const expectations = reviewHeaderExpectations(rawHtml);
+  const none = {
+    failures: [],
+    verified: 0,
+    wantedCta: 0,
+    verifiedCta: 0,
+    wantedBadges: 0,
+    verifiedBadges: 0,
+  };
+  if (expectations === null) return none;
+
+  const failures: string[] = [];
   const hasCard = /<div class="review-spec-card">/.test(renderedHtml);
   const hasPart = /class="review-spec-card__(?:title|badges|grid|cta)"/.test(
     renderedHtml,
   );
-  if (hasCard && hasPart) return { failures: [], verified: 1 };
-  return {
-    failures: [
+  let verified = 0;
+  if (hasCard && hasPart) {
+    verified = 1;
+  } else {
+    failures.push(
       `[review-spec-card missing] ${pathname} :: expected a .review-spec-card ` +
         `(title/badges/<dl> grid/cta) for a star-rated review header`,
-    ],
-    verified: 0,
+    );
+  }
+
+  let verifiedCta = 0;
+  if (expectations.wantsCta) {
+    if (/<p class="review-spec-card__cta">/.test(renderedHtml)) {
+      verifiedCta = 1;
+    } else {
+      failures.push(
+        `[review-spec-card cta missing] ${pathname} :: review header carries a ` +
+          `trailing tickets link but no .review-spec-card__cta was emitted`,
+      );
+    }
+  }
+
+  let verifiedBadges = 0;
+  if (expectations.wantsBadges) {
+    if (/<p class="review-spec-card__badges">/.test(renderedHtml)) {
+      verifiedBadges = 1;
+    } else {
+      failures.push(
+        `[review-spec-card badges missing] ${pathname} :: review header carries ` +
+          `a bare badge line but no .review-spec-card__badges was emitted`,
+      );
+    }
+  }
+
+  return {
+    failures,
+    verified,
+    wantedCta: expectations.wantsCta ? 1 : 0,
+    verifiedCta,
+    wantedBadges: expectations.wantsBadges ? 1 : 0,
+    verifiedBadges,
   };
 }
 
@@ -592,7 +699,13 @@ function reviewSpecCardCheck(
 function scanHtml(
   pathname: string,
   rawHtml: string,
-): { failures: string[]; verifiedVerdicts: number; verifiedSpecCards: number } {
+): {
+  failures: string[];
+  verifiedVerdicts: number;
+  verifiedSpecCards: number;
+  verifiedCtas: number;
+  verifiedBadges: number;
+} {
   const { html } = prepareArticleHtml(rawHtml);
   const failures: string[] = [];
   for (const det of DETECTORS) {
@@ -615,6 +728,8 @@ function scanHtml(
     failures,
     verifiedVerdicts: verdict.verified,
     verifiedSpecCards: specCard.verified,
+    verifiedCtas: specCard.verifiedCta,
+    verifiedBadges: specCard.verifiedBadges,
   };
 }
 
@@ -630,6 +745,8 @@ async function checkBatch(pageIds: string[]): Promise<{
   failures: string[];
   verifiedVerdicts: number;
   verifiedSpecCards: number;
+  verifiedCtas: number;
+  verifiedBadges: number;
 }> {
   const rows = await db
     .select({ pathname: pagesTable.pathname, html: pagesTable.cleanedHtml })
@@ -638,6 +755,8 @@ async function checkBatch(pageIds: string[]): Promise<{
   let scanned = 0;
   let verifiedVerdicts = 0;
   let verifiedSpecCards = 0;
+  let verifiedCtas = 0;
+  let verifiedBadges = 0;
   const failures: string[] = [];
   for (const r of rows) {
     if (typeof r.html !== "string" || r.html.length === 0) continue;
@@ -646,8 +765,17 @@ async function checkBatch(pageIds: string[]): Promise<{
     failures.push(...res.failures);
     verifiedVerdicts += res.verifiedVerdicts;
     verifiedSpecCards += res.verifiedSpecCards;
+    verifiedCtas += res.verifiedCtas;
+    verifiedBadges += res.verifiedBadges;
   }
-  return { scanned, failures, verifiedVerdicts, verifiedSpecCards };
+  return {
+    scanned,
+    failures,
+    verifiedVerdicts,
+    verifiedSpecCards,
+    verifiedCtas,
+    verifiedBadges,
+  };
 }
 
 // Pure unit coverage for the positive verdict-callout oracle (runs in the
@@ -757,6 +885,94 @@ describe("review-spec-card positive assertion (oracle)", () => {
     // The lone rating still renders as a `.star-rating` badge, NOT a spec card.
     expect(html).not.toContain('class="review-spec-card"');
   });
+
+  // A richer migrated header that ALSO carries a bare badge line ("Critic's
+  // Pic") and a trailing tickets CTA (`<a>` whose line is just the link) — the
+  // finer parts Task #480 guards independently of the whole-card check.
+  const reviewHeaderWithCtaAndBadge =
+    "<p><strong>Hamilton Review by: Jane Critic<br>" +
+    "Critic's Pic<br>" +
+    'Rating: [star rating="9"]<br>' +
+    "Theatre: Victoria Palace<br>" +
+    '<a href="https://www.headout.com/hamilton/">Book tickets</a></strong></p>' +
+    "<p>The body of the review.</p>";
+
+  it("verifies the CTA and badge parts when the header carries them", () => {
+    const { html } = prepareArticleHtml(reviewHeaderWithCtaAndBadge);
+    const res = reviewSpecCardCheck("/p", reviewHeaderWithCtaAndBadge, html);
+    expect(res.failures).toEqual([]);
+    expect(res.verified).toBe(1);
+    expect(res.wantedCta).toBe(1);
+    expect(res.verifiedCta).toBe(1);
+    expect(res.wantedBadges).toBe(1);
+    expect(res.verifiedBadges).toBe(1);
+    // The lib actually emits both finer parts.
+    expect(html).toContain('class="review-spec-card__cta"');
+    expect(html).toContain('class="review-spec-card__badges"');
+  });
+
+  it("does not expect CTA/badge parts when the header has neither", () => {
+    // `reviewHeader` is title + rating + two spec rows only — no bare badge line
+    // and no trailing tickets link, so the finer oracle stays silent.
+    const { html } = prepareArticleHtml(reviewHeader);
+    const res = reviewSpecCardCheck("/p", reviewHeader, html);
+    expect(res.wantedCta).toBe(0);
+    expect(res.wantedBadges).toBe(0);
+    expect(res.failures).toEqual([]);
+  });
+
+  it("fails when the CTA part is dropped but the card survives", () => {
+    // Simulates the targeted regression: `buildReviewCard` stops emitting the
+    // trailing CTA anchor, but the rest of the card (title/grid) still renders —
+    // so the whole-card check passes while the CTA silently vanishes. Hand-build
+    // a rendered card WITHOUT the `__cta` part to prove the finer check fires.
+    const renderedNoCta =
+      '<div class="review-spec-card">' +
+      '<p class="review-spec-card__title">Hamilton Review by: Jane Critic</p>' +
+      '<p class="review-spec-card__badges">' +
+      '<span class="review-spec-card__badge">Critic\'s Pic</span></p>' +
+      '<dl class="review-spec-card__grid"><div class="review-spec-card__row">' +
+      '<dt class="review-spec-card__label">Theatre</dt>' +
+      '<dd class="review-spec-card__value">Victoria Palace</dd></div></dl>' +
+      "</div><p>The body of the review.</p>";
+    const res = reviewSpecCardCheck(
+      "/p",
+      reviewHeaderWithCtaAndBadge,
+      renderedNoCta,
+    );
+    // The whole card + the badge part are still present...
+    expect(res.verified).toBe(1);
+    expect(res.verifiedBadges).toBe(1);
+    // ...but the dropped CTA is caught.
+    expect(res.verifiedCta).toBe(0);
+    expect(res.failures).toHaveLength(1);
+    expect(res.failures[0]).toContain("review-spec-card cta missing");
+  });
+
+  it("fails when a bare badge is mis-routed but the card survives", () => {
+    // Simulates the other targeted regression: `buildReviewCard` mis-routes the
+    // bare badge into the `<dl>` grid (or drops it), so no `__badges` part is
+    // emitted even though the card and CTA still render.
+    const renderedNoBadges =
+      '<div class="review-spec-card">' +
+      '<p class="review-spec-card__title">Hamilton Review by: Jane Critic</p>' +
+      '<dl class="review-spec-card__grid"><div class="review-spec-card__row">' +
+      '<dt class="review-spec-card__label">Theatre</dt>' +
+      '<dd class="review-spec-card__value">Victoria Palace</dd></div></dl>' +
+      '<p class="review-spec-card__cta">' +
+      '<a href="https://www.headout.com/hamilton/">Book tickets</a></p>' +
+      "</div><p>The body of the review.</p>";
+    const res = reviewSpecCardCheck(
+      "/p",
+      reviewHeaderWithCtaAndBadge,
+      renderedNoBadges,
+    );
+    expect(res.verified).toBe(1);
+    expect(res.verifiedCta).toBe(1);
+    expect(res.verifiedBadges).toBe(0);
+    expect(res.failures).toHaveLength(1);
+    expect(res.failures[0]).toContain("review-spec-card badges missing");
+  });
 });
 
 describe.skipIf(!RUN)(
@@ -805,23 +1021,30 @@ describe.skipIf(!RUN)(
       let scanned = 0;
       let verifiedVerdicts = 0;
       let verifiedSpecCards = 0;
+      let verifiedCtas = 0;
+      let verifiedBadges = 0;
       const failures: string[] = [];
       for (const batch of batches) {
         const res = await checkBatch(batch);
         scanned += res.scanned;
         verifiedVerdicts += res.verifiedVerdicts;
         verifiedSpecCards += res.verifiedSpecCards;
+        verifiedCtas += res.verifiedCtas;
+        verifiedBadges += res.verifiedBadges;
         failures.push(...res.failures);
       }
       // Run summary to stdout for the deployment logs (`fetchDeploymentLogs`).
       // `verdicts=` is the count of verdict/pros-cons cards positively verified
       // (heading wrapped in the matching `.verdict-callout--{variant}`);
       // `speccards=` the count of star-rated review headers folded into a
-      // well-formed `.review-spec-card`.
+      // well-formed `.review-spec-card`; `ctas=`/`badges=` the count of those
+      // cards whose review header carried a trailing tickets link / a bare badge
+      // line and produced the matching `.review-spec-card__cta`/`__badges` part.
       console.log(
         `[corpus-render] mode=${FULL ? "full" : "sample"} ` +
           `batches=${batches.length} scanned=${scanned} ` +
           `verdicts=${verifiedVerdicts} speccards=${verifiedSpecCards} ` +
+          `ctas=${verifiedCtas} badges=${verifiedBadges} ` +
           `failures=${failures.length}`,
       );
       expect(
@@ -895,12 +1118,20 @@ describe.skipIf(!RUN)(
         .where(inArray(pagesTable.id, [...ids]));
 
       let verified = 0;
+      let wantedCta = 0;
+      let verifiedCta = 0;
+      let wantedBadges = 0;
+      let verifiedBadges = 0;
       const failures: string[] = [];
       for (const r of rows) {
         if (typeof r.html !== "string" || r.html.length === 0) continue;
         const { html } = prepareArticleHtml(r.html);
         const res = reviewSpecCardCheck(r.pathname, r.html, html);
         verified += res.verified;
+        wantedCta += res.wantedCta;
+        verifiedCta += res.verifiedCta;
+        wantedBadges += res.wantedBadges;
+        verifiedBadges += res.verifiedBadges;
         failures.push(...res.failures);
       }
       expect(
@@ -915,6 +1146,25 @@ describe.skipIf(!RUN)(
         verified,
         "at least one star-rated review header was carded",
       ).toBeGreaterThan(0);
+      // Non-vacuous CTA/badge coverage: ONLY if the inspected corpus actually has
+      // a review header carrying a trailing tickets link / a bare badge line do we
+      // demand the matching part was produced (a header without either shape
+      // leaves nothing to assert). When such pages exist, at least one must have
+      // emitted the `.review-spec-card__cta` / `.review-spec-card__badges` part —
+      // a zero with a positive `wanted` count means the CTA/badge routing in
+      // `buildReviewCard` regressed without dropping the card outright.
+      if (wantedCta > 0) {
+        expect(
+          verifiedCta,
+          "at least one review header's trailing tickets CTA was carded",
+        ).toBeGreaterThan(0);
+      }
+      if (wantedBadges > 0) {
+        expect(
+          verifiedBadges,
+          "at least one review header's bare badge line was carded",
+        ).toBeGreaterThan(0);
+      }
     }, 600_000);
 
     it("renders the fixed listicle slugs with merged 'N. ' numbering + toc", async () => {
