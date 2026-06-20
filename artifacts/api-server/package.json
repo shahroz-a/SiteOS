@@ -18,7 +18,8 @@
     "verify:cms-io": "cd ../.. && VERIFY_CMS_IO=1 CMS_IO_VERIFY_LIMIT=3 vitest run artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts",
     "verify:cms-io:full": "cd ../.. && VERIFY_CMS_IO=1 vitest run artifacts/api-server/src/lib/__tests__/cms-io.integration.test.ts",
     "verify:cms-write": "cd ../.. && VERIFY_CMS_WRITE=1 vitest run artifacts/api-server/src/lib/__tests__/cms-publishing.integration.test.ts artifacts/api-server/src/lib/__tests__/cms-publishing-route.integration.test.ts",
-    "verify:corpus-render": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/lib/__tests__/article-render-corpus.real-data.test.ts"
+    "verify:corpus-render": "cd ../.. && VERIFY_REAL_DATA=1 vitest run artifacts/api-server/src/lib/__tests__/article-render-corpus.real-data.test.ts",
+    "verify:corpus-render:full": "cd ../.. && VERIFY_REAL_DATA=1 CORPUS_RENDER_FULL=1 vitest run artifacts/api-server/src/lib/__tests__/article-render-corpus.real-data.test.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.21.0",

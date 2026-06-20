@@ -13,13 +13,26 @@
  * and a sibling `<p class="number">N</p>` orphan). The 36 unit tests only assert
  * against hand-written HTML, so a NEW corpus shape can slip past them and reach
  * readers as a glued number, a broken "blob" share/summary icon, an unbalanced
- * itinerary, or an off-domain link. This test renders a representative sample of
- * real published articles and asserts none of the known-broken residue survives.
+ * itinerary, or an off-domain link. This test renders real published articles and
+ * asserts none of the known-broken residue survives.
  *
- * Sample = the two documented stress slugs (`/blog/best-road-trips-world/`,
- * `/blog/most-beautiful-islands-in-the-world/`) + a few pages per known-broken
- * marker (so every transform is always exercised) + a `random()` sweep of N more
- * pages (so NEW corpus shapes get caught over repeated/scheduled runs).
+ * TWO MODES (both opt-in + read-only, gated on `VERIFY_REAL_DATA=1`):
+ *
+ *  - SAMPLE mode (default — the fast per-PR gate, `verify:corpus-render`):
+ *    scans the two documented stress slugs (`/blog/best-road-trips-world/`,
+ *    `/blog/most-beautiful-islands-in-the-world/`) + a few pages per known-broken
+ *    marker (so every transform is always exercised) + a `random()` sweep of N
+ *    more pages (so NEW corpus shapes get caught over repeated/scheduled runs).
+ *    Fast enough for a gate, but the un-sampled tail can hide a new shape until a
+ *    random run happens to hit it.
+ *
+ *  - FULL mode (`CORPUS_RENDER_FULL=1` — the corpus-wide scan,
+ *    `verify:corpus-render:full`): no random sampling, no per-marker cap — scans
+ *    EVERY published `post`. Mirrors `verify:cms-io:full`: the corpus is processed
+ *    in fixed-size BATCHES (`CORPUS_RENDER_BATCH_SIZE`, default 200) so peak memory
+ *    tracks one batch's HTML rather than materializing all ~2.9k pages at once.
+ *    Designed to run unattended as a Replit Scheduled Deployment so formatting
+ *    regressions in the long tail are caught corpus-wide.
  *
  * Deliberately NOT asserted: the presence of inline `<svg>` icons. Per the
  * documented corpus fact (`.agents/memory/blog-listicle-numbering.md`) every inline
@@ -32,18 +45,22 @@
  *
  * OPT-IN + READ-ONLY. Like the other real-DB checks it touches the live database,
  * so it only runs when `VERIFY_REAL_DATA=1`; the normal suite skips it. It issues
- * SELECTs only — it never mutates a row.
+ * SELECTs only — it never mutates a row, so it is safe to point at production.
  *
  * Run on demand with:
- *   pnpm --filter @workspace/api-server run verify:corpus-render
+ *   pnpm --filter @workspace/api-server run verify:corpus-render        (sample)
+ *   pnpm --filter @workspace/api-server run verify:corpus-render:full   (full)
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 
 import { db, pagesTable } from "@workspace/db";
 import { prepareArticleHtml } from "@workspace/blog-renderer";
 
 const RUN = process.env.VERIFY_REAL_DATA === "1";
+
+/** FULL mode: scan every published post in batches (no sampling). */
+const FULL = process.env.CORPUS_RENDER_FULL === "1";
 
 /** Documented stress pages that exercise the trickiest listicle-number shapes. */
 const FIXED_SLUGS = [
@@ -61,11 +78,16 @@ const SWEEP_LIMIT = (() => {
 /** How many pages to pull per known-broken marker (always-exercise floor). */
 const PER_MARKER = 4;
 
-interface SamplePage {
-  slug: string;
-  pathname: string;
-  html: string;
-}
+/**
+ * FULL-mode batch size: how many pages' HTML are loaded + rendered + scanned at
+ * once. Tunable via `CORPUS_RENDER_BATCH_SIZE` (positive integer); defaults to
+ * 200. Smaller batches lower peak memory at the cost of more per-batch overhead.
+ */
+const BATCH_SIZE = (() => {
+  const raw = process.env.CORPUS_RENDER_BATCH_SIZE;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : 200;
+})();
 
 /**
  * The `published` `post` corpus, source-of-truth base predicate. We render the
@@ -87,15 +109,24 @@ async function idsWithMarker(like: string, limit: number): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
-async function loadSample(): Promise<SamplePage[]> {
-  const ids = new Set<string>();
-
-  // 1. Fixed documented stress slugs.
-  const fixed = await db
+/** The fixed documented stress-slug page ids (present in either mode). */
+async function loadFixedIds(): Promise<string[]> {
+  const rows = await db
     .select({ id: pagesTable.id })
     .from(pagesTable)
     .where(and(publishedPosts, inArray(pagesTable.slug, FIXED_SLUGS)));
-  for (const r of fixed) ids.add(r.id);
+  return rows.map((r) => r.id);
+}
+
+/**
+ * SAMPLE mode id set: fixed stress slugs + a per-marker floor (so every
+ * transform is exercised) + a random sweep (so NEW shapes surface over time).
+ */
+async function loadSampleIds(): Promise<string[]> {
+  const ids = new Set<string>();
+
+  // 1. Fixed documented stress slugs.
+  for (const id of await loadFixedIds()) ids.add(id);
 
   // 2. A few pages per known-broken marker so every transform is exercised even
   //    when the random sweep misses them.
@@ -120,18 +151,26 @@ async function loadSample(): Promise<SamplePage[]> {
     .limit(SWEEP_LIMIT);
   for (const r of sweep) ids.add(r.id);
 
-  const rows = await db
-    .select({
-      slug: pagesTable.slug,
-      pathname: pagesTable.pathname,
-      html: pagesTable.cleanedHtml,
-    })
-    .from(pagesTable)
-    .where(inArray(pagesTable.id, [...ids]));
+  return [...ids];
+}
 
-  return rows
-    .filter((r): r is SamplePage => typeof r.html === "string" && r.html.length > 0)
-    .map((r) => ({ slug: r.slug, pathname: r.pathname, html: r.html }));
+/** FULL mode id set: every published post, stable order, no cap. */
+async function loadAllPublishedIds(): Promise<string[]> {
+  const rows = await db
+    .select({ id: pagesTable.id })
+    .from(pagesTable)
+    .where(publishedPosts)
+    .orderBy(asc(pagesTable.slug));
+  return rows.map((r) => r.id);
+}
+
+/** Split `items` into fixed-size chunks (the last chunk may be smaller). */
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
 }
 
 /* --------------------------------------------------------------------- */
@@ -241,14 +280,62 @@ function gluedListicleHeading(html: string): string | null {
   return null;
 }
 
+/** Render one stored article and collect every broken-formatting hit. */
+function scanHtml(pathname: string, rawHtml: string): string[] {
+  const { html } = prepareArticleHtml(rawHtml);
+  const failures: string[] = [];
+  for (const det of DETECTORS) {
+    const hit = det.find(html);
+    if (hit) failures.push(`[${det.name}] ${pathname} :: ${hit}`);
+  }
+  const nested = countNestedDays(html);
+  if (nested > 0) {
+    failures.push(`[nested itinerary days] ${pathname} :: ${nested}`);
+  }
+  const glued = gluedListicleHeading(html);
+  if (glued) {
+    failures.push(`[glued listicle number] ${pathname} :: ${glued}`);
+  }
+  return failures;
+}
+
+/**
+ * Scan ONE batch of pages: load only those pages' HTML, render + scan each, and
+ * return the count scanned plus any failures. The HTML for the batch is scoped
+ * to this call so it is GC'd before the next batch — peak memory tracks one
+ * batch, not the whole corpus (the same memory-safety contract as
+ * `verify:cms-io:full`).
+ */
+async function checkBatch(
+  pageIds: string[],
+): Promise<{ scanned: number; failures: string[] }> {
+  const rows = await db
+    .select({ pathname: pagesTable.pathname, html: pagesTable.cleanedHtml })
+    .from(pagesTable)
+    .where(inArray(pagesTable.id, pageIds));
+  let scanned = 0;
+  const failures: string[] = [];
+  for (const r of rows) {
+    if (typeof r.html !== "string" || r.html.length === 0) continue;
+    scanned += 1;
+    failures.push(...scanHtml(r.pathname, r.html));
+  }
+  return { scanned, failures };
+}
+
 describe.skipIf(!RUN)(
   "prepareArticleHtml — real corpus (no broken formatting reaches readers)",
   () => {
-    let sample: SamplePage[] = [];
+    let fixedIds: string[] = [];
+    let batches: string[][] = [];
+    let totalIds = 0;
 
     beforeAll(async () => {
-      sample = await loadSample();
-    });
+      fixedIds = await loadFixedIds();
+      const ids = FULL ? await loadAllPublishedIds() : await loadSampleIds();
+      totalIds = ids.length;
+      batches = chunk(ids, BATCH_SIZE);
+    }, 600_000);
 
     afterAll(async () => {
       try {
@@ -259,47 +346,53 @@ describe.skipIf(!RUN)(
       }
     });
 
-    it("loads a non-trivial sample of published articles", () => {
-      // Fixed slugs + per-marker floor guarantee the sample is never empty.
-      expect(sample.length).toBeGreaterThan(0);
+    it("resolves a non-empty set of articles to scan", () => {
+      // Fixed slugs + per-marker floor (sample) or the whole corpus (full)
+      // guarantee the scan set is never empty.
+      expect(totalIds).toBeGreaterThan(0);
     });
 
     it("includes the documented stress slugs", () => {
-      for (const slug of FIXED_SLUGS) {
-        expect(
-          sample.some((p) => p.slug === slug),
-          `expected fixed slug ${slug} in sample`,
-        ).toBe(true);
+      expect(fixedIds.length, "both fixed stress slugs resolved").toBe(
+        FIXED_SLUGS.length,
+      );
+      const scanned = new Set(batches.flat());
+      for (const id of fixedIds) {
+        expect(scanned.has(id), "fixed stress slug is in the scan set").toBe(
+          true,
+        );
       }
     });
 
-    it("leaves no known-broken markup in any rendered article", () => {
+    it("leaves no known-broken markup in any scanned article (batched)", async () => {
+      expect(batches.length, "batches to scan").toBeGreaterThan(0);
+      let scanned = 0;
       const failures: string[] = [];
-      for (const page of sample) {
-        const { html } = prepareArticleHtml(page.html);
-        for (const det of DETECTORS) {
-          const hit = det.find(html);
-          if (hit) failures.push(`[${det.name}] ${page.pathname} :: ${hit}`);
-        }
-        const nested = countNestedDays(html);
-        if (nested > 0) {
-          failures.push(`[nested itinerary days] ${page.pathname} :: ${nested}`);
-        }
-        const glued = gluedListicleHeading(html);
-        if (glued) {
-          failures.push(`[glued listicle number] ${page.pathname} :: ${glued}`);
-        }
+      for (const batch of batches) {
+        const res = await checkBatch(batch);
+        scanned += res.scanned;
+        failures.push(...res.failures);
       }
+      // Run summary to stdout for the deployment logs (`fetchDeploymentLogs`).
+      console.log(
+        `[corpus-render] mode=${FULL ? "full" : "sample"} ` +
+          `batches=${batches.length} scanned=${scanned} ` +
+          `failures=${failures.length}`,
+      );
       expect(
         failures,
         `broken formatting reached the rendered body:\n${failures.join("\n")}`,
       ).toEqual([]);
-    });
+    }, 3_600_000);
 
-    it("renders the fixed listicle slugs with merged 'N. ' numbering + toc", () => {
+    it("renders the fixed listicle slugs with merged 'N. ' numbering + toc", async () => {
+      const rows = await db
+        .select({ slug: pagesTable.slug, html: pagesTable.cleanedHtml })
+        .from(pagesTable)
+        .where(and(publishedPosts, inArray(pagesTable.slug, FIXED_SLUGS)));
       for (const slug of FIXED_SLUGS) {
-        const page = sample.find((p) => p.slug === slug);
-        if (!page) continue; // covered by the dedicated presence assertion above
+        const page = rows.find((p) => p.slug === slug);
+        if (!page || typeof page.html !== "string") continue;
         const { html, toc } = prepareArticleHtml(page.html);
         // At least one heading folded to the "N. Title" form, and that merged
         // label flows through to the table of contents.
