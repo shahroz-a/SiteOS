@@ -389,6 +389,17 @@ export function stripSummaryWidget(html: string): string {
  *    this can't over-match ordinary content). Drop the orphan paragraph and
  *    prefix its number onto that title. The `card-title(?![-\w])` guard avoids
  *    binding to the sibling `card-title-subtext` span.
+ *  • Timeline listicle with an EMPTY number (`<p class="number"></p>`, no
+ *    digit): some migrated pages (e.g. `/blog/best-time-to-visit-melbourne/`)
+ *    carry the number paragraph with no digit at all — the source number was
+ *    never populated. With the number-circle CSS gone it renders as a stray
+ *    empty badge above the title and there is nothing to fold. We DROP the
+ *    empty orphan outright rather than renumber it from its position: these
+ *    timelines are frequently month/section sequences ("Melbourne in January",
+ *    …), not ranked lists, so injecting a synthetic "1. " ordinal would invent
+ *    an order the author never expressed. Removal runs AFTER the digit fold so
+ *    a digit-bearing paragraph is consumed there first and only truly-empty
+ *    orphans reach this step.
  *
  * Runs before heading-id/toc extraction so the merged "N. " becomes part of the
  * heading's slug id and table-of-contents label too.
@@ -414,6 +425,11 @@ export function mergeNumberedHeadings(html: string): string {
     (_m, num: string, between: string, open: string) =>
       `${between}${open}${num}. `,
   );
+
+  // Empty timeline number orphan: <p class="number"></p> with no digit. Nothing
+  // to fold, so drop it so it can't render as a stray empty badge above the
+  // title. Runs after the digit fold so only truly-empty paragraphs remain here.
+  out = out.replace(/<p\b[^>]*\bnumber\b[^>]*>\s*<\/p>/gi, "");
 
   return out;
 }

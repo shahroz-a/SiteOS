@@ -188,10 +188,12 @@ const DETECTORS: Detector[] = [
       ),
   },
   {
-    // mergeNumberedHeadings (timeline): no digit-bearing orphan number paragraph
-    // (empty `<p class="number"></p>` is intentionally left — it renders nothing).
+    // mergeNumberedHeadings (timeline): NO orphan number paragraph survives —
+    // digit-bearing ones are folded into "N. Title" and empty
+    // `<p class="number"></p>` ones (no digit, e.g. /blog/best-time-to-visit-
+    // melbourne/) are dropped so they can't render as a stray blank badge.
     name: "orphan timeline number paragraph",
-    find: (h) => firstMatch(h, /<p\b[^>]*\bnumber\b[^>]*>\s*\d+\s*<\/p>/i),
+    find: (h) => firstMatch(h, /<p\b[^>]*\bnumber\b[^>]*>[\s\S]*?<\/p>/i),
   },
 ];
 

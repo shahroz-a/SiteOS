@@ -393,6 +393,32 @@ describe("mergeNumberedHeadings", () => {
     expect(out).not.toMatch(/<p[^>]*class="number"/);
   });
 
+  it("drops an empty timeline number orphan (no digit) above the title", () => {
+    // Real corpus shape (e.g. /blog/best-time-to-visit-melbourne/): the timeline
+    // number paragraph carries no digit at all. There's nothing to fold and the
+    // number-circle CSS was never migrated, so the empty <p class="number"></p>
+    // renders as a stray blank badge above the title — drop it outright (we do
+    // NOT renumber from position: these are month sequences, not ranked lists).
+    const raw =
+      '<div class="timeline"><div><p class="number"></p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><h2 class="card-title">Melbourne in January</h2></div></div>';
+    const out = mergeNumberedHeadings(raw);
+    expect(out).not.toMatch(/<p[^>]*class="number"/);
+    // The title is left exactly as-is — no synthetic "N. " prefix invented.
+    expect(out).toContain('<h2 class="card-title">Melbourne in January</h2>');
+  });
+
+  it("drops a whitespace-only timeline number orphan", () => {
+    const raw =
+      '<div class="timeline"><div><p class="number">  </p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><h2 class="card-title">Melbourne in May</h2></div></div>';
+    const out = mergeNumberedHeadings(raw);
+    expect(out).not.toMatch(/<p[^>]*class="number"/);
+    expect(out).toContain('<h2 class="card-title">Melbourne in May</h2>');
+  });
+
   it("leaves unnumbered headings untouched", () => {
     const raw = '<h2 class="card-title">Plain heading</h2>';
     expect(mergeNumberedHeadings(raw)).toBe(raw);
