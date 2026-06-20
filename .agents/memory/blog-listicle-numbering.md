@@ -43,3 +43,23 @@ an icon (no content-bearing illustration/chart exists). Do not remove the cap.
 **Why / how to apply:** the safety rests on a corpus-wide fact not visible in
 code. If a future CMS introduces rich inline SVG, add an opt-out class rather
 than dropping the global cap.
+
+# Review/verdict promotion is heading-based, not <strong>/<br> prose
+
+The migrated corpus has almost no rich review markup: only the star-review
+header is canonical (already carded by `renderReviewSpecCard`). The genuinely
+recurring OTHER review/verdict shapes are HEADING-based —
+`<h3><strong>The Good</strong></h3><p>`, `<h3>Verdict</h3><p>`,
+`<h3>… - Verdict</h3><p>`, `<h3>Pros and Cons of…</h3><ul>`. There is NO
+separate score/verdict-bar shape (the star rating IS the score). Don't go
+looking for `<strong>`/`<br>` pros-cons blocks — they aren't in this corpus.
+
+**Why / how to apply:** `renderVerdictCallouts` in `blog-renderer/src/parse.ts`
+wraps a cue-heading + its run of following p/ul/ol siblings in a
+`.verdict-callout` card, but KEEPS the heading element inside the wrapper so the
+later heading-id/TOC pass still injects the id + TOC entry — promotion is
+styling-only, never semantic. Cues are anchored and the heading must be
+IMMEDIATELY followed (whitespace only) by p/ul/ol or it's skipped (leaves
+separate-div "Verdict … <hr>" headers alone). Confirm on real pages
+(`/blog/ferrari-world-abu-dhabi/` yields good+bad+proscons), not synthetic
+tests alone.

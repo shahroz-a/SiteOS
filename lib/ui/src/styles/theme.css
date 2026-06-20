@@ -655,6 +655,40 @@
     margin: 0;
   }
 
+  /* Verdict / pros-cons callouts — migrated review & comparison articles ship  */
+  /* their takeaways ("The Good" / "The Bad" / "Verdict" / "Pros and Cons …")   */
+  /* as a plain heading + prose. renderVerdictCallouts wraps each into one of    */
+  /* these accent cards so the takeaways read as the same intentional component  */
+  /* as the review-spec-card header instead of loose stacked text. The accent    */
+  /* hue is keyed off the variant via the --verdict-accent custom property.      */
+  .blog-prose .verdict-callout {
+    --verdict-accent: var(--primary);
+    margin: 2rem 0;
+    padding: 1.1rem 1.4rem 1.25rem;
+    border: 1px solid hsl(var(--border));
+    border-left: 4px solid hsl(var(--verdict-accent));
+    border-radius: var(--radius);
+    background: hsl(var(--verdict-accent) / 0.06);
+  }
+  .blog-prose .verdict-callout--good,
+  .blog-prose .verdict-callout--pros {
+    --verdict-accent: 142 60% 38%;
+  }
+  .blog-prose .verdict-callout--bad,
+  .blog-prose .verdict-callout--cons {
+    --verdict-accent: 0 70% 48%;
+  }
+  .blog-prose .verdict-callout > :where(h2, h3, h4, h5, h6) {
+    margin-top: 0;
+    margin-bottom: 0.55rem;
+    font-size: 1.1rem;
+    line-height: 1.3;
+    color: hsl(var(--verdict-accent));
+  }
+  .blog-prose .verdict-callout > :last-child {
+    margin-bottom: 0;
+  }
+
   /* ================================================================== */
   /* Migrated WordPress embedded widgets                                 */
   /* The source articles ship rich Thrive/Headout blocks — season cards, */

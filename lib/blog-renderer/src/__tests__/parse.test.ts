@@ -6,6 +6,7 @@ import {
   mergeNumberedHeadings,
   prepareArticleHtml,
   renderReviewSpecCard,
+  renderVerdictCallouts,
   rewriteInternalLinks,
   sanitizeContentHtml,
   stripEmptyTimelineDecorations,
@@ -615,6 +616,88 @@ describe("renderReviewSpecCard", () => {
   it("is a no-op when no star marker is present", () => {
     const raw = "<p>Theatre: Imperial Theatre<br>Show Runtime: 2 hrs.</p>";
     expect(renderReviewSpecCard(raw)).toBe(raw);
+  });
+});
+
+describe("renderVerdictCallouts", () => {
+  it("cards a 'The Good' / 'The Bad' pros-cons pair into accent variants", () => {
+    const raw =
+      "<h3><strong>The Good</strong></h3><p>Thrilling rides all day.</p>" +
+      "<h3><strong>The Bad</strong></h3><p>Long queues at peak season.</p>";
+    const out = renderVerdictCallouts(raw);
+    expect(out).toContain(
+      '<div class="verdict-callout verdict-callout--good"><h3><strong>The Good</strong></h3><p>Thrilling rides all day.</p></div>',
+    );
+    expect(out).toContain(
+      '<div class="verdict-callout verdict-callout--bad"><h3><strong>The Bad</strong></h3><p>Long queues at peak season.</p></div>',
+    );
+  });
+
+  it("cards a 'Verdict' blurb heading + its paragraph", () => {
+    const raw = "<h3>Verdict</h3><p>Siam Park City wins for families.</p>";
+    const out = renderVerdictCallouts(raw);
+    expect(out).toBe(
+      '<div class="verdict-callout verdict-callout--verdict">' +
+        "<h3>Verdict</h3><p>Siam Park City wins for families.</p></div>",
+    );
+  });
+
+  it("cards a comparison heading whose title ends in '- Verdict'", () => {
+    const raw =
+      "<h3>Parc Asterix vs Disneyland Paris - Verdict</h3><p>Parc Asterix is cheaper.</p>";
+    const out = renderVerdictCallouts(raw);
+    expect(out).toContain('class="verdict-callout verdict-callout--verdict"');
+    expect(out).toContain("Parc Asterix vs Disneyland Paris - Verdict</h3>");
+  });
+
+  it("folds a 'Pros and Cons' heading together with its following list", () => {
+    const raw =
+      "<h3>Pros and Cons of the Combo Pass</h3>" +
+      "<p>The perks:</p><ul><li>Save up to 15%</li><li>5% cashback</li></ul>";
+    const out = renderVerdictCallouts(raw);
+    expect(out).toContain(
+      '<div class="verdict-callout verdict-callout--proscons">',
+    );
+    // Both the lead paragraph and the whole list are inside the one card.
+    expect(out).toContain("<p>The perks:</p><ul><li>Save up to 15%</li>");
+    expect(out).toContain("<li>5% cashback</li></ul></div>");
+  });
+
+  it("keeps a nested list whole via the balanced-block scan", () => {
+    const raw =
+      "<h3>Pros and Cons</h3><ul><li>Outer<ul><li>Inner</li></ul></li><li>Second</li></ul>";
+    const out = renderVerdictCallouts(raw);
+    expect(out).toContain(
+      "<ul><li>Outer<ul><li>Inner</li></ul></li><li>Second</li></ul></div>",
+    );
+  });
+
+  it("preserves the heading id and TOC entry end-to-end via prepareArticleHtml", () => {
+    const { html, toc } = prepareArticleHtml(
+      "<h2>Verdict</h2><p>Worth the trip.</p>",
+    );
+    expect(html).toContain('class="verdict-callout verdict-callout--verdict"');
+    // The h2 stays a real heading: it still gets an id and a TOC entry.
+    expect(html).toMatch(/<h2[^>]*id="verdict"[^>]*>Verdict<\/h2>/);
+    expect(toc).toContainEqual({ id: "verdict", label: "Verdict" });
+  });
+
+  it("leaves ordinary section headings that merely contain a cue word alone", () => {
+    const raw =
+      "<h2>Pros of an early start</h2><p>Beat the crowds.</p>" +
+      "<h2>What was the final verdict of the trial?</h2><p>Guilty.</p>";
+    expect(renderVerdictCallouts(raw)).toBe(raw);
+  });
+
+  it("does not fire when the cue heading is not immediately followed by content", () => {
+    const raw =
+      '<div><h2 class="add-to-summary">Verdict - Which bath?</h2><hr></div><div><p>Body.</p></div>';
+    expect(renderVerdictCallouts(raw)).toBe(raw);
+  });
+
+  it("is a no-op on prose with no cue headings", () => {
+    const raw = "<h2>Getting There</h2><p>Take the train.</p>";
+    expect(renderVerdictCallouts(raw)).toBe(raw);
   });
 });
 

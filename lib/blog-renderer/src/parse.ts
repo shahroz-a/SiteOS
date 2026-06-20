@@ -755,6 +755,134 @@ export function renderReviewSpecCard(html: string): string {
   return html;
 }
 
+/* ------------------------------------------------------------------ */
+/* Verdict / pros-cons review callouts                                 */
+/* ------------------------------------------------------------------ */
+
+type VerdictVariant = "good" | "bad" | "pros" | "cons" | "proscons" | "verdict";
+
+/**
+ * Curated review/verdict heading cues. A migrated review or comparison article
+ * ships its takeaways as a plain heading ("The Good", "The Bad", "Verdict",
+ * "Pros and Cons of …") immediately followed by prose — so they read as stacked
+ * text rather than the intentional component the star-rating header now is. Each
+ * cue is anchored (`^…$` or a separator-led trailing match) so it only fires on
+ * these specific takeaway headings and never on ordinary section titles that
+ * merely contain the word ("What is the verdict of the trial", "Pros of an
+ * early start", …). Order matters: the multi-word "pros and cons" must precede
+ * the bare "pros"/"cons" so the broader takeaway wins.
+ */
+const VERDICT_CUES: { re: RegExp; variant: VerdictVariant }[] = [
+  { re: /^the\s+good$/i, variant: "good" },
+  { re: /^the\s+bad$/i, variant: "bad" },
+  { re: /^pros\s*(?:and|&|&amp;)\s*cons\b/i, variant: "proscons" },
+  { re: /^pros$/i, variant: "pros" },
+  { re: /^cons$/i, variant: "cons" },
+  { re: /^(?:the\s+|our\s+|final\s+)?verdict\b/i, variant: "verdict" },
+  { re: /[-–—:]\s*verdict$/i, variant: "verdict" },
+  { re: /^bottom\s+line$/i, variant: "verdict" },
+];
+
+/** The verdict variant for a heading's plain text, or null if it isn't a cue. */
+function verdictVariant(text: string): VerdictVariant | null {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  for (const cue of VERDICT_CUES) {
+    if (cue.re.test(t)) return cue.variant;
+  }
+  return null;
+}
+
+/**
+ * End index (exclusive) of one balanced `<p>`/`<ul>`/`<ol>` block that starts at
+ * `start`, or -1 if `start` is not the open tag of one. A depth counter over the
+ * same tag name handles nested lists (`<ul><li><ul>…</ul></li></ul>`) so the
+ * scan stops at the matching close, not the first inner one.
+ */
+function contentBlockEnd(html: string, start: number): number {
+  const open = /^<(p|ul|ol)\b/i.exec(html.slice(start, start + 6));
+  if (!open) return -1;
+  const tag = open[1].toLowerCase();
+  const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, "gi");
+  re.lastIndex = start;
+  let depth = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m[1]) {
+      depth--;
+      if (depth === 0) return re.lastIndex;
+    } else {
+      depth++;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Promote migrated review/comparison "takeaway" sections — a cue heading
+ * ("The Good", "The Bad", "Verdict", "Pros and Cons …") immediately followed by
+ * its prose — into a styled `.verdict-callout` accent card, so they read as the
+ * same intentional component as the `renderReviewSpecCard` review header instead
+ * of loose stacked text. (The migrated star rating is itself the "score bar" and
+ * is already carded by `renderReviewSpecCard`, so it needs no separate shape.)
+ *
+ * The heading element is kept INSIDE the card untouched, so the later
+ * heading-id/TOC pass still injects its id and table-of-contents entry — the
+ * promotion is purely a styling wrapper, never a semantic change. The run of
+ * consecutive `<p>`/`<ul>`/`<ol>` siblings under the heading is folded into the
+ * card and the scan stops at the first non-content sibling (a `<div>`, the next
+ * heading, an `<hr>`, …), so a takeaway that lives in its own migrated wrapper
+ * div is captured whole and ordinary prose after it is left outside.
+ *
+ * Guarded so it only ever fires on the curated cue headings (see VERDICT_CUES)
+ * that are *immediately* followed by content — a cue heading followed by an
+ * `<hr>` or a sibling-div boundary (the separate-div "Verdict — …" header
+ * shape) is deliberately left alone. No-DOM/isomorphic (SSR byte-parity).
+ */
+export function renderVerdictCallouts(html: string): string {
+  if (!html) return html;
+  const headingRe = /<h([2-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+  let out = "";
+  let lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = headingRe.exec(html))) {
+    const inner = m[2];
+    const variant = verdictVariant(decodeEntities(stripTags(inner)));
+    if (!variant) continue;
+
+    // Require content immediately after the heading (whitespace only between).
+    const afterHeading = m.index + m[0].length;
+    const lead = /^\s*/.exec(html.slice(afterHeading))?.[0].length ?? 0;
+    if (!/^<(p|ul|ol)\b/i.test(html.slice(afterHeading + lead, afterHeading + lead + 6))) {
+      continue;
+    }
+
+    // Fold the run of consecutive content blocks under the heading.
+    let cursor = afterHeading;
+    let consumedEnd = -1;
+    for (;;) {
+      const ws = /^\s*/.exec(html.slice(cursor))?.[0].length ?? 0;
+      const blockStart = cursor + ws;
+      if (!/^<(p|ul|ol)\b/i.test(html.slice(blockStart, blockStart + 6))) break;
+      const end = contentBlockEnd(html, blockStart);
+      if (end < 0) break;
+      consumedEnd = end;
+      cursor = end;
+    }
+    if (consumedEnd < 0) continue;
+
+    out += html.slice(lastIndex, m.index);
+    out +=
+      `<div class="verdict-callout verdict-callout--${variant}">` +
+      html.slice(m.index, consumedEnd) +
+      "</div>";
+    lastIndex = consumedEnd;
+    headingRe.lastIndex = consumedEnd;
+  }
+  out += html.slice(lastIndex);
+  return out;
+}
+
 /**
  * Fold the standalone "section number" that the migrated Thrive listicle
  * widgets render *separately* from their heading back into the heading text, so
@@ -981,6 +1109,7 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
 
   html = stripScriptShortcodes(html);
   html = renderReviewSpecCard(html);
+  html = renderVerdictCallouts(html);
   html = stripWidgetShortcodes(html);
   html = stripSocialShare(html);
   html = stripSummaryWidget(html);
