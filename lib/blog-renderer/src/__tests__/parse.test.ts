@@ -325,6 +325,53 @@ describe("stripSummaryWidget", () => {
     expect(stripSummaryWidget(raw)).toBe(raw);
   });
 
+  it("removes the widget when carried by a non-div tag (section/nav)", () => {
+    const nonDivWidget =
+      '<nav class="open-summary-mobile-wrapper">' +
+      '<a class="open-summary-mobile"><i class="fa fa-bars"></i> Summary</a>' +
+      "</nav>" +
+      '<section id="summary-wrapper-mobile" class="summary-list">' +
+      '<div class="summary-wrapper-mobile-content">' +
+      '<ul id="summary-mobile-ul"></ul>' +
+      "</div></section>";
+    const raw = `<p>Intro</p>${nonDivWidget}<h2>When to go</h2>`;
+    const out = stripSummaryWidget(raw);
+    expect(out).not.toMatch(/open-summary-mobile/);
+    expect(out).not.toMatch(/summary-wrapper-mobile/);
+    expect(out).not.toMatch(/summary-list/);
+    expect(out).not.toContain("fa fa-bars");
+    expect(out).toBe("<p>Intro</p><h2>When to go</h2>");
+  });
+
+  it("drops the Thrive [tcb-script] block that drives the summary widget", () => {
+    // The real failing corpus shape (/blog/climb-o2-arena-london/,
+    // /blog/empire-state-building/): the summary residue is dead JS in a Thrive
+    // `[tcb-script]` shortcode stored as plain text (no real <script> tag), so
+    // it survives prepareArticleHtml's <script> strip and references the summary
+    // nodes (open-summary-mobile / summary-wrapper-mobile).
+    const summaryScript =
+      "<p>[tcb-script] jQuery(document).ready(function () { " +
+      'let modal = document.getElementById("summary-wrapper-mobile"); ' +
+      'jQuery(".open-summary-mobile")[0].addEventListener("click", function () { ' +
+      'modal.style.display = "block"; }); ' +
+      'jQuery("#summary-mobile-ul").append("<li></li>"); }); [/tcb-script]</p>';
+    const raw = `<p>Intro</p><ul id="summary-mobile-ul"></ul>${summaryScript}<h2>When to go</h2>`;
+    const out = stripSummaryWidget(raw);
+    expect(out).not.toMatch(/open-summary-mobile/);
+    expect(out).not.toMatch(/summary-wrapper-mobile/);
+    expect(out).not.toContain("[tcb-script]");
+  });
+
+  it("leaves unrelated [tcb-script] blocks untouched", () => {
+    const raw =
+      '<p>Body</p><p>[tcb-script]var tgids = [1,2,3];[/tcb-script]</p>' +
+      `${widget}<h2>Next</h2>`;
+    const out = stripSummaryWidget(raw);
+    // The summary widget is gone, but the unrelated analytics shortcode stays.
+    expect(out).not.toMatch(/summary-wrapper-mobile/);
+    expect(out).toContain("[tcb-script]var tgids = [1,2,3];[/tcb-script]");
+  });
+
   it("runs inside prepareArticleHtml so the rendered body has no grey toggle box", () => {
     const raw = `<p>Intro</p>${widget}<h2>When to go</h2>`;
     const { html } = prepareArticleHtml(raw);

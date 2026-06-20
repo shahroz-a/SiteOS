@@ -319,6 +319,61 @@ function removeBalancedDivsWithTag(html: string, tagRe: RegExp): string {
 }
 
 /**
+ * Remove a balanced `<tag>…</tag>` subtree whenever its opening tag matches
+ * `openTagRe` — like `removeBalancedDivsWithTag` but TAG-AGNOSTIC: the element
+ * carrying the class may be ANY tag (`<div>`, `<section>`, `<nav>`, `<aside>`,
+ * …), not only `<div>`. It locates an opening tag matching `openTagRe`, derives
+ * that element's tag name, then walks same-name open/close tokens to skip the
+ * whole balanced subtree (correctly accounting for nested same-name elements);
+ * intervening child elements of other tags are carried along inside the removed
+ * span. Non-matching content is preserved byte-for-byte. Repeats until no
+ * further matches remain. `openTagRe` should be a non-global regex matched
+ * against the opening-tag string (e.g. `/\bsummary-wrapper-mobile\b/i`).
+ */
+function removeBalancedElementsWithClass(
+  html: string,
+  openTagRe: RegExp,
+): string {
+  const probe = /<([a-zA-Z][a-zA-Z0-9-]*)\b[^>]*>/gi;
+  let out = "";
+  let cursor = 0;
+  for (;;) {
+    probe.lastIndex = cursor;
+    let open: RegExpExecArray | null = null;
+    let m: RegExpExecArray | null;
+    while ((m = probe.exec(html))) {
+      if (openTagRe.test(m[0])) {
+        open = m;
+        break;
+      }
+    }
+    if (!open) {
+      out += html.slice(cursor);
+      return out;
+    }
+    out += html.slice(cursor, open.index);
+    const tag = open[1];
+    const tokenRe = new RegExp(`<${tag}\\b[^>]*>|</${tag}\\s*>`, "gi");
+    tokenRe.lastIndex = open.index;
+    let depth = 0;
+    let end = html.length;
+    let t: RegExpExecArray | null;
+    while ((t = tokenRe.exec(html))) {
+      if (t[0][1] === "/") {
+        depth--;
+        if (depth === 0) {
+          end = tokenRe.lastIndex;
+          break;
+        }
+      } else {
+        depth++;
+      }
+    }
+    cursor = end;
+  }
+}
+
+/**
  * Strip migrated WordPress "Sassy Social Share" (`heateor_sss_*`) share/follow
  * widgets from article HTML.
  *
@@ -353,16 +408,35 @@ export function stripSocialShare(html: string): string {
  * and the list stays empty — pure broken chrome. The blog renders its own
  * `TableOfContents`, so remove the widget outright. No-DOM/isomorphic (SSR
  * byte-parity): drop the balanced toggle wrapper, then the balanced list panel.
+ *
+ * The carrying tag varies across the corpus: most pages wrap the widget in a
+ * `<div>`, but some wrap it in a non-`<div>` element (`<section>`, `<nav>`, …),
+ * so we match the class on ANY tag via `removeBalancedElementsWithClass` rather
+ * than only `<div>`. A further migrated shape carries no wrapper element at all:
+ * the widget's behaviour lives in a Thrive `[tcb-script]…[/tcb-script]`
+ * shortcode that references the summary nodes. The migrated corpus stores those
+ * shortcodes as PLAIN TEXT (the `cleaned_html` has no real `<script>` tags), so
+ * `prepareArticleHtml`'s `<script>` strip never reaches them and the raw JS
+ * renders as visible code in the article body. Drop the summary-driving
+ * `[tcb-script]` blocks too (only those referencing the summary nodes; other
+ * `[tcb-script]` cruft is out of scope here).
  */
 export function stripSummaryWidget(html: string): string {
   if (!html || !/open-summary-mobile|summary-wrapper-mobile/i.test(html)) {
     return html;
   }
-  let out = removeBalancedDivsWithTag(
+  let out = removeBalancedElementsWithClass(
     html,
-    /<div\b[^>]*\bopen-summary-mobile-wrapper\b/i,
+    /\bopen-summary-mobile-wrapper\b/i,
   );
-  out = removeBalancedDivsWithTag(out, /<div\b[^>]*\bsummary-wrapper-mobile\b/i);
+  out = removeBalancedElementsWithClass(out, /\bsummary-wrapper-mobile\b/i);
+  out = out.replace(/\[tcb-script\b[\s\S]*?\[\/tcb-script\]/gi, (block) =>
+    /open-summary-mobile|summary-wrapper-mobile|summary-mobile-ul|summaryList/i.test(
+      block,
+    )
+      ? ""
+      : block,
+  );
   return out;
 }
 
