@@ -20,6 +20,19 @@ alone — confirm against real pages (e.g. `/blog/best-road-trips-world/`,
 `/blog/most-beautiful-islands-in-the-world/`). `add-to-summary` is a real
 content-heading class, NOT part of the broken Summary widget — do not strip it.
 
+The timeline-orphan (`<p class="number">N</p>`) fold has THREE title shapes in
+the live corpus, and binding to only `card-title` ships broken pages: the title
+after the orphan is an `<h2-6>` of any class (`card-title`, `add-to-summary`, or
+NO class) OR a non-heading `<span class="card-title">` (e.g.
+`/blog/paris-guide-things-to-do/`, `/blog/best-time-to-visit-paris/`). Bind to
+"next heading OR span.card-title, whichever comes first" and guard the span with
+`card-title(?![-\w])` so the sibling `card-title-subtext` span is never matched.
+A `<p class="number">` orphan is unique to timeline items, so a class-agnostic
+heading bind can't over-match ordinary content. (Empty `<p class="number"></p>`
+with no digit is intentionally left alone.) The cheap deterministic way to find
+all shapes: `regexp_matches` over the corpus for the element following the orphan
+— do this rather than fixing one shape per failing test run.
+
 # A global `.blog-prose svg` size cap is intentional and corpus-safe
 
 Migrated inline `<svg>`s often carry `width="100%"`/large viewBoxes and render

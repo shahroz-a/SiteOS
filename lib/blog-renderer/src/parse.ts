@@ -380,9 +380,15 @@ export function stripSummaryWidget(html: string): string {
  *    separator. Normalise it to "2. ".
  *  • Timeline listicle (`.timeline`): the number is an orphaned
  *    `<p class="number">2</p>` in a sibling decoration block (the original
- *    number-circle + connector-line CSS was never migrated), immediately
- *    followed by a `<h…class="card-title">` heading. Drop the orphan paragraph
- *    and prefix its number onto the heading.
+ *    number-circle + connector-line CSS was never migrated), followed by the
+ *    item's title. The title element varies across the corpus: an `<h2-6>` of
+ *    any class (`card-title`, `add-to-summary`, or no class), AND in some pages
+ *    a non-heading `<span class="card-title">`. So we bind to the NEXT title —
+ *    a heading of any class OR a `span.card-title` — whichever comes first (a
+ *    `<p class="number">` orphan only ever appears inside a timeline item, so
+ *    this can't over-match ordinary content). Drop the orphan paragraph and
+ *    prefix its number onto that title. The `card-title(?![-\w])` guard avoids
+ *    binding to the sibling `card-title-subtext` span.
  *
  * Runs before heading-id/toc extraction so the merged "N. " becomes part of the
  * heading's slug id and table-of-contents label too.
@@ -397,9 +403,14 @@ export function mergeNumberedHeadings(html: string): string {
     (_m, open: string, num: string) => `${open}${num}. `,
   );
 
-  // Timeline listicle: <p class="number">2</p> … <h2 class="card-title">Title
+  // Timeline listicle: <p class="number">2</p> … <title>. The title element
+  // varies (h2-6 of any class, or a non-heading span.card-title), so bind to the
+  // NEXT title — a heading OR a span.card-title — whichever comes first. The
+  // `<p class="number">` orphan is unique to timeline items so this can't
+  // over-match ordinary content; the `card-title(?![-\w])` guard skips the
+  // sibling `card-title-subtext` span.
   out = out.replace(
-    /<p\b[^>]*\bnumber\b[^>]*>\s*(\d+)\s*<\/p>((?:(?!<h[2-6]\b)[\s\S])*?)(<h[2-6]\b[^>]*\bcard-title\b[^>]*>)\s*/gi,
+    /<p\b[^>]*\bnumber\b[^>]*>\s*(\d+)\s*<\/p>((?:(?!<h[2-6]\b)(?!<span\b[^>]*card-title(?![-\w]))[\s\S])*?)(<h[2-6]\b[^>]*>|<span\b[^>]*card-title(?![-\w])[^>]*>)\s*/gi,
     (_m, num: string, between: string, open: string) =>
       `${between}${open}${num}. `,
   );

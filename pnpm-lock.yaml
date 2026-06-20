@@ -173,6 +173,9 @@ importers:
       '@workspace/article-parser':
         specifier: workspace:*
         version: link:../../lib/article-parser
+      '@workspace/blog-renderer':
+        specifier: workspace:*
+        version: link:../../lib/blog-renderer
       '@workspace/cms-auth':
         specifier: workspace:*
         version: link:../../lib/cms-auth

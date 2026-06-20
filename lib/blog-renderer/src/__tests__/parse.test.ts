@@ -365,6 +365,34 @@ describe("mergeNumberedHeadings", () => {
     expect(out).not.toMatch(/<p[^>]*class="number"/);
   });
 
+  it("folds the timeline number into a non-card-title heading (add-to-summary)", () => {
+    // Real corpus shape (e.g. /blog/best-time-to-visit-paris/): the timeline
+    // item heading carries `add-to-summary`, not `card-title`, so binding to
+    // `card-title` alone left a stray "1" floating and dropped the number.
+    const raw =
+      '<div class="timeline"><div><p class="number">1</p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><h2 class="add-to-summary">Paris In January</h2></div></div>';
+    const out = mergeNumberedHeadings(raw);
+    expect(out).toContain('<h2 class="add-to-summary">1. Paris In January</h2>');
+    expect(out).not.toMatch(/<p[^>]*class="number"/);
+  });
+
+  it("folds the timeline number into a non-heading span.card-title title", () => {
+    // Real corpus shape (e.g. /blog/paris-guide-things-to-do/): the timeline
+    // item title is a <span class="card-title">, not a heading at all, and a
+    // sibling <p class="card-title-subtext"> must NOT receive the number.
+    const raw =
+      '<div class="timeline"><div><p class="number">2</p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><span class="card-title">Eiffel Tower</span>' +
+      '<p class="card-title-subtext">Sightseeing</p></div></div>';
+    const out = mergeNumberedHeadings(raw);
+    expect(out).toContain('<span class="card-title">2. Eiffel Tower</span>');
+    expect(out).toContain('<p class="card-title-subtext">Sightseeing</p>');
+    expect(out).not.toMatch(/<p[^>]*class="number"/);
+  });
+
   it("leaves unnumbered headings untouched", () => {
     const raw = '<h2 class="card-title">Plain heading</h2>';
     expect(mergeNumberedHeadings(raw)).toBe(raw);
