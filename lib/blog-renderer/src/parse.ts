@@ -441,6 +441,38 @@ export function stripSummaryWidget(html: string): string {
 }
 
 /**
+ * Strip migrated Thrive Architect "script shortcode" blocks (`[tcb-script]…
+ * [/tcb-script]`) whose raw JavaScript leaks into the article body as bare text.
+ *
+ * Thrive Content Builder wrapped inline page scripts in a `[tcb-script]` BBCode-
+ * style shortcode rather than a real `<script>` tag. The migration carried those
+ * shortcodes across verbatim, so the `<script>…</script>` strip in
+ * `prepareArticleHtml` never touches them and the JavaScript body renders as
+ * visible code gibberish to readers — e.g. the dead mobile "Summary" widget's
+ * `jQuery(document).ready(… document.getElementById("summary-wrapper-mobile") …)`
+ * (this residue is also what makes the corpus-render "Thrive summary widget"
+ * detector fire even after the real widget div is removed).
+ *
+ * The opening marker may carry attributes
+ * (`[tcb-script src="…" integrity="…" crossorigin="…"]`), so match `[tcb-script`
+ * + anything up to the first `]`, then everything (non-greedy) up to the matching
+ * `[/tcb-script]`. After dropping the balanced blocks, sweep up any orphan
+ * opening/closing markers left without a partner. No-DOM/isomorphic (SSR
+ * byte-parity).
+ */
+export function stripScriptShortcodes(html: string): string {
+  if (!html || !/\[\/?tcb-script\b/i.test(html)) return html;
+  let out = html.replace(
+    /\[tcb-script\b[^\]]*\][\s\S]*?\[\/tcb-script\]/gi,
+    "",
+  );
+  // Sweep any orphan markers (opening or closing) left without a balanced partner.
+  out = out.replace(/\[tcb-script\b[^\]]*\]/gi, "");
+  out = out.replace(/\[\/tcb-script\]/gi, "");
+  return out;
+}
+
+/**
  * Fold the standalone "section number" that the migrated Thrive listicle
  * widgets render *separately* from their heading back into the heading text, so
  * a numbered attraction reads "2. 9/11 Museum" instead of a stray digit
@@ -664,6 +696,7 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
     // They are never executed — equivalent to <script> — so drop every block.
     .replace(/\[tcb-script\b[\s\S]*?\[\/tcb-script\]/gi, "");
 
+  html = stripScriptShortcodes(html);
   html = stripSocialShare(html);
   html = stripSummaryWidget(html);
   html = fixMalformedUrlScheme(html);

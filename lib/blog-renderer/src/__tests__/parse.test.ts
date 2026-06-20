@@ -8,6 +8,7 @@ import {
   rewriteInternalLinks,
   sanitizeContentHtml,
   stripEmptyTimelineDecorations,
+  stripScriptShortcodes,
   stripSocialShare,
   stripSummaryWidget,
 } from "../parse";
@@ -381,25 +382,68 @@ describe("stripSummaryWidget", () => {
   });
 });
 
-describe("prepareArticleHtml [tcb-script] stripping", () => {
-  it("strips ALL dead [tcb-script] blocks, not only summary-driving ones", () => {
-    // Real failing corpus shapes (/blog/climb-o2-arena-london/,
-    // /blog/empire-state-building/): dead Thrive script shortcodes kept as plain
-    // text by the crawler render as visible raw JS code. A jQuery CDN loader and
-    // a `var tgids = [...]` analytics array are unrelated to the summary widget,
-    // so stripSummaryWidget leaves them — prepareArticleHtml must drop them all.
+describe("stripScriptShortcodes", () => {
+  it("removes a balanced [tcb-script]…[/tcb-script] block with its JS body", () => {
     const raw =
       "<p>Intro</p>" +
-      '<p>[tcb-script]jQuery.getScript("https://code.jquery.com/jquery.min.js");[/tcb-script]</p>' +
-      "<p>[tcb-script]var tgids = [1,2,3,4];[/tcb-script]</p>" +
+      "[tcb-script]var tgids = [593];[/tcb-script]" +
+      "<h2>Section</h2>";
+    const out = stripScriptShortcodes(raw);
+    expect(out).toBe("<p>Intro</p><h2>Section</h2>");
+    expect(out).not.toContain("tcb-script");
+    expect(out).not.toContain("tgids");
+  });
+
+  it("removes the dead mobile Summary widget script that leaked as bare text", () => {
+    const raw =
+      "<p>[tcb-script] jQuery(document).ready(function () { " +
+      'let modal = document.getElementById("summary-wrapper-mobile"); ' +
+      'document.querySelectorAll("#summaryList li a"); });[/tcb-script]</p>';
+    const out = stripScriptShortcodes(raw);
+    expect(out).toBe("<p></p>");
+    expect(out).not.toContain("document.");
+    expect(out).not.toContain("summary-wrapper-mobile");
+    expect(out).not.toContain("jQuery");
+  });
+
+  it("removes an opening marker that carries attributes", () => {
+    const raw =
+      "<p>x</p>" +
+      '[tcb-script src="https://cdn/jquery.min.js" integrity="sha512-x" ' +
+      'crossorigin="anonymous"][/tcb-script]<p>y</p>';
+    const out = stripScriptShortcodes(raw);
+    expect(out).toBe("<p>x</p><p>y</p>");
+    expect(out).not.toContain("tcb-script");
+    expect(out).not.toContain("cdn/jquery");
+  });
+
+  it("sweeps up an orphan closing marker with no matching open", () => {
+    const raw = "<p>a</p>[/tcb-script]<p>b</p>";
+    expect(stripScriptShortcodes(raw)).toBe("<p>a</p><p>b</p>");
+  });
+
+  it("strips multiple consecutive blocks", () => {
+    const raw =
+      "[tcb-script]a();[/tcb-script][tcb-script]b();[/tcb-script]<p>keep</p>";
+    expect(stripScriptShortcodes(raw)).toBe("<p>keep</p>");
+  });
+
+  it("is a no-op when no tcb-script shortcode is present", () => {
+    const raw = "<p>Hello</p><h2>Section</h2>";
+    expect(stripScriptShortcodes(raw)).toBe(raw);
+  });
+
+  it("runs inside prepareArticleHtml so no JS reaches the rendered body", () => {
+    const raw =
+      "<p>Intro</p>" +
+      "[tcb-script] jQuery(document).ready(function () { " +
+      'document.getElementById("summary-wrapper-mobile"); });[/tcb-script]' +
       "<h2>When to go</h2>";
     const { html } = prepareArticleHtml(raw);
-    expect(html).not.toContain("[tcb-script]");
-    expect(html).not.toContain("[/tcb-script]");
-    expect(html).not.toContain("var tgids");
-    expect(html).not.toContain("jquery.min.js");
+    expect(html).not.toContain("tcb-script");
+    expect(html).not.toContain("document.");
+    expect(html).not.toContain("jQuery");
     expect(html).toContain("<p>Intro</p>");
-    expect(html).toMatch(/When to go/);
   });
 });
 

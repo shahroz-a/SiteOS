@@ -199,11 +199,10 @@ const DETECTORS: Detector[] = [
     find: (h) => firstMatch(h, /open-summary-mobile|summary-wrapper-mobile/i),
   },
   {
-    // prepareArticleHtml: no dead Thrive `[tcb-script]…[/tcb-script]` shortcode
-    // (kept as plain text by the crawler) survives into the reader-facing body —
-    // they render as visible raw JavaScript code if not stripped.
-    name: "dead [tcb-script] shortcode",
-    find: (h) => firstMatch(h, /\[tcb-script\b[\s\S]*?\[\/tcb-script\]/i),
+    // stripScriptShortcodes: no `[tcb-script]…[/tcb-script]` shortcode markers (or
+    // their leftover JS body) leak into the rendered article as bare text.
+    name: "tcb-script shortcode residue",
+    find: (h) => firstMatch(h, /\[\/?tcb-script\b[^\]]*\]/i),
   },
   {
     // fixMalformedUrlScheme: no duplicated-h `hhttp(s)://` scheme.
