@@ -381,6 +381,28 @@ describe("stripSummaryWidget", () => {
   });
 });
 
+describe("prepareArticleHtml [tcb-script] stripping", () => {
+  it("strips ALL dead [tcb-script] blocks, not only summary-driving ones", () => {
+    // Real failing corpus shapes (/blog/climb-o2-arena-london/,
+    // /blog/empire-state-building/): dead Thrive script shortcodes kept as plain
+    // text by the crawler render as visible raw JS code. A jQuery CDN loader and
+    // a `var tgids = [...]` analytics array are unrelated to the summary widget,
+    // so stripSummaryWidget leaves them — prepareArticleHtml must drop them all.
+    const raw =
+      "<p>Intro</p>" +
+      '<p>[tcb-script]jQuery.getScript("https://code.jquery.com/jquery.min.js");[/tcb-script]</p>' +
+      "<p>[tcb-script]var tgids = [1,2,3,4];[/tcb-script]</p>" +
+      "<h2>When to go</h2>";
+    const { html } = prepareArticleHtml(raw);
+    expect(html).not.toContain("[tcb-script]");
+    expect(html).not.toContain("[/tcb-script]");
+    expect(html).not.toContain("var tgids");
+    expect(html).not.toContain("jquery.min.js");
+    expect(html).toContain("<p>Intro</p>");
+    expect(html).toMatch(/When to go/);
+  });
+});
+
 describe("mergeNumberedHeadings", () => {
   it("folds the corpus `<span id>` number into the heading as `N. `", () => {
     const raw =

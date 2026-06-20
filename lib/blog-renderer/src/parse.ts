@@ -655,7 +655,14 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
   let html = raw
     .replace(/<script\b[\s\S]*?<\/script>/gi, "")
     .replace(/<style\b[\s\S]*?<\/style>/gi, "")
-    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, "");
+    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, "")
+    // Thrive Content Builder `[tcb-script]…[/tcb-script]` shortcodes are dead
+    // scripts: the crawler stripped the real <script> tags but kept their JS
+    // body as PLAIN TEXT, so the <script> strip above never reaches them and the
+    // raw JavaScript (jQuery CDN loaders, `var tgids = […]` analytics arrays,
+    // summary-widget bootstraps, …) renders as visible code in the article body.
+    // They are never executed — equivalent to <script> — so drop every block.
+    .replace(/\[tcb-script\b[\s\S]*?\[\/tcb-script\]/gi, "");
 
   html = stripSocialShare(html);
   html = stripSummaryWidget(html);

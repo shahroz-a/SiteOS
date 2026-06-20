@@ -137,6 +137,7 @@ async function loadSampleIds(): Promise<string[]> {
     "%attr-list-title%", // attraction listicle number span → mergeNumberedHeadings
     '%class="number"%', // timeline listicle number orphan → mergeNumberedHeadings
     "%hhttp%", // malformed hhttp(s) scheme → fixMalformedUrlScheme
+    "%[tcb-script]%", // dead Thrive script shortcode kept as plain text → prepareArticleHtml
   ];
   for (const m of markers) {
     for (const id of await idsWithMarker(m, PER_MARKER)) ids.add(id);
@@ -196,6 +197,13 @@ const DETECTORS: Detector[] = [
     // stripSummaryWidget: no dead Thrive "Summary" toggle / list panel.
     name: "Thrive summary widget",
     find: (h) => firstMatch(h, /open-summary-mobile|summary-wrapper-mobile/i),
+  },
+  {
+    // prepareArticleHtml: no dead Thrive `[tcb-script]…[/tcb-script]` shortcode
+    // (kept as plain text by the crawler) survives into the reader-facing body —
+    // they render as visible raw JavaScript code if not stripped.
+    name: "dead [tcb-script] shortcode",
+    find: (h) => firstMatch(h, /\[tcb-script\b[\s\S]*?\[\/tcb-script\]/i),
   },
   {
     // fixMalformedUrlScheme: no duplicated-h `hhttp(s)://` scheme.
