@@ -435,6 +435,67 @@ export function mergeNumberedHeadings(html: string): string {
 }
 
 /**
+ * Drop leftover EMPTY decoration elements from the migrated Thrive timeline /
+ * listicle "card" widgets whose original CSS was never brought across — the same
+ * root cause as the empty `<p class="number"></p>` badge that
+ * `mergeNumberedHeadings` removes.
+ *
+ * A timeline item is a left "decoration column" (a numbered circle joined by a
+ * vertical connector line) beside a "text" column:
+ *
+ *   <div class="timeline">
+ *     <div>                                <- decoration column
+ *       <p class="number">N</p>            <- folded into the title by mergeNumberedHeadings
+ *       <div class="timeline-line"></div>  <- the connector line (ALWAYS empty)
+ *     </div>
+ *     <div class="timeline-text">
+ *       <h2 class="card-title">…</h2>
+ *       <p class="card-title-subtext">…</p> <- a subtitle row, often EMPTY in the corpus
+ *     </div>
+ *   </div>
+ *
+ * Once the number-circle / connector CSS is gone, two decoration orphans survive
+ * into the reader-facing body:
+ *
+ *  • `<div class="timeline-line"></div>` — the circle's vertical connector line.
+ *    It is ALWAYS empty across the whole corpus (every occurrence is the exact
+ *    empty div, 0 carry any content) and has no migrated styling, so it is pure
+ *    orphan decoration with nothing left to show. Drop it.
+ *  • An EMPTY `<p class="card-title-subtext …">` — the card's subtitle row. Many
+ *    timeline cards ship it with no text at all (the source subtitle was never
+ *    populated); the inline `display:block` it carries then renders it as a
+ *    stray blank gap under the title (an empty `<p>` keeps its default block
+ *    margins). Drop ONLY the empty / whitespace-only ones — subtitle rows that
+ *    DO carry text ("Average Temperature: 16°C – 26°C") are real content and are
+ *    left untouched.
+ *
+ * Deliberately NOT removed here: the now-childless class-less wrapper `<div>`
+ * left around the dropped number + line. An empty, unstyled `<div>` has no
+ * default margin and no CSS, so it collapses to zero height and is invisible —
+ * it is not a "stray box" a reader can see, and a blind "drop empty class-less
+ * divs" sweep would risk eating legitimate structural empties elsewhere. Other
+ * empty Thrive/slider artifacts in the corpus (`tve-content-box-background`,
+ * `swiper-*`, `tcb_flag`, `tve_iframe_cover`, …) are JS-hydrated widgets or
+ * absolutely-positioned background layers, NOT orphan decoration, so they are
+ * also intentionally out of scope.
+ *
+ * No-DOM/isomorphic (SSR byte-parity). Runs after `mergeNumberedHeadings` so the
+ * digit fold / empty-number drop has already consumed the number paragraph.
+ */
+export function stripEmptyTimelineDecorations(html: string): string {
+  if (!html) return html;
+  let out = html;
+  // The connector-line decoration — always empty in the corpus.
+  out = out.replace(/<div\b[^>]*\btimeline-line\b[^>]*>\s*<\/div>/gi, "");
+  // Empty card subtitle rows (whitespace-only); rows with text are kept.
+  out = out.replace(
+    /<p\b[^>]*\bcard-title-subtext\b[^>]*>(?:\s|&nbsp;|&#0?160;)*<\/p>/gi,
+    "",
+  );
+  return out;
+}
+
+/**
  * Rewrite absolute links that point at the blog's *own* pages
  * (`https://www.headout.com/blog/…`, with or without scheme/`www`) to
  * root-relative `/blog/…` paths so in-content links — and the author bylines
@@ -527,6 +588,7 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
   html = fixMalformedUrlScheme(html);
   html = balanceItineraryDays(html);
   html = mergeNumberedHeadings(html);
+  html = stripEmptyTimelineDecorations(html);
   html = rewriteInternalLinks(html);
   html = html.replace(/<img\b[^>]*>/gi, (m) => repairImg(m));
   html = html.replace(ON_ATTR_RE, "");

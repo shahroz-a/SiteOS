@@ -234,6 +234,25 @@ const DETECTORS: Detector[] = [
     name: "orphan timeline number paragraph",
     find: (h) => firstMatch(h, /<p\b[^>]*\bnumber\b[^>]*>[\s\S]*?<\/p>/i),
   },
+  {
+    // stripEmptyTimelineDecorations: the timeline number-circle's connector line
+    // (`<div class="timeline-line"></div>`) is always empty and its CSS was never
+    // migrated, so it must be dropped — none may survive into the rendered body.
+    name: "empty timeline-line connector",
+    find: (h) => firstMatch(h, /<div\b[^>]*\btimeline-line\b[^>]*>\s*<\/div>/i),
+  },
+  {
+    // stripEmptyTimelineDecorations: an EMPTY card subtitle row
+    // (`<p class="card-title-subtext …"></p>`, whitespace-only) renders as a stray
+    // blank gap and must be dropped. Rows WITH text are kept, so this only flags
+    // the empty residue — `\S` would match nothing inside an emptied row.
+    name: "empty card-title-subtext row",
+    find: (h) =>
+      firstMatch(
+        h,
+        /<p\b[^>]*\bcard-title-subtext\b[^>]*>(?:\s|&nbsp;|&#0?160;)*<\/p>/i,
+      ),
+  },
 ];
 
 /** Count `.days` blocks nested inside another `.days` (balanceItineraryDays). */

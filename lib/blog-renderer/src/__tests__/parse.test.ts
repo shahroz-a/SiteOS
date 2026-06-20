@@ -7,6 +7,7 @@ import {
   prepareArticleHtml,
   rewriteInternalLinks,
   sanitizeContentHtml,
+  stripEmptyTimelineDecorations,
   stripSocialShare,
   stripSummaryWidget,
 } from "../parse";
@@ -432,6 +433,87 @@ describe("mergeNumberedHeadings", () => {
     const { html, toc } = prepareArticleHtml(raw);
     expect(html).toContain("2. 9/11 Museum");
     expect(toc.map((t) => t.label)).toContain("2. 9/11 Museum");
+  });
+});
+
+describe("stripEmptyTimelineDecorations", () => {
+  it("drops the always-empty timeline-line connector decoration", () => {
+    const raw =
+      '<div class="timeline"><div><p class="number">2</p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><h2 class="card-title">9/11 Museum</h2></div></div>';
+    const out = stripEmptyTimelineDecorations(raw);
+    expect(out).not.toContain("timeline-line");
+    // The rest of the timeline item is untouched.
+    expect(out).toContain('<p class="number">2</p>');
+    expect(out).toContain('<h2 class="card-title">9/11 Museum</h2>');
+  });
+
+  it("drops an empty card-title-subtext subtitle row (truly empty)", () => {
+    // Real corpus shape (e.g. /blog/5-7-days-in-new-york/).
+    const raw =
+      '<div class="timeline-text"><h2 class="card-title">Day 1</h2>' +
+      '<p class="card-title-subtext" style="display:block;"></p></div>';
+    const out = stripEmptyTimelineDecorations(raw);
+    expect(out).not.toContain("card-title-subtext");
+    expect(out).toContain('<h2 class="card-title">Day 1</h2>');
+  });
+
+  it("drops a whitespace-only card-title-subtext row", () => {
+    // Real corpus shape (e.g. /blog/paris-with-kids/): a single space inside.
+    const raw =
+      '<h2 class="card-title">Climb the Eiffel Tower</h2>' +
+      '<p class="card-title-subtext" style="display:block;"> </p>';
+    const out = stripEmptyTimelineDecorations(raw);
+    expect(out).not.toContain("card-title-subtext");
+    expect(out).toContain('<h2 class="card-title">Climb the Eiffel Tower</h2>');
+  });
+
+  it("keeps a card-title-subtext row that carries real text", () => {
+    // Real corpus shape (e.g. /blog/best-time-to-visit-melbourne/): the subtitle
+    // holds the average-temperature line — genuine content, must NOT be dropped.
+    const raw =
+      '<h2 class="card-title">Melbourne in January</h2>' +
+      '<p class="card-title-subtext london-cta" style="display:block;">' +
+      "Average Temperature: 16°C - 26°C</p>";
+    const out = stripEmptyTimelineDecorations(raw);
+    expect(out).toContain("Average Temperature: 16°C - 26°C");
+    expect(out).toContain("card-title-subtext");
+  });
+
+  it("is a no-op when there is no timeline decoration markup", () => {
+    const raw = '<p>Hello <a href="/x">link</a></p><h2>Section</h2>';
+    expect(stripEmptyTimelineDecorations(raw)).toBe(raw);
+  });
+
+  it("runs inside prepareArticleHtml so the rendered body has no empty decoration", () => {
+    // Full timeline item (the empty-number variant) — after the pipeline the
+    // empty number, the connector line and the empty subtitle are all gone, and
+    // the heading text survives.
+    const raw =
+      '<div class="timeline"><div><p class="number"></p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><h2 class="card-title">Melbourne in January</h2>' +
+      '<p class="card-title-subtext" style="display:block;"></p></div></div>';
+    const { html } = prepareArticleHtml(raw);
+    expect(html).not.toContain("timeline-line");
+    expect(html).not.toContain("card-title-subtext");
+    expect(html).not.toMatch(/<p[^>]*class="number"/);
+    expect(html).toContain("Melbourne in January");
+  });
+
+  it("preserves a populated subtitle through the full pipeline", () => {
+    const raw =
+      '<div class="timeline"><div><p class="number">1</p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><h2 class="card-title">Melbourne in January</h2>' +
+      '<p class="card-title-subtext" style="display:block;">' +
+      "Average Temperature: 16°C - 26°C</p></div></div>";
+    const { html } = prepareArticleHtml(raw);
+    expect(html).not.toContain("timeline-line");
+    expect(html).toContain("Average Temperature: 16°C - 26°C");
+    // The number was folded into the heading, not left as an orphan.
+    expect(html).toMatch(/1\.\s*Melbourne in January/);
   });
 });
 
