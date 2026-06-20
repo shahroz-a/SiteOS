@@ -683,7 +683,14 @@
     margin-bottom: 0.55rem;
     font-size: 1.1rem;
     line-height: 1.3;
+    font-weight: 700;
     color: hsl(var(--verdict-accent));
+  }
+  /* The migrated cue heading often wraps its label in <strong>, which the   */
+  /* generic .blog-prose strong rule would repaint text-foreground — keep it */
+  /* in the accent hue so the card title reads as one coloured unit.         */
+  .blog-prose .verdict-callout > :where(h2, h3, h4, h5, h6) :where(strong, b) {
+    color: inherit;
   }
   .blog-prose .verdict-callout > :last-child {
     margin-bottom: 0;
