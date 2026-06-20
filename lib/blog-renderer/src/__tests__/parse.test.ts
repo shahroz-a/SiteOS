@@ -3,9 +3,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   balanceItineraryDays,
   fixMalformedUrlScheme,
+  mergeNumberedHeadings,
   prepareArticleHtml,
+  rewriteInternalLinks,
   sanitizeContentHtml,
   stripSocialShare,
+  stripSummaryWidget,
 } from "../parse";
 
 describe("sanitizeContentHtml (DOM path)", () => {
@@ -292,5 +295,122 @@ describe("fixMalformedUrlScheme", () => {
     const { html } = prepareArticleHtml(raw);
     expect(html).not.toContain("hhttps://");
     expect(html).toContain("https://cdn-imgix.headout.com/b.jpg");
+  });
+});
+
+describe("stripSummaryWidget", () => {
+  const widget =
+    '<div class="open-summary-mobile-wrapper">' +
+    '<a class="open-summary-mobile"><i class="fa fa-bars"></i> Summary</a>' +
+    "</div>" +
+    '<div id="summary-wrapper-mobile" class="summary-list">' +
+    '<div class="summary-wrapper-mobile-content">' +
+    '<div class="category-title"><div class="title-text">Best time to visit NYC</div></div>' +
+    '<div class="thrv_wrapper"><ul id="summary-mobile-ul"></ul></div>' +
+    "</div></div>";
+
+  it("removes both the toggle wrapper and the list panel", () => {
+    const raw = `<p>Intro</p>${widget}<h2>When to go</h2>`;
+    const out = stripSummaryWidget(raw);
+    expect(out).not.toMatch(/open-summary-mobile/);
+    expect(out).not.toMatch(/summary-wrapper-mobile/);
+    expect(out).not.toMatch(/summary-list/);
+    expect(out).not.toContain("fa fa-bars");
+    expect(out).toBe("<p>Intro</p><h2>When to go</h2>");
+  });
+
+  it("is a no-op when no summary widget is present", () => {
+    const raw = "<p>Hello</p><h2>Section</h2>";
+    expect(stripSummaryWidget(raw)).toBe(raw);
+  });
+
+  it("runs inside prepareArticleHtml so the rendered body has no grey toggle box", () => {
+    const raw = `<p>Intro</p>${widget}<h2>When to go</h2>`;
+    const { html } = prepareArticleHtml(raw);
+    expect(html).not.toContain("fa fa-bars");
+    expect(html).not.toMatch(/summary-list/);
+    expect(html).toContain("<p>Intro</p>");
+  });
+});
+
+describe("mergeNumberedHeadings", () => {
+  it("folds the corpus `<span id>` number into the heading as `N. `", () => {
+    const raw =
+      '<h2 class="attr-list-title"><span id="attr-1">1</span>Pemba Island</h2>';
+    const out = mergeNumberedHeadings(raw);
+    expect(out).toBe('<h2 class="attr-list-title">1. Pemba Island</h2>');
+    expect(out).not.toContain("<span");
+  });
+
+  it("folds the legacy `#N` span variant into the heading as `N. `", () => {
+    const raw =
+      '<h2 class="attr-list-title add-to-summary">' +
+      "<span>#2 </span>National 9/11 Memorial and Museum</h2>";
+    const out = mergeNumberedHeadings(raw);
+    expect(out).toBe(
+      '<h2 class="attr-list-title add-to-summary">' +
+        "2. National 9/11 Memorial and Museum</h2>",
+    );
+    expect(out).not.toContain("<span>");
+    expect(out).not.toContain("#2");
+  });
+
+  it("folds the orphaned timeline number paragraph into the card-title heading", () => {
+    const raw =
+      '<div class="timeline"><div><p class="number">2</p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><h2 class="card-title">9/11 Museum</h2></div></div>';
+    const out = mergeNumberedHeadings(raw);
+    expect(out).toContain('<h2 class="card-title">2. 9/11 Museum</h2>');
+    expect(out).not.toMatch(/<p[^>]*class="number"/);
+  });
+
+  it("leaves unnumbered headings untouched", () => {
+    const raw = '<h2 class="card-title">Plain heading</h2>';
+    expect(mergeNumberedHeadings(raw)).toBe(raw);
+  });
+
+  it("feeds the merged number into the toc label via prepareArticleHtml", () => {
+    const raw =
+      '<div class="timeline"><div><p class="number">2</p>' +
+      '<div class="timeline-line"></div></div>' +
+      '<div class="timeline-text"><h2 class="card-title">9/11 Museum</h2></div></div>';
+    const { html, toc } = prepareArticleHtml(raw);
+    expect(html).toContain("2. 9/11 Museum");
+    expect(toc.map((t) => t.label)).toContain("2. 9/11 Museum");
+  });
+});
+
+describe("rewriteInternalLinks", () => {
+  it("rewrites absolute blog links to root-relative /blog/ paths", () => {
+    const raw =
+      '<a href="https://www.headout.com/blog/author/rohit-jadhav/">Rohit</a>';
+    expect(rewriteInternalLinks(raw)).toBe(
+      '<a href="/blog/author/rohit-jadhav/">Rohit</a>',
+    );
+  });
+
+  it("handles scheme-less and www-less blog links", () => {
+    const raw =
+      '<a href="//headout.com/blog/central-park/">x</a>' +
+      '<a href="http://www.headout.com/blog/nyc/">y</a>';
+    expect(rewriteInternalLinks(raw)).toBe(
+      '<a href="/blog/central-park/">x</a><a href="/blog/nyc/">y</a>',
+    );
+  });
+
+  it("leaves non-/blog headout.com links (tours, tickets) absolute", () => {
+    const raw =
+      '<a href="https://www.headout.com/911-museum-tickets/e-549/">Tickets</a>';
+    expect(rewriteInternalLinks(raw)).toBe(raw);
+  });
+
+  it("runs inside prepareArticleHtml", () => {
+    const raw =
+      '<p><a href="https://www.headout.com/blog/nyc-in-june/">June</a> ' +
+      'and <a href="https://www.headout.com/new-york-tours/e-1/">tour</a></p>';
+    const { html } = prepareArticleHtml(raw);
+    expect(html).toContain('href="/blog/nyc-in-june/"');
+    expect(html).toContain('href="https://www.headout.com/new-york-tours/e-1/"');
   });
 });

@@ -342,6 +342,91 @@ export function stripSocialShare(html: string): string {
 }
 
 /**
+ * Strip the migrated Thrive "mobile summary" widget (`.open-summary-mobile…` +
+ * `#summary-wrapper-mobile.summary-list`) from article HTML.
+ *
+ * This is a JS-driven, mobile-only duplicate table of contents: a collapsed
+ * "Summary" toggle (`<i class="fa fa-bars">` + the text "Summary") plus a
+ * `summary-list` panel whose `<ul id="summary-mobile-ul">` is populated client
+ * side by Thrive's runtime (which we don't ship). In the migrated corpus the
+ * toggle's Font Awesome glyph never loads (so it renders as a stray grey box)
+ * and the list stays empty — pure broken chrome. The blog renders its own
+ * `TableOfContents`, so remove the widget outright. No-DOM/isomorphic (SSR
+ * byte-parity): drop the balanced toggle wrapper, then the balanced list panel.
+ */
+export function stripSummaryWidget(html: string): string {
+  if (!html || !/open-summary-mobile|summary-wrapper-mobile/i.test(html)) {
+    return html;
+  }
+  let out = removeBalancedDivsWithTag(
+    html,
+    /<div\b[^>]*\bopen-summary-mobile-wrapper\b/i,
+  );
+  out = removeBalancedDivsWithTag(out, /<div\b[^>]*\bsummary-wrapper-mobile\b/i);
+  return out;
+}
+
+/**
+ * Fold the standalone "section number" that the migrated Thrive listicle
+ * widgets render *separately* from their heading back into the heading text, so
+ * a numbered attraction reads "2. 9/11 Museum" instead of a stray digit
+ * floating above the title.
+ *
+ * Two corpus formats are handled, both isomorphic string rewrites (no DOM):
+ *
+ *  • Attraction listicle (`.attr-list`): the number is a leading
+ *    `<span id="attr-1">2</span>` (sometimes `<span>#2 </span>`) *inside* the
+ *    `.attr-list-title` heading — rendered glued to the title ("2Title") with no
+ *    separator. Normalise it to "2. ".
+ *  • Timeline listicle (`.timeline`): the number is an orphaned
+ *    `<p class="number">2</p>` in a sibling decoration block (the original
+ *    number-circle + connector-line CSS was never migrated), immediately
+ *    followed by a `<h…class="card-title">` heading. Drop the orphan paragraph
+ *    and prefix its number onto the heading.
+ *
+ * Runs before heading-id/toc extraction so the merged "N. " becomes part of the
+ * heading's slug id and table-of-contents label too.
+ */
+export function mergeNumberedHeadings(html: string): string {
+  if (!html) return html;
+  let out = html;
+
+  // Attraction listicle: <h2 class="attr-list-title …"><span id="attr-1">2</span>Title…
+  out = out.replace(
+    /(<h[2-6]\b[^>]*\battr-list-title\b[^>]*>)\s*<span\b[^>]*>\s*#?\s*(\d+)[^<]*<\/span>\s*/gi,
+    (_m, open: string, num: string) => `${open}${num}. `,
+  );
+
+  // Timeline listicle: <p class="number">2</p> … <h2 class="card-title">Title
+  out = out.replace(
+    /<p\b[^>]*\bnumber\b[^>]*>\s*(\d+)\s*<\/p>((?:(?!<h[2-6]\b)[\s\S])*?)(<h[2-6]\b[^>]*\bcard-title\b[^>]*>)\s*/gi,
+    (_m, num: string, between: string, open: string) =>
+      `${between}${open}${num}. `,
+  );
+
+  return out;
+}
+
+/**
+ * Rewrite absolute links that point at the blog's *own* pages
+ * (`https://www.headout.com/blog/…`, with or without scheme/`www`) to
+ * root-relative `/blog/…` paths so in-content links — and the author bylines
+ * baked into the migrated HTML — navigate within this app instead of bouncing
+ * the reader out to the production marketing site.
+ *
+ * Only `/blog/` URLs are ours; every other `headout.com` link (tours, tickets,
+ * city pages, …) belongs to the main site and is deliberately left absolute.
+ * No-DOM/isomorphic so prerendered and hydrated markup stay byte-identical.
+ */
+export function rewriteInternalLinks(html: string): string {
+  if (!html || !/headout\.com\/blog\//i.test(html)) return html;
+  return html.replace(
+    /(\bhref\s*=\s*)(["'])(?:https?:)?\/\/(?:www\.)?headout\.com(\/blog\/[^"']*)\2/gi,
+    (_m, attr: string, q: string, path: string) => `${attr}${q}${path}${q}`,
+  );
+}
+
+/**
  * Repair malformed `hhttp(s)://` URL schemes baked into migrated content.
  *
  * Some migrated WordPress image sources carry a duplicated leading character
@@ -411,8 +496,11 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
     .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, "");
 
   html = stripSocialShare(html);
+  html = stripSummaryWidget(html);
   html = fixMalformedUrlScheme(html);
   html = balanceItineraryDays(html);
+  html = mergeNumberedHeadings(html);
+  html = rewriteInternalLinks(html);
   html = html.replace(/<img\b[^>]*>/gi, (m) => repairImg(m));
   html = html.replace(ON_ATTR_RE, "");
 

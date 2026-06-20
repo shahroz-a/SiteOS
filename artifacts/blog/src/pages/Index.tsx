@@ -32,8 +32,16 @@ export default function Index() {
       <Header />
 
       <main className="flex-1 w-full">
-        <section className="bg-background pt-16 pb-12 md:pt-24 md:pb-20 border-b border-border/40">
-          <div className="max-w-7xl mx-auto px-6 lg:px-12">
+        <section className="relative overflow-hidden bg-background pt-16 pb-12 md:pt-24 md:pb-20 border-b border-border/40">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-24 -right-24 h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl"
+          />
+          <div className="relative max-w-7xl mx-auto px-6 lg:px-12">
+            <span className="inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-primary mb-7">
+              <span className="h-px w-8 bg-primary/50" />
+              Travel stories &amp; guides
+            </span>
             <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[1.05] tracking-tight text-foreground max-w-4xl">
               Find your next<br className="hidden md:block"/> <span className="text-primary italic font-light">great adventure.</span>
             </h1>
@@ -56,7 +64,7 @@ export default function Index() {
           ) : (
             <>
               {featured ? (
-                <div className="mb-20 pb-20 border-b border-border/40">
+                <div className="mb-16 md:mb-20">
                   <PostCard post={featured} variant="featured" />
                 </div>
               ) : null}

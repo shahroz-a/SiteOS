@@ -13,55 +13,82 @@ export function PostCard({ post, variant = "default" }: PostCardProps) {
 
   if (variant === "featured") {
     return (
-      <article className="group grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center">
-        <Link
-          href={postPath(post.slug)}
-          className="lg:col-span-8 block overflow-hidden rounded-3xl bg-muted aspect-[4/3] lg:aspect-[16/10] relative"
-        >
-          {post.featuredImageUrl ? (
-            <img
-              src={post.featuredImageUrl}
-              alt={post.featuredImageAlt ?? post.title}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-            />
-          ) : null}
-          <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500" />
-        </Link>
-        <div className="lg:col-span-4 flex flex-col justify-center">
-          {post.primaryCategory ? (
-            <Link
-              href={categoryPath(post.primaryCategory.slug)}
-              className="inline-block text-xs font-semibold uppercase tracking-[0.2em] text-primary hover:text-foreground transition-colors mb-6"
-            >
-              {post.primaryCategory.name}
-            </Link>
-          ) : null}
-          <h2 className="font-serif text-3xl md:text-5xl leading-[1.15] tracking-tight text-foreground mb-6">
-            <Link
-              href={postPath(post.slug)}
-              className="hover:text-primary transition-colors"
-            >
-              {post.title}
-            </Link>
-          </h2>
-          {post.excerpt ? (
-            <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-xl">
-              {post.excerpt}
-            </p>
-          ) : null}
-          <div className="flex items-center gap-3 mt-auto">
-            {post.author?.avatarUrl ? (
-              <img src={post.author.avatarUrl} alt={post.author.name} className="w-10 h-10 rounded-full object-cover border border-border" />
+      <article className="group relative overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm transition-shadow duration-500 hover:shadow-xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch">
+          <Link
+            href={postPath(post.slug)}
+            className="relative block overflow-hidden bg-muted aspect-[16/10] lg:aspect-auto lg:min-h-[26rem]"
+          >
+            {post.featuredImageUrl ? (
+              <img
+                src={post.featuredImageUrl}
+                alt={post.featuredImageAlt ?? post.title}
+                loading="lazy"
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+              />
             ) : null}
-            <div className="flex flex-col">
-              {post.author ? <span className="text-sm font-medium text-foreground">{post.author.name}</span> : null}
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                {date ? <span>{date}</span> : null}
-                {date && reading ? <span>&middot;</span> : null}
-                {reading ? <span>{reading}</span> : null}
+            <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors duration-500" />
+          </Link>
+          <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-14">
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                Featured
+              </span>
+              {post.primaryCategory ? (
+                <Link
+                  href={categoryPath(post.primaryCategory.slug)}
+                  className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {post.primaryCategory.name}
+                </Link>
+              ) : null}
+            </div>
+            <h2 className="font-serif text-3xl md:text-4xl lg:text-5xl leading-[1.12] tracking-tight text-foreground mb-5">
+              <Link
+                href={postPath(post.slug)}
+                className="hover:text-primary transition-colors"
+              >
+                {post.title}
+              </Link>
+            </h2>
+            {post.excerpt ? (
+              <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-8 max-w-xl line-clamp-3">
+                {post.excerpt}
+              </p>
+            ) : null}
+            <div className="flex items-center gap-3 mb-8">
+              {post.author?.avatarUrl ? (
+                <img
+                  src={post.author.avatarUrl}
+                  alt={post.author.name}
+                  className="w-10 h-10 rounded-full object-cover border border-border"
+                />
+              ) : null}
+              <div className="flex flex-col">
+                {post.author ? (
+                  <span className="text-sm font-medium text-foreground">
+                    {post.author.name}
+                  </span>
+                ) : null}
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                  {date ? <span>{date}</span> : null}
+                  {date && reading ? <span>&middot;</span> : null}
+                  {reading ? <span>{reading}</span> : null}
+                </div>
               </div>
             </div>
+            <Link
+              href={postPath(post.slug)}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-primary group/cta self-start"
+            >
+              Read the story
+              <span
+                aria-hidden="true"
+                className="transition-transform duration-300 group-hover/cta:translate-x-1"
+              >
+                &rarr;
+              </span>
+            </Link>
           </div>
         </div>
       </article>
