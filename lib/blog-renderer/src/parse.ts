@@ -473,6 +473,45 @@ export function stripScriptShortcodes(html: string): string {
 }
 
 /**
+ * Strip leaked WordPress/Thrive page-builder "widget" shortcode MARKERS that the
+ * migration carried across the corpus as PLAIN TEXT, so the raw bracket tokens
+ * render as visible gibberish in the article body.
+ *
+ * Unlike `[tcb-script]…[/tcb-script]` (whose whole body is dead JavaScript and is
+ * removed wholesale by `stripScriptShortcodes`/`prepareArticleHtml`), these
+ * shortcodes either wrap REAL visible content or are self-contained inline
+ * widgets, so we drop ONLY the bracket marker tokens and keep any wrapped
+ * content. The shapes found in the migrated corpus:
+ *
+ *  • `[show_link_exp poi-id="616"]…[/show_link_exp]` — Thrive "show link
+ *    experience" booking widget. It wraps a real, still-functional "Find Best
+ *    Seats" CTA (`<div class="book-strip">…` inside a live
+ *    `<a href="https://www.headout.com/book/…">`), so only the opening/closing
+ *    markers are removed; the CTA is preserved. A few corpus pages carry a
+ *    TRUNCATED closer (`[/show_link_ex]`, missing the final `p`), so the name is
+ *    matched as `show_link_ex` + an optional tail.
+ *  • `[star rating="8" max="10"]` — a self-contained "star rating" widget (note
+ *    the migrated curly quotes), rendered by a runtime we don't ship. There is
+ *    no wrapped content and no closer, so the single marker token is removed.
+ *
+ * Scoped to a curated allowlist of recognized page-builder shortcode names so it
+ * can't touch legitimate bracket text (citations `[1]`, prose `[June-November]`,
+ * `[Supplement]`) or CSS/Tailwind arbitrary-value brackets baked into
+ * `class`/`style` attributes (`bg-[linear-gradient(…)]`,
+ * `shadow-[inset_0_0_0_1px_token(…)]`, `animate-[opacity_0…]`). NEW shortcode
+ * shapes in the long tail are surfaced by the corpus-render gate's general
+ * "leaked page-builder shortcode" detector, then added here. No-DOM/isomorphic
+ * (SSR byte-parity).
+ */
+const WIDGET_SHORTCODE_RE =
+  /\[\/?(?:show_link_ex[a-z]*|star)\b[^\]]*\]/gi;
+
+export function stripWidgetShortcodes(html: string): string {
+  if (!html || !/\[\/?(?:show_link_ex|star\b)/i.test(html)) return html;
+  return html.replace(WIDGET_SHORTCODE_RE, "");
+}
+
+/**
  * Fold the standalone "section number" that the migrated Thrive listicle
  * widgets render *separately* from their heading back into the heading text, so
  * a numbered attraction reads "2. 9/11 Museum" instead of a stray digit
@@ -697,6 +736,7 @@ export function prepareArticleHtml(raw: string): PreparedArticle {
     .replace(/\[tcb-script\b[\s\S]*?\[\/tcb-script\]/gi, "");
 
   html = stripScriptShortcodes(html);
+  html = stripWidgetShortcodes(html);
   html = stripSocialShare(html);
   html = stripSummaryWidget(html);
   html = fixMalformedUrlScheme(html);

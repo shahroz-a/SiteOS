@@ -11,6 +11,7 @@ import {
   stripScriptShortcodes,
   stripSocialShare,
   stripSummaryWidget,
+  stripWidgetShortcodes,
 } from "../parse";
 
 describe("sanitizeContentHtml (DOM path)", () => {
@@ -443,6 +444,67 @@ describe("stripScriptShortcodes", () => {
     expect(html).not.toContain("tcb-script");
     expect(html).not.toContain("document.");
     expect(html).not.toContain("jQuery");
+    expect(html).toContain("<p>Intro</p>");
+  });
+});
+
+describe("stripWidgetShortcodes", () => {
+  it("drops [show_link_exp]…[/show_link_exp] markers but keeps the wrapped CTA", () => {
+    const raw =
+      '<a href="https://www.headout.com/book/41963/">' +
+      '[show_link_exp poi-id="616"]' +
+      '<div class="book-strip"><div class="book-strip__button"> Find Best Seats</div></div>' +
+      "[/show_link_exp]</a>";
+    const out = stripWidgetShortcodes(raw);
+    expect(out).not.toContain("show_link_exp");
+    expect(out).not.toContain("[");
+    // The real booking CTA inside the markers is preserved.
+    expect(out).toContain('class="book-strip"');
+    expect(out).toContain("Find Best Seats");
+    expect(out).toContain('href="https://www.headout.com/book/41963/"');
+  });
+
+  it("drops a truncated [/show_link_ex] closer (missing the final p)", () => {
+    const raw = "<p>Keep me</p>[/show_link_ex]";
+    const out = stripWidgetShortcodes(raw);
+    expect(out).toBe("<p>Keep me</p>");
+    expect(out).not.toContain("show_link_ex");
+  });
+
+  it("drops a self-contained [star rating] widget, incl. curly quotes", () => {
+    const raw = "<strong>Rating:</strong>[star rating=\u201d8\u201d max=\u201d10\u201d]<br>";
+    const out = stripWidgetShortcodes(raw);
+    expect(out).toBe("<strong>Rating:</strong><br>");
+    expect(out).not.toContain("[star");
+  });
+
+  it("leaves legitimate bracket text and Tailwind arbitrary values untouched", () => {
+    const raw =
+      "<p>Best time to visit [June-November] for cricket [1].</p>" +
+      '<div class="shadow-[inset_0_0_0_1px_token(colorBgBorder)] animate-[opacity_0]">x</div>' +
+      '<p>Supplement charge [Supplement] applies.</p>';
+    expect(stripWidgetShortcodes(raw)).toBe(raw);
+  });
+
+  it("does not match longer words like [starting]", () => {
+    const raw = "<p>[starting]</p>";
+    expect(stripWidgetShortcodes(raw)).toBe(raw);
+  });
+
+  it("is a no-op when no widget shortcode is present", () => {
+    const raw = "<p>Hello</p><h2>Section</h2>";
+    expect(stripWidgetShortcodes(raw)).toBe(raw);
+  });
+
+  it("runs inside prepareArticleHtml so no marker reaches the rendered body", () => {
+    const raw =
+      '<p>Intro</p>[show_link_exp poi-id="611"]' +
+      '<div class="book-strip">Find Best Seats</div>[/show_link_exp]' +
+      "<strong>Rating:</strong>[star rating=\u201d8\u201d]<h2>Section</h2>";
+    const { html } = prepareArticleHtml(raw);
+    expect(html).not.toContain("show_link_exp");
+    expect(html).not.toContain("[star");
+    expect(html).toContain("Find Best Seats");
     expect(html).toContain("<p>Intro</p>");
   });
 });

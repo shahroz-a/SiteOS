@@ -205,6 +205,31 @@ const DETECTORS: Detector[] = [
     find: (h) => firstMatch(h, /\[\/?tcb-script\b[^\]]*\]/i),
   },
   {
+    // General page-builder shortcode detector (catches NEW shapes in the long
+    // tail, not just `[tcb-script]` / `[show_link_exp]` / `[star]`). Migrated
+    // WordPress/Thrive shortcodes survive as PLAIN TEXT, so after rendering they
+    // sit in TEXT positions (between tags), e.g. `[show_link_exp poi-id="616"]`,
+    // `[/show_link_exp]`, `[star rating="8"]`. Strip every HTML tag first so the
+    // ONLY false-positive source — CSS/Tailwind arbitrary-value brackets baked
+    // into `class`/`style` attributes (`bg-[linear-gradient(…)]`,
+    // `shadow-[inset_0_0_0_1px_token(…)]`, `animate-[opacity_0]`) — can't fire.
+    // In the remaining text, flag a bracket token that looks like a shortcode:
+    // a multi-part snake_case OR kebab-case name (`show_link_exp`, `et_pb_section`,
+    // `tcb-inline`, `[/tcb-foo]`) OR any name carrying a `key="value"`-style
+    // attribute. The multi-part requirement + lowercase-only match (no `i` flag —
+    // real page-builder shortcodes are lowercase) leaves plain bracket prose
+    // alone: citations (`[1]`), single words (`[Supplement]`), and capitalised
+    // ranges (`[June-November]`) have no lowercase `_`/`-`-joined token.
+    name: "leaked page-builder shortcode",
+    find: (h) => {
+      const text = h.replace(/<[^>]+>/g, " ");
+      return firstMatch(
+        text,
+        /\[\/?[a-z][a-z0-9]*(?:[_-][a-z0-9]+)+(?:\s[^\]]*)?\]|\[[a-z][a-z0-9_-]*\s+[a-z][a-z0-9_-]*=[^\]]*\]/,
+      );
+    },
+  },
+  {
     // fixMalformedUrlScheme: no duplicated-h `hhttp(s)://` scheme.
     name: "malformed hhttp(s) scheme",
     find: (h) => firstMatch(h, /hhttps?:\/\//i),
@@ -261,6 +286,33 @@ const DETECTORS: Detector[] = [
       ),
   },
 ];
+
+// Pure unit coverage for the general "leaked page-builder shortcode" detector
+// (runs in the normal suite, NOT gated on VERIFY_REAL_DATA) so its regex stays
+// honest about which bracket shapes it flags vs. ignores.
+describe("leaked page-builder shortcode detector", () => {
+  const det = DETECTORS.find((d) => d.name === "leaked page-builder shortcode")!;
+  it("flags hyphenated tcb-* markers even with no attributes", () => {
+    expect(det.find("<p>x</p>[tcb-inline]<p>y</p>")).not.toBeNull();
+    expect(det.find("<p>[tcb-foo]</p>")).not.toBeNull();
+    expect(det.find("<p>[/tcb-foo]</p>")).not.toBeNull();
+  });
+  it("flags snake_case names and attribute-bearing shortcodes", () => {
+    expect(det.find('<p>[show_link_exp poi-id="6"]</p>')).not.toBeNull();
+    expect(det.find("<p>[/show_link_exp]</p>")).not.toBeNull();
+    expect(det.find('<p>[star rating="8" max="10"]</p>')).not.toBeNull();
+  });
+  it("ignores prose brackets and tag-embedded Tailwind arbitrary values", () => {
+    expect(
+      det.find("<p>cite [1] and [Supplement] in [June-November]</p>"),
+    ).toBeNull();
+    expect(
+      det.find(
+        '<div class="shadow-[inset_0_0_0_1px_token(x)] animate-[opacity_0]">x</div>',
+      ),
+    ).toBeNull();
+  });
+});
 
 /** Count `.days` blocks nested inside another `.days` (balanceItineraryDays). */
 function countNestedDays(html: string): number {
