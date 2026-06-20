@@ -492,7 +492,12 @@ export function stripScriptShortcodes(html: string): string {
  *    matched as `show_link_ex` + an optional tail.
  *  • `[star rating="8" max="10"]` — a self-contained "star rating" widget (note
  *    the migrated curly quotes), rendered by a runtime we don't ship. There is
- *    no wrapped content and no closer, so the single marker token is removed.
+ *    no wrapped content and no closer. Rather than drop it (which would silently
+ *    discard the rating value the author intended readers to see), we CONVERT it
+ *    to a small visible rating element (`★ N/M`) carrying the parsed values, via
+ *    `renderStarRating`. Both straight and migrated curly quotes are accepted,
+ *    and a missing `max` defaults to a 10-point scale. A `[star …]` marker with
+ *    no parseable `rating` value carries no information, so it is removed.
  *
  * Scoped to a curated allowlist of recognized page-builder shortcode names so it
  * can't touch legitimate bracket text (citations `[1]`, prose `[June-November]`,
@@ -503,12 +508,45 @@ export function stripScriptShortcodes(html: string): string {
  * "leaked page-builder shortcode" detector, then added here. No-DOM/isomorphic
  * (SSR byte-parity).
  */
-const WIDGET_SHORTCODE_RE =
-  /\[\/?(?:show_link_ex[a-z]*|star)\b[^\]]*\]/gi;
+const SHOW_LINK_SHORTCODE_RE = /\[\/?show_link_ex[a-z]*\b[^\]]*\]/gi;
+const STAR_SHORTCODE_RE = /\[star\b[^\]]*\]/gi;
+
+/**
+ * Pull a numeric shortcode attribute (`rating="8"`, `max=”10”`, `rating=8.5`)
+ * out of a `[star …]` marker. Accepts straight (`"` `'`), migrated curly
+ * (`“ ” ‘ ’`), or no quotes, and integer or decimal values. Returns `null`
+ * when the attribute is absent or non-numeric.
+ */
+function starAttrNumber(marker: string, name: string): string | null {
+  const re = new RegExp(
+    `${name}\\s*=\\s*["'\u201c\u201d\u2018\u2019]?\\s*(\\d+(?:\\.\\d+)?)`,
+    "i",
+  );
+  const m = marker.match(re);
+  return m ? m[1] : null;
+}
+
+/**
+ * Convert a single `[star rating="N" max="M"]` marker to a small visible rating
+ * element. Missing `max` defaults to a 10-point scale; a marker with no
+ * parseable `rating` carries no information and renders as empty (removal).
+ */
+function renderStarRating(marker: string): string {
+  const rating = starAttrNumber(marker, "rating");
+  if (rating === null) return "";
+  const max = starAttrNumber(marker, "max") ?? "10";
+  return (
+    `<span class="star-rating" role="img" ` +
+    `aria-label="Rating: ${rating} out of ${max}">` +
+    `\u2605 ${rating}/${max}</span>`
+  );
+}
 
 export function stripWidgetShortcodes(html: string): string {
   if (!html || !/\[\/?(?:show_link_ex|star\b)/i.test(html)) return html;
-  return html.replace(WIDGET_SHORTCODE_RE, "");
+  let out = html.replace(SHOW_LINK_SHORTCODE_RE, "");
+  out = out.replace(STAR_SHORTCODE_RE, (marker) => renderStarRating(marker));
+  return out;
 }
 
 /**
