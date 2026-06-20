@@ -562,6 +562,33 @@
     margin-bottom: 2rem;
   }
 
+  /* Star rating — migrated Thrive [star] shortcode rendered as a pill   */
+  /* badge so it reads as a distinct rating callout, not body prose.     */
+  .blog-prose .star-rating {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3em;
+    vertical-align: baseline;
+    padding: 0.18em 0.6em;
+    border-radius: 999px;
+    background: hsl(var(--primary) / 0.08);
+    border: 1px solid hsl(var(--primary) / 0.16);
+    color: hsl(var(--foreground));
+    font-weight: 600;
+    font-size: 0.9em;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .blog-prose .star-rating__star {
+    color: hsl(44 100% 45%);
+    font-size: 1.05em;
+  }
+
+  .blog-prose .star-rating__value {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* ================================================================== */
   /* Migrated WordPress embedded widgets                                 */
   /* The source articles ship rich Thrive/Headout blocks — season cards, */

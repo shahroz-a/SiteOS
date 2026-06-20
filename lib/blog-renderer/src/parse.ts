@@ -538,7 +538,8 @@ function renderStarRating(marker: string): string {
   return (
     `<span class="star-rating" role="img" ` +
     `aria-label="Rating: ${rating} out of ${max}">` +
-    `\u2605 ${rating}/${max}</span>`
+    `<span class="star-rating__star" aria-hidden="true">\u2605</span>` +
+    `<span class="star-rating__value">${rating}/${max}</span></span>`
   );
 }
 

@@ -475,7 +475,8 @@ describe("stripWidgetShortcodes", () => {
     const raw = "<strong>Rating:</strong>[star rating=\u201d8\u201d max=\u201d10\u201d]<br>";
     const out = stripWidgetShortcodes(raw);
     expect(out).not.toContain("[star");
-    expect(out).toContain("\u2605 8/10");
+    expect(out).toContain("\u2605");
+    expect(out).toContain(">8/10</span>");
     expect(out).toContain('aria-label="Rating: 8 out of 10"');
     // Surrounding content is preserved untouched.
     expect(out).toContain("<strong>Rating:</strong>");
@@ -484,19 +485,22 @@ describe("stripWidgetShortcodes", () => {
 
   it("renders a [star rating] widget with straight quotes", () => {
     const out = stripWidgetShortcodes('[star rating="7" max="5"]');
-    expect(out).toContain("\u2605 7/5");
+    expect(out).toContain("\u2605");
+    expect(out).toContain(">7/5</span>");
     expect(out).not.toContain("[star");
   });
 
   it("defaults a missing max to a 10-point scale", () => {
     const out = stripWidgetShortcodes("[star rating=\u201d8\u201d]");
-    expect(out).toContain("\u2605 8/10");
+    expect(out).toContain("\u2605");
+    expect(out).toContain(">8/10</span>");
     expect(out).toContain('aria-label="Rating: 8 out of 10"');
   });
 
   it("supports a decimal rating value", () => {
     const out = stripWidgetShortcodes('[star rating="8.5" max="10"]');
-    expect(out).toContain("\u2605 8.5/10");
+    expect(out).toContain("\u2605");
+    expect(out).toContain(">8.5/10</span>");
   });
 
   it("drops a [star] marker with no parseable rating value", () => {
